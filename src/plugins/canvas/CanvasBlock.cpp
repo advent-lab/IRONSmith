@@ -21,6 +21,7 @@ bool CanvasBlock::s_globalShowPorts = true;
 std::unique_ptr<CanvasItem> CanvasBlock::clone() const
 {
     auto blk = std::make_unique<CanvasBlock>(m_boundsScene, m_movable, m_label);
+    blk->setStereotype(m_stereotype);
     blk->setSpecId(m_specId);
     blk->setPorts(m_ports);
     blk->m_showPorts = m_showPorts;
@@ -83,6 +84,47 @@ static double snapToStep(double v, double step)
     return std::llround(v / step) * step;
 }
 
+static PortSide oppositeSide(PortSide side)
+{
+    switch (side) {
+        case PortSide::Left: return PortSide::Right;
+        case PortSide::Right: return PortSide::Left;
+        case PortSide::Top: return PortSide::Bottom;
+        case PortSide::Bottom: return PortSide::Top;
+    }
+    return side;
+}
+
+static QString normalizedBoundConsumerName(const QString& rawName)
+{
+    const QString normalized = rawName.trimmed();
+    if (normalized.isEmpty())
+        return QStringLiteral("in");
+    if (Support::isPairedPortName(normalized) || Support::isLegacyPairedPortName(normalized))
+        return QStringLiteral("in");
+    return normalized;
+}
+
+static bool extractBoundLabelName(const QString& label, QString& outName)
+{
+    const QString normalized = label.trimmed();
+    if (!normalized.startsWith(QStringLiteral("C:")))
+        return false;
+
+    const int firstQuote = normalized.indexOf('"');
+    const int lastQuote = normalized.lastIndexOf('"');
+    if (firstQuote < 0 || lastQuote <= firstQuote)
+        return false;
+
+    outName = normalized.mid(firstQuote + 1, lastQuote - firstQuote - 1);
+    return true;
+}
+
+static QString boundConsumerLabelText(const QString& rawName)
+{
+    return QStringLiteral("C: \"%1\"").arg(normalizedBoundConsumerName(rawName));
+}
+
 PortId CanvasBlock::addPort(PortSide side, double t, PortRole role, QString name)
 {
     CanvasPort port;
@@ -130,6 +172,42 @@ bool CanvasBlock::updatePortName(PortId id, QString name)
             port.name = std::move(name);
             return true;
         }
+    }
+    return false;
+}
+
+bool CanvasBlock::updatePortBinding(PortId id, ObjectId bindingItemId, PortId bindingPortId)
+{
+    if (bindingItemId.isNull() || bindingPortId.isNull())
+        return clearPortBinding(id);
+
+    for (auto& port : m_ports) {
+        if (port.id != id)
+            continue;
+        const bool unchanged = port.hasBinding &&
+                               port.bindingItemId == bindingItemId &&
+                               port.bindingPortId == bindingPortId;
+        if (unchanged)
+            return false;
+        port.hasBinding = true;
+        port.bindingItemId = bindingItemId;
+        port.bindingPortId = bindingPortId;
+        return true;
+    }
+    return false;
+}
+
+bool CanvasBlock::clearPortBinding(PortId id)
+{
+    for (auto& port : m_ports) {
+        if (port.id != id)
+            continue;
+        if (!port.hasBinding)
+            return false;
+        port.hasBinding = false;
+        port.bindingItemId = ObjectId{};
+        port.bindingPortId = PortId{};
+        return true;
     }
     return false;
 }
@@ -246,52 +324,36 @@ void CanvasBlock::draw(QPainter& p, const CanvasRenderContext& ctx) const
     }
 
     if (m_showPorts && s_globalShowPorts) {
-        QHash<QString, int> labelIndices;
-        if (m_showPortLabels) {
-            int nextIndex = 1;
-            for (const auto& port : m_ports) {
-                if (!Support::isPairedProducerPort(port))
-                    continue;
-                const auto key = Support::pairedPortKey(port);
-                if (!key || key->isEmpty())
-                    continue;
-                if (!labelIndices.contains(*key))
-                    labelIndices.insert(*key, nextIndex++);
-            }
-        }
-
         for (const auto& port : m_ports) {
             const QPointF a = portAnchorScene(port.id);
             const bool hovered = ctx.portHovered(id(), port.id);
             const bool selected = ctx.portSelected(id(), port.id);
             CanvasStyle::drawPort(p, a, port.side, port.role, ctx.zoom, hovered || selected);
 
-            if (m_showPortLabels) {
-                QString label;
-                QString key;
-                if (auto k = Support::pairedPortKey(port); k && !k->isEmpty()) {
-                    key = *k;
-                } else if (port.role == PortRole::Consumer) {
-                    const QString legacyKey = port.id.toString();
-                    if (labelIndices.contains(legacyKey))
-                        key = legacyKey;
+            QString label;
+            PortSide labelSide = port.side;
+            if (port.role == PortRole::Producer && port.hasBinding) {
+                QString boundName;
+                if (ctx.objectFifoNameForEndpoint(port.bindingItemId, port.bindingPortId, boundName)) {
+                    label = boundConsumerLabelText(boundName);
+                } else {
+                    QString legacyName;
+                    if (extractBoundLabelName(port.name, legacyName))
+                        label = boundConsumerLabelText(legacyName);
+                    else
+                        label = boundConsumerLabelText(port.name);
                 }
+                labelSide = oppositeSide(port.side);
+            } else if (m_showPortLabels) {
+                label = port.name.trimmed();
+                if (Support::isPairedPortName(label) || Support::isLegacyPairedPortName(label))
+                    label.clear();
+            }
 
-                if (!key.isEmpty()) {
-                    const int index = labelIndices.value(key, 0);
-                    if (index > 0) {
-                        const bool isProducer = (port.role == PortRole::Producer);
-                        label = (isProducer ? QStringLiteral("OUT_%1")
-                                            : QStringLiteral("IN_%1"))
-                                    .arg(index);
-                    }
-                }
-
-                if (!label.isEmpty()) {
-                    const QColor labelColor = m_hasCustomColors ? m_labelColor
-                                                                : QColor(Constants::kBlockTextColor);
-                    CanvasStyle::drawPortLabel(p, a, port.side, ctx.zoom, label, labelColor);
-                }
+            if (!label.isEmpty()) {
+                const QColor labelColor = m_hasCustomColors ? m_labelColor
+                                                            : QColor(Constants::kBlockTextColor);
+                CanvasStyle::drawPortLabel(p, a, labelSide, ctx.zoom, label, labelColor);
             }
         }
     }

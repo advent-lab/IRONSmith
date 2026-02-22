@@ -16,8 +16,11 @@
 
 #include <QtCore/QEvent>
 #include <QtCore/QMarginsF>
+#include <QtCore/QHash>
 #include <QtCore/QSet>
 #include <QtCore/QtGlobal>
+
+#include <limits>
 
 namespace Canvas::Internal {
 
@@ -113,6 +116,11 @@ bool applyBlockSpec(Canvas::CanvasBlock* block,
 
     if (block->label() != spec.label) {
         block->setLabel(spec.label);
+        changed = true;
+    }
+
+    if (block->stereotype() != spec.stereotype) {
+        block->setStereotype(spec.stereotype);
         changed = true;
     }
 
@@ -288,25 +296,77 @@ void CanvasGridHostImpl::rebuildBlocks()
     nextHandles.reserve(m_blockSpecs.size());
 
     QSet<ObjectId> geometryTouched;
+    QSet<ObjectId> claimedBlockIds;
+    QSet<QString> managedSpecIds;
     bool hasInPlaceChanges = false;
     bool handlesChanged = false;
+
+    QHash<QString, QVector<CanvasBlock*>> existingBlocksBySpec;
+    existingBlocksBySpec.reserve(static_cast<int>(m_blockSpecs.size()));
+    QHash<ObjectId, int> attachmentCountByBlockId;
+    for (const auto& item : m_document->items()) {
+        auto* block = dynamic_cast<CanvasBlock*>(item.get());
+        if (block && !block->specId().trimmed().isEmpty()) {
+            existingBlocksBySpec[block->specId()].push_back(block);
+            continue;
+        }
+
+        const auto* wire = dynamic_cast<const CanvasWire*>(item.get());
+        if (!wire)
+            continue;
+        if (wire->a().attached)
+            attachmentCountByBlockId[wire->a().attached->itemId] += 1;
+        if (wire->b().attached)
+            attachmentCountByBlockId[wire->b().attached->itemId] += 1;
+    }
+
+    auto scoreBlockReuse = [&](const CanvasBlock& block) -> int {
+        const int attachments = attachmentCountByBlockId.value(block.id());
+        const int ports = static_cast<int>(block.ports().size());
+        return attachments * 100 + ports * 10;
+    };
+
+    auto takeBestExistingBlock = [&](const QString& specId) -> CanvasBlock* {
+        const auto matchesIt = existingBlocksBySpec.constFind(specId);
+        if (matchesIt == existingBlocksBySpec.constEnd())
+            return nullptr;
+
+        CanvasBlock* best = nullptr;
+        int bestScore = std::numeric_limits<int>::min();
+        for (auto* candidate : matchesIt.value()) {
+            if (!candidate)
+                continue;
+            if (claimedBlockIds.contains(candidate->id()))
+                continue;
+            const int score = scoreBlockReuse(*candidate);
+            if (!best || score > bestScore) {
+                best = candidate;
+                bestScore = score;
+            }
+        }
+        return best;
+    };
 
     for (const auto& spec : m_blockSpecs) {
         if (spec.id.trimmed().isEmpty())
             continue;
         if (!spec.gridRect.isValid())
             continue;
+        managedSpecIds.insert(spec.id);
 
-    const QRectF gridRect = rectForBlock(spec, cellSize);
-    const QSizeF size = spec.hasPreferredSize()
-                            ? QSizeF(spec.preferredSize.width() * kWorldScale,
-                                     spec.preferredSize.height() * kWorldScale)
-                            : gridRect.size();
+        const QRectF gridRect = rectForBlock(spec, cellSize);
+        const QSizeF size = spec.hasPreferredSize()
+                                ? QSizeF(spec.preferredSize.width() * kWorldScale,
+                                         spec.preferredSize.height() * kWorldScale)
+                                : gridRect.size();
         const QPointF topLeft = gridRect.topLeft() + spec.positionOffset;
         const QRectF bounds(topLeft, size);
 
         CanvasBlockHandleImpl* handle = m_handles.value(spec.id, nullptr);
         CanvasBlock* block = handle ? handle->block() : nullptr;
+        if (!block)
+            block = takeBestExistingBlock(spec.id);
+
         const bool isNewBlock = (block == nullptr);
 
         if (!block) {
@@ -315,6 +375,7 @@ void CanvasGridHostImpl::rebuildBlocks()
         }
         if (!block)
             continue;
+        claimedBlockIds.insert(block->id());
 
         if (block->specId() != spec.id)
             block->setSpecId(spec.id);
@@ -351,6 +412,22 @@ void CanvasGridHostImpl::rebuildBlocks()
     }
 
     m_handles = std::move(nextHandles);
+
+    // Keep exactly one managed block per spec id: remove stale duplicates left from prior rebuild races.
+    QVector<ObjectId> orphanManagedBlocks;
+    for (const auto& item : m_document->items()) {
+        auto* block = dynamic_cast<CanvasBlock*>(item.get());
+        if (!block)
+            continue;
+        const QString specId = block->specId();
+        if (specId.isEmpty() || !managedSpecIds.contains(specId))
+            continue;
+        if (claimedBlockIds.contains(block->id()))
+            continue;
+        orphanManagedBlocks.push_back(block->id());
+    }
+    for (const auto& id : orphanManagedBlocks)
+        m_document->removeItem(id);
 
     if (!geometryTouched.isEmpty()) {
         for (const auto& item : m_document->items()) {

@@ -226,6 +226,9 @@ protected:
         case QEvent::Wheel:
             forwardToBase(e);
             return true;
+        case QEvent::Leave:
+            unsetCursor();
+            break;
         default:
             break;
         }
@@ -263,6 +266,7 @@ private:
                                   me->buttons(),
                                   me->modifiers());
             QApplication::sendEvent(target, &forwarded);
+            applyTargetCursor(target);
             return;
         }
 
@@ -284,6 +288,22 @@ private:
             QApplication::sendEvent(target, &forwarded);
             return;
         }
+    }
+
+    void applyTargetCursor(QWidget* target)
+    {
+        if (!target) {
+            unsetCursor();
+            return;
+        }
+
+        const QCursor targetCursor = target->cursor();
+        if (targetCursor.shape() == Qt::ArrowCursor && !target->testAttribute(Qt::WA_SetCursor)) {
+            unsetCursor();
+            return;
+        }
+
+        setCursor(targetCursor);
     }
 
 private:

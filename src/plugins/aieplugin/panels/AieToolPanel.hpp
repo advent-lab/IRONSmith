@@ -4,19 +4,6 @@
 #pragma once
 
 #include <QtWidgets/QWidget>
-#include <qnamespace.h>
-
-namespace Utils {
-class SidebarPanelFrame;
-class ColorSwatchButton;
-class LabeledSlider;
-}
-
-QT_BEGIN_NAMESPACE
-class QCheckBox;
-class QGroupBox;
-class QPushButton;
-QT_END_NAMESPACE
 
 namespace Aie {
 class AieCanvasCoordinator;
@@ -33,28 +20,7 @@ public:
 
 private:
     void buildUi();
-    void syncFromCoordinator();
-
     AieCanvasCoordinator* m_coordinator = nullptr;
-    Utils::SidebarPanelFrame* m_frame = nullptr;
-    Utils::LabeledSlider* m_horizontalSpacingSlider = nullptr;
-    Utils::LabeledSlider* m_verticalSpacingSlider = nullptr;
-    Utils::LabeledSlider* m_outwardSpreadSlider = nullptr;
-    Utils::LabeledSlider* m_nudgeStepSlider = nullptr;
-    QPushButton* m_nudgeUpButton = nullptr;
-    QPushButton* m_nudgeDownButton = nullptr;
-    QPushButton* m_nudgeLeftButton = nullptr;
-    QPushButton* m_nudgeRightButton = nullptr;
-    class QCheckBox* m_autoCellCheck = nullptr;
-    Utils::LabeledSlider* m_cellSizeSlider = nullptr;
-    class QCheckBox* m_showPortsCheck = nullptr;
-    class QCheckBox* m_showLabelsCheck = nullptr;
-    class QCheckBox* m_showAnnotationsCheck = nullptr;
-    Utils::LabeledSlider* m_keepoutSlider = nullptr;
-    class QCheckBox* m_useCustomColorsCheck = nullptr;
-    Utils::ColorSwatchButton* m_fillColorButton = nullptr;
-    Utils::ColorSwatchButton* m_outlineColorButton = nullptr;
-    Utils::ColorSwatchButton* m_labelColorButton = nullptr;
 };
 
 } // namespace Aie::Internal

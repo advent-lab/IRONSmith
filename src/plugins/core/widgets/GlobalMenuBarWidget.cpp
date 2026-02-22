@@ -4,6 +4,7 @@
 #include "core/widgets/GlobalMenuBarWidget.hpp"
 
 #include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QSizePolicy>
 #include <QtWidgets/QToolButton>
 
 #include "core/ui/UiObjectNames.hpp"
@@ -18,7 +19,7 @@ GlobalMenuBarWidget::GlobalMenuBarWidget(QWidget* parent)
     setAttribute(Qt::WA_StyledBackground, true);
     m_layout = new QHBoxLayout(this);
     m_layout->setContentsMargins(Ui::UiStyle::MenuBarHMargin, 0,
-                                Ui::UiStyle::MenuBarHMargin, 0);
+                                 Ui::UiStyle::MenuBarHMargin, 0);
     m_layout->setSpacing(Ui::UiStyle::MenuBarButtonSpacing);
 }
 
@@ -44,7 +45,7 @@ void GlobalMenuBarWidget::clearButtons()
 {
     while (auto* item = m_layout->takeAt(0)) {
         if (auto* w = item->widget())
-            w->deleteLater();
+            delete w;
         delete item;
     }
 }
@@ -60,10 +61,15 @@ void GlobalMenuBarWidget::rebuild()
 
     for (const auto& it : m_model->items()) {
         auto* b = new QToolButton(this);
+        b->setObjectName(QStringLiteral("MenuTabButton"));
+        b->setProperty("menuTabId", it.id());
         b->setText(it.title());
-        b->setAutoRaise(true);
+        b->setAutoRaise(false);
         b->setFocusPolicy(Qt::NoFocus);
+        b->setCursor(Qt::PointingHandCursor);
         b->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        b->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+        b->setMinimumHeight(Ui::UiStyle::MenuBarHeightPx - 6);
 
         b->setCheckable(true);
         b->setAutoExclusive(true);

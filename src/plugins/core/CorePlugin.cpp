@@ -4,13 +4,8 @@
 #include "core/CorePlugin.hpp"
 
 #include <QtGui/QAction>
-#include <QActionGroup>
-#include <QtGui/QIcon>
-#include <QtWidgets/QMenu>
-#include <QtWidgets/QFrame>
-#include <QtWidgets/QLabel>
-#include <QtWidgets/QVBoxLayout>
 #include <QtCore/QDebug>
+#include <QElapsedTimer>
 
 #include <extensionsystem/PluginManager.hpp>
 
@@ -20,6 +15,7 @@
 #include "core/CommandRibbon.hpp"
 #include "core/HeaderInfoService.hpp"
 #include "core/ui/IUiHost.hpp"
+#include "core/ui/IconLoader.hpp"
 #include "core/widgets/InfoBarWidget.hpp"
 
 // Sidebar test wiring (Core-internal)
@@ -53,6 +49,7 @@ Utils::Result CorePlugin::initialize(const QStringList& arguments,
 	Q_UNUSED(arguments);
 	Q_UNUSED(manager);
 
+	qCInfo(corelog) << "Initializing...";
 	if (m_core)
 		return Utils::Result::failure("CorePlugin initialized twice.");
 
@@ -64,7 +61,12 @@ Utils::Result CorePlugin::initialize(const QStringList& arguments,
 
 	ExtensionSystem::PluginManager::addObject(ui);
 
+	qCInfo(corelog) << "setting up command ribbon actions.";
+	QElapsedTimer timer;
+	timer.start();
 	setupCommandRibbonActions(ui);
+	qint64 ns = timer.nsecsElapsed();
+	qCInfo(corelog) << "command ribbon actions setup complete: avg =" << (ns/1e9) << " secs.";
 	if (auto* bar = ui->playgroundTopBar()) {
 		m_headerInfo = new Internal::HeaderInfoService(this);
 		m_headerInfo->bindInfoBar(bar);
@@ -78,6 +80,7 @@ void CorePlugin::extensionsInitialized(ExtensionSystem::PluginManager& manager)
 {
 	Q_UNUSED(manager);
 
+	qCInfo(corelog) << "extensionsInitialized()...";
 	if (m_core)
 		m_core->open();
 }
@@ -86,6 +89,19 @@ void CorePlugin::setupCommandRibbonActions(Core::IUiHost* uiHost)
 {
 	if (!uiHost)
 		return;
+
+	struct RibbonUpdateBatchGuard final
+	{
+		Core::IUiHost* host = nullptr;
+		~RibbonUpdateBatchGuard()
+		{
+			if (host)
+				host->endRibbonUpdateBatch();
+		}
+	};
+
+	uiHost->beginRibbonUpdateBatch();
+	const RibbonUpdateBatchGuard batchGuard{uiHost};
 
 	uiHost->addMenuTab(Constants::RIBBON_TAB_HOME, "Home");
 	uiHost->addMenuTab(Constants::RIBBON_TAB_VIEW, "View");
@@ -111,42 +127,22 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 
 	auto* actNew    = new QAction(tr("New Design"), this);
 	auto* actOpen   = new QAction(tr("Open…"), this);
-	auto* actSave   = new QAction(tr("Save"), this);
-	auto* actSaveAs = new QAction(tr("Save As…"), this);
 
-	// actNew->setIcon(QIcon(":/ui/icons/32x32/document-new.png"));
-	actNew->setIcon(QIcon(":/ui/icons/64x64/file-new.png"));
-	actOpen->setIcon(QIcon(":/ui/icons/64x64/folder-new.png"));
-	actSave->setIcon(QIcon(":/ui/icons/64x64/file-save.png"));
-	actSaveAs->setIcon(QIcon(":/ui/icons/64x64/file-save-as.png"));
-
-	auto* recentMenu = new QMenu;
-	connect(this, &QObject::destroyed, recentMenu, &QObject::deleteLater);
-	{
-		auto* placeholder = recentMenu->addAction(tr("No recent projects"));
-		placeholder->setEnabled(false);
-	}
-
-	auto* actRecent = new QAction(tr("Recent"), this);
-	actRecent->setMenu(recentMenu);
-	actRecent->setIcon(QIcon(":/ui/icons/32x32/document-open-recent.png"));
+	actNew->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/file_new_icon.svg"), QSize(28, 28)));
+	actOpen->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/opened_folder.svg"), QSize(28, 28)));
 
 	connect(actNew, &QAction::triggered, this, [] {
 		qCWarning(corelog) << "New Design triggered (no project service bound yet).";
 	});
-	connect(actSave, &QAction::triggered, this, [] {
-		qCWarning(corelog) << "Save triggered (no project service bound yet).";
-	});
-	connect(actSaveAs, &QAction::triggered, this, [] {
-		qCWarning(corelog) << "Save As triggered (no project service bound yet).";
-	});
+
+	RibbonPresentation projectPres;
+	projectPres.size = RibbonVisualSize::Large;
+	projectPres.iconPlacement = RibbonIconPlacement::AboveText;
+	projectPres.iconPx = 28;
 
 	auto projectRoot = RibbonNode::makeRow("project_root");
-	projectRoot->addCommand(Constants::PROJECT_NEW_ITEMID, actNew, RibbonControlType::Button, {});
-	projectRoot->addCommand(Constants::PROJECT_OPEN_ITEMID, actOpen, RibbonControlType::Button, {});
-	projectRoot->addCommand(Constants::PROJECT_SAVE_ITEMID, actSave, RibbonControlType::Button, {});
-	projectRoot->addCommand(Constants::PROJECT_SAVE_AS_ITEMID, actSaveAs, RibbonControlType::Button, {});
-	projectRoot->addCommand(Constants::PROJECT_RECENT_ITEMID, actRecent, RibbonControlType::DropDownButton, {});
+	projectRoot->addCommand(Constants::PROJECT_NEW_ITEMID, actNew, RibbonControlType::Button, projectPres);
+	projectRoot->addCommand(Constants::PROJECT_OPEN_ITEMID, actOpen, RibbonControlType::Button, projectPres);
 
 	if (const auto res = uiHost->setRibbonGroupLayout(Constants::RIBBON_TAB_HOME,
 	                                                  Constants::RIBBON_TAB_HOME_PROJECT_GROUP,
@@ -161,6 +157,8 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 	auto* actSplit = new QAction(tr("Split"), this);
 	auto* actJoin = new QAction(tr("Join"), this);
 	auto* actBroadcast = new QAction(tr("Broadcast"), this);
+	auto* actFifo = new QAction(tr("FIFO"), this);
+	auto* actForwardFifo = new QAction(tr("FWD FIFO"), this);
 
 	actSelect->setCheckable(true);
 	actPan->setCheckable(true);
@@ -168,31 +166,42 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 	actSplit->setCheckable(true);
 	actJoin->setCheckable(true);
 	actBroadcast->setCheckable(true);
+	actFifo->setCheckable(true);
+	actForwardFifo->setCheckable(true);
 
-	actSelect->setIcon(QIcon(":/ui/icons/svg/select_hand_pointer_icon.svg"));
-	actPan->setIcon(QIcon(":/ui/icons/svg/pan_icon.svg"));
-	actLink->setIcon(QIcon(":/ui/icons/svg/link_icon.svg"));
-	actSplit->setIcon(QIcon(":/ui/icons/svg/split_link_icon.svg"));
-	actJoin->setIcon(QIcon(":/ui/icons/svg/merge_link_icon.svg"));
-	actBroadcast->setIcon(QIcon(":/ui/icons/svg/broadcast_link_icon.svg"));
+	actSelect->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/select_hand_pointer_icon.svg"), QSize(20, 20)));
+	actPan->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/pan_icon.svg"), QSize(20, 20)));
+	actLink->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/link_icon.svg"), QSize(28, 28)));
+	actSplit->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/split_link_icon.svg"), QSize(20, 20)));
+	actJoin->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/merge_link_icon.svg"), QSize(20, 20)));
+	actBroadcast->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/broadcast_link_icon.svg"), QSize(20, 20)));
+	actFifo->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/fifo_icon.svg"), QSize(20, 20)));
+	actForwardFifo->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/forward_fifo_icon.svg"), QSize(20, 20)));
+
+	actFifo->setToolTip(tr("FIFO Link Mode: create ObjectFIFO links"));
+	actForwardFifo->setToolTip(tr("Forward FIFO Mode: create FWD ObjectFIFO links"));
 
 	RibbonPresentation smallPres;
 	smallPres.size = RibbonVisualSize::Small;
+	smallPres.iconPlacement = RibbonIconPlacement::AboveText;
 	smallPres.iconPx = 20;
 
 	RibbonPresentation linkPres = smallPres;
 	linkPres.size = RibbonVisualSize::Large;
-	linkPres.iconPx = 32;
+	linkPres.iconPx = 28;
 
-	auto canvasRoot = RibbonNode::makeRow("canvas_root");
-	canvasRoot->addCommand(Constants::CANVAS_SELECT_ITEMID, actSelect, RibbonControlType::ToggleButton, smallPres);
-	canvasRoot->addCommand(Constants::CANVAS_PAN_ITEMID, actPan, RibbonControlType::ToggleButton, smallPres);
-	canvasRoot->addSeparator("canvas_link_sep");
+	auto canvasRoot = RibbonNode::makeColumn("canvas_root");
+	auto& canvasTopRow = canvasRoot->addRow("canvas_top_row");
+	canvasTopRow.addCommand(Constants::CANVAS_SELECT_ITEMID, actSelect, RibbonControlType::ToggleButton, smallPres);
+	canvasTopRow.addCommand(Constants::CANVAS_PAN_ITEMID, actPan, RibbonControlType::ToggleButton, smallPres);
+	canvasTopRow.addCommand(Constants::CANVAS_LINK_ITEMID, actLink, RibbonControlType::ToggleButton, linkPres);
 
-	canvasRoot->addCommand(Constants::CANVAS_LINK_ITEMID, actLink, RibbonControlType::ToggleButton, linkPres);
-	canvasRoot->addCommand(Constants::CANVAS_LINK_SPLIT_ITEMID, actSplit, RibbonControlType::ToggleButton, smallPres);
-	canvasRoot->addCommand(Constants::CANVAS_LINK_JOIN_ITEMID, actJoin, RibbonControlType::ToggleButton, smallPres);
-	canvasRoot->addCommand(Constants::CANVAS_LINK_BROADCAST_ITEMID, actBroadcast, RibbonControlType::ToggleButton, smallPres);
+	auto& canvasLinkRow = canvasRoot->addRow("canvas_link_row");
+	canvasLinkRow.addCommand(Constants::CANVAS_LINK_SPLIT_ITEMID, actSplit, RibbonControlType::ToggleButton, smallPres);
+	canvasLinkRow.addCommand(Constants::CANVAS_LINK_JOIN_ITEMID, actJoin, RibbonControlType::ToggleButton, smallPres);
+	canvasLinkRow.addCommand(Constants::CANVAS_LINK_BROADCAST_ITEMID, actBroadcast, RibbonControlType::ToggleButton, smallPres);
+	canvasLinkRow.addCommand(Constants::CANVAS_LINK_FIFO_ITEMID, actFifo, RibbonControlType::ToggleButton, smallPres);
+	canvasLinkRow.addCommand(Constants::CANVAS_LINK_FORWARD_FIFO_ITEMID, actForwardFifo, RibbonControlType::ToggleButton, smallPres);
 
 	if (const auto res = uiHost->setRibbonGroupLayout(Constants::RIBBON_TAB_HOME,
 	                                                  Constants::RIBBON_TAB_HOME_CANVAS_GROUP,
@@ -206,7 +215,7 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 	auto* actToggleArrows = new QAction(tr("Wire Arrows"), this);
 
 	actToggleArrows->setCheckable(true);
-	actAutoRoute->setIcon(QIcon(":/ui/icons/svg/auto_route_icon.svg"));
+	actAutoRoute->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/auto_route_icon.svg"), QSize(20, 20)));
 
 	auto wiresRoot = RibbonNode::makeRow("wires_root");
 	wiresRoot->addCommand(Constants::CANVAS_WIRE_AUTO_ROUTE_ITEMID, actAutoRoute, RibbonControlType::Button, smallPres);
@@ -224,10 +233,10 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 	auto* actZoomFit = new QAction(tr("Zoom to Fit"), this);
 	auto* actResetView = new QAction(tr("Reset View"), this);
 
-	actZoomIn->setIcon(QIcon(":/ui/icons/svg/zoom_in_icon.svg"));
-	actZoomOut->setIcon(QIcon(":/ui/icons/svg/zoom_out_icon.svg"));
-	actZoomFit->setIcon(QIcon(":/ui/icons/svg/zoom_fit_icon.svg"));
-	actResetView->setIcon(QIcon(":/ui/icons/svg/reset_icon.svg"));
+	actZoomIn->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/zoom_in_icon.svg"), QSize(20, 20)));
+	actZoomOut->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/zoom_out_icon.svg"), QSize(20, 20)));
+	actZoomFit->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/zoom_fit_icon.svg"), QSize(20, 20)));
+	actResetView->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/reset_icon.svg"), QSize(20, 20)));
 
 	auto viewRoot = RibbonNode::makeRow("view_root");
 	viewRoot->addCommand(Constants::CANVAS_VIEW_ZOOM_IN_ITEMID, actZoomIn, RibbonControlType::Button, smallPres);

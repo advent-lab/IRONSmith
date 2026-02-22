@@ -18,20 +18,27 @@ struct UiStyle final
 	static constexpr int PadS = 6;
 	static constexpr int PadM = 10;
 
-	static constexpr int MenuBarHeightPx = 32;
-	static constexpr int MenuBarHMargin = 8;
-	static constexpr int MenuBarButtonSpacing = 2;
+	static constexpr int MenuBarHeightPx = 34;
+	static constexpr int MenuBarHMargin = 10;
+	static constexpr int MenuBarButtonSpacing = 4;
 
-	static constexpr int RibbonHostHeightPx = 100;
-	static constexpr int RibbonIconLargePx = 64;
-	static constexpr int RibbonIconMediumPx = 48;
-	static constexpr int RibbonIconSmallPx = 32;
+	static constexpr int RibbonHostHeightPx = 112;
+	static constexpr int RibbonIconLargePx = 28;
+	static constexpr int RibbonIconMediumPx = 22;
+	static constexpr int RibbonIconSmallPx = 18;
 	static constexpr int RibbonIconDefaultPx = RibbonIconMediumPx;
-	static constexpr int RibbonPageHPaddingPx         = 8;
-	static constexpr int RibbonPageVPaddingPx         = 4;
-
-	static constexpr int RibbonGroupContentHPaddingPx = 6;
-	static constexpr int RibbonGroupContentVPaddingPx = 4;
+	static constexpr int RibbonPageHPaddingPx = 10;
+	static constexpr int RibbonPageVPaddingPx = 6;
+	static constexpr int RibbonGroupContentHPaddingPx = 8;
+	static constexpr int RibbonGroupContentVPaddingPx = 6;
+	static constexpr int RibbonGroupTitleHeightPx = 18;
+	static constexpr int RibbonLayoutSpacingPx = 6;
+	static constexpr int RibbonCommandLargeMinWidthPx = 82;
+	static constexpr int RibbonCommandLargeMinHeightPx = 66;
+	static constexpr int RibbonCommandMediumMinWidthPx = 74;
+	static constexpr int RibbonCommandMediumMinHeightPx = 58;
+	static constexpr int RibbonCommandSmallMinWidthPx = 68;
+	static constexpr int RibbonCommandSmallMinHeightPx = 52;
 	static constexpr int TopBarHeight = 28;
 	static constexpr int BottomBarHeight = 28;
 

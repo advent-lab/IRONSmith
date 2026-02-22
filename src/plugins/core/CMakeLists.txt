@@ -35,6 +35,8 @@ ironsmith_add_plugin(CorePlugin
             SidebarModel.cpp
             SidebarRegistryImpl.hpp
             SidebarRegistryImpl.cpp
+            state/CoreUiState.hpp
+            state/CoreUiState.cpp
 
         PUBLIC_DEPENDS
             ${QT6_REQUIRED_COMPONENTS}

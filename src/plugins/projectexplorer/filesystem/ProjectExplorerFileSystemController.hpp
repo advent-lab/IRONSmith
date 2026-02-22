@@ -6,7 +6,6 @@
 #include "projectexplorer/ProjectExplorerGlobal.hpp"
 
 #include "projectexplorer/filesystem/ProjectExplorerFileSystemService.hpp"
-#include "projectexplorer/api/ProjectExplorerTypes.hpp"
 
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
@@ -35,9 +34,7 @@ public:
 
 public slots:
     void handleContextAction(const QString& actionId, const QString& relPath);
-    void handleEntryActivated(const QString& relPath);
     void handleRevealPath(const QString& relPath);
-    void handleOpenRequest(const QString& relPath, ProjectExplorer::ProjectEntryKind kind);
 
 signals:
     void confirmDeletesChanged(bool enabled);

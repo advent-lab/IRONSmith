@@ -85,6 +85,28 @@ std::optional<Canvas::Support::LinkWireRole> wireRoleFromHubPortRole(Canvas::Por
     return std::nullopt;
 }
 
+DesignLink::ObjectFifo::Operation toDesignObjectFifoOperation(Canvas::CanvasWire::ObjectFifoOperation operation)
+{
+    switch (operation) {
+        case Canvas::CanvasWire::ObjectFifoOperation::Forward:
+            return DesignLink::ObjectFifo::Operation::Forward;
+        case Canvas::CanvasWire::ObjectFifoOperation::Fifo:
+            return DesignLink::ObjectFifo::Operation::Fifo;
+    }
+    return DesignLink::ObjectFifo::Operation::Fifo;
+}
+
+Canvas::CanvasWire::ObjectFifoOperation toCanvasObjectFifoOperation(DesignLink::ObjectFifo::Operation operation)
+{
+    switch (operation) {
+        case DesignLink::ObjectFifo::Operation::Forward:
+            return Canvas::CanvasWire::ObjectFifoOperation::Forward;
+        case DesignLink::ObjectFifo::Operation::Fifo:
+            return Canvas::CanvasWire::ObjectFifoOperation::Fifo;
+    }
+    return Canvas::CanvasWire::ObjectFifoOperation::Fifo;
+}
+
 QString portKey(const DesignPort& port)
 {
     const QString name = port.hasPairId ? port.pairId : (port.hasName ? port.name : QString());
@@ -273,6 +295,16 @@ Utils::Result buildDesignStateFromCanvas(Canvas::CanvasDocument& doc,
                 link.routeOverride.push_back(coord);
         }
 
+        if (wire->hasObjectFifo()) {
+            const auto& objectFifo = wire->objectFifo().value();
+            link.objectFifo.name = objectFifo.name;
+            link.objectFifo.depth = objectFifo.depth;
+            link.objectFifo.operation = toDesignObjectFifoOperation(objectFifo.operation);
+            link.objectFifo.type.dimensions = objectFifo.type.dimensions;
+            link.objectFifo.type.valueType = objectFifo.type.valueType;
+            link.hasObjectFifo = true;
+        }
+
         out.links.push_back(link);
     }
 
@@ -320,7 +352,7 @@ Utils::Result applyDesignStateToCanvas(const DesignState& state,
 
         auto hub = std::make_unique<Canvas::CanvasBlock>(node.bounds, true, QString());
         hub->setShowPorts(false);
-        hub->setAutoPortLayout(true);
+        hub->setAutoPortLayout(false);
         hub->setPortSnapStep(Canvas::Constants::kGridStep);
         hub->setLinkHub(true);
         hub->setKeepoutMargin(0.0);
@@ -418,6 +450,15 @@ Utils::Result applyDesignStateToCanvas(const DesignState& state,
             for (const auto& coord : link.routeOverride)
                 route.push_back(coord);
             wire->setRouteOverride(std::move(route));
+        }
+        if (link.hasObjectFifo) {
+            Canvas::CanvasWire::ObjectFifoConfig objectFifo;
+            objectFifo.name = link.objectFifo.name;
+            objectFifo.depth = link.objectFifo.depth;
+            objectFifo.operation = toCanvasObjectFifoOperation(link.objectFifo.operation);
+            objectFifo.type.dimensions = link.objectFifo.type.dimensions;
+            objectFifo.type.valueType = link.objectFifo.type.valueType;
+            wire->setObjectFifo(objectFifo);
         }
 
         std::optional<Canvas::Support::LinkWireRole> hubRole;

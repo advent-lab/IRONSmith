@@ -7,7 +7,7 @@ namespace Aie::Internal {
 
 bool DesignModel::hasDesignState() const
 {
-    return !design.isEmpty();
+    return !legacyDesignState.isEmpty();
 }
 
 } // namespace Aie::Internal

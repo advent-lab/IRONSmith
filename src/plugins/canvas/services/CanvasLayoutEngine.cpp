@@ -158,7 +158,8 @@ void layoutPortsOnSide(CanvasBlock& block,
 
 bool CanvasLayoutEngine::arrangeAutoPorts(CanvasDocument& doc, CanvasBlock& block) const
 {
-    if (!block.autoPortLayout() || !block.hasPorts())
+    // Link hubs support user-directed port placement and should not be auto-rearranged.
+    if (block.isLinkHub() || !block.autoPortLayout() || !block.hasPorts())
         return false;
 
     const auto beforePorts = block.ports();

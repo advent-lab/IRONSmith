@@ -19,6 +19,9 @@ SidebarRegistryImpl::SidebarRegistryImpl(QObject* parent)
 
 	connect(m_model, &SidebarModel::toolUnregistered,
 			this, &ISidebarRegistry::toolUnregistered);
+
+	connect(m_model, &SidebarModel::toolOpenStateChanged,
+			this, &ISidebarRegistry::toolOpenStateChanged);
 }
 
 bool SidebarRegistryImpl::registerTool(const SidebarToolSpec& spec,
@@ -35,6 +38,11 @@ bool SidebarRegistryImpl::registerTool(const SidebarToolSpec& spec,
 bool SidebarRegistryImpl::unregisterTool(const QString& id, QString* errorOut)
 {
 	return m_model->unregisterTool(id, errorOut);
+}
+
+bool SidebarRegistryImpl::isToolOpen(const QString& id) const
+{
+	return m_model->isOpen(id);
 }
 
 void SidebarRegistryImpl::requestShowTool(const QString& id)

@@ -21,3 +21,7 @@ Thumbs.db
 .pre-commit-config.yaml
 !.gitignore
 !.github/
+
+# Misc. files and folders
+Sandbox/
+sandbox (1)/

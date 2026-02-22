@@ -4,6 +4,7 @@
 #pragma once
 
 #include "canvas/CanvasGlobal.hpp"
+#include "canvas/CanvasRenderContext.hpp"
 #include "canvas/CanvasTypes.hpp"
 #include "canvas/CanvasPorts.hpp"
 
@@ -18,6 +19,7 @@
 
 QT_BEGIN_NAMESPACE
 class QPainter;
+class QContextMenuEvent;
 QT_END_NAMESPACE
 
 namespace Canvas {
@@ -67,10 +69,24 @@ public:
 
 	void setHoveredPort(ObjectId itemId, PortId portId);
 	void clearHoveredPort();
+    void setHoveredWire(ObjectId itemId);
+    void clearHoveredWire();
+    bool hasHoveredWire() const noexcept;
+    ObjectId hoveredWire() const noexcept;
+    void setHoveredStereotype(ObjectId itemId);
+    void clearHoveredStereotype();
 	void setHoveredEdge(ObjectId itemId, PortSide side, const QPointF& anchorScene);
 	void clearHoveredEdge();
 	void setMarqueeRect(const QRectF& sceneRect);
 	void clearMarqueeRect();
+    void setWireAnnotationVisibilityMode(WireAnnotationVisibilityMode mode);
+    WireAnnotationVisibilityMode wireAnnotationVisibilityMode() const noexcept;
+    void setWireAnnotationDetailMode(WireAnnotationDetailMode mode);
+    WireAnnotationDetailMode wireAnnotationDetailMode() const noexcept;
+    void setWireAnnotationsScaleWithZoom(bool enabled);
+    bool wireAnnotationsScaleWithZoom() const noexcept;
+    void setShowAllWireAnnotations(bool enabled);
+    bool showAllWireAnnotations() const noexcept;
 
     void setEmptyStateVisible(bool visible);
     bool emptyStateVisible() const noexcept { return m_emptyStateVisible; }
@@ -86,6 +102,7 @@ signals:
 	void canvasMousePressed(const QPointF& scenePos, Qt::MouseButtons buttons, Qt::KeyboardModifiers mods);
 	void canvasMouseMoved(const QPointF& scenePos, Qt::MouseButtons buttons, Qt::KeyboardModifiers mods);
 	void canvasMouseReleased(const QPointF& scenePos, Qt::MouseButtons buttons, Qt::KeyboardModifiers mods);
+    void canvasContextMenuRequested(const QPointF& scenePos, const QPoint& globalPos, Qt::KeyboardModifiers mods);
 	void canvasWheel(const QPointF& scenePos, const QPoint& angleDelta, const QPoint& pixelDelta, Qt::KeyboardModifiers mods);
 	void canvasKeyPressed(int key, Qt::KeyboardModifiers mods);
 
@@ -96,6 +113,7 @@ protected:
 	void mousePressEvent(QMouseEvent* event) override;
 	void mouseMoveEvent(QMouseEvent* event) override;
 	void mouseReleaseEvent(QMouseEvent* event) override;
+    void contextMenuEvent(QContextMenuEvent* event) override;
 	void wheelEvent(QWheelEvent* event) override;
 	void keyPressEvent(QKeyEvent* event) override;
 

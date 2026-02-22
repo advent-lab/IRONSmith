@@ -7,6 +7,7 @@
 #include "canvas/CanvasDocument.hpp"
 #include "canvas/CanvasSelectionModel.hpp"
 #include "canvas/CanvasView.hpp"
+#include "canvas/utils/CanvasLinkingMode.hpp"
 
 #include <extensionsystem/PluginManager.hpp>
 #include <core/ui/IUiHost.hpp>
@@ -85,21 +86,15 @@ void CanvasHostImpl::wireIntoApplication(ExtensionSystem::PluginManager& manager
 		}
 		return QStringLiteral("NORMAL");
 	};
-	auto linkingLabel = [](CanvasController::LinkingMode mode) -> QString {
-		switch (mode) {
-			case CanvasController::LinkingMode::Split: return QStringLiteral("SPLIT");
-			case CanvasController::LinkingMode::Join: return QStringLiteral("JOIN");
-			case CanvasController::LinkingMode::Broadcast: return QStringLiteral("BROADCAST");
-			case CanvasController::LinkingMode::Normal: break;
-		}
-		return QString();
-	};
-	auto modeValue = [modeLabel, linkingLabel](CanvasController::Mode mode,
-	                                           CanvasController::LinkingMode linkingMode) -> QString {
+	auto modeValue = [modeLabel](CanvasController::Mode mode,
+	                                           CanvasController::LinkingMode linkingMode,
+                                               bool boundProducerPlacementActive) -> QString {
 		const QString base = modeLabel(mode);
+        if (boundProducerPlacementActive)
+            return base + QStringLiteral("|BOUND_PRODUCER");
 		if (mode != CanvasController::Mode::Linking)
 			return base;
-		const QString sub = linkingLabel(linkingMode);
+		const QString sub = Support::linkingModeLabel(linkingMode);
 		if (sub.isEmpty())
 			return base;
 		return base + QStringLiteral("|") + sub;
@@ -108,12 +103,16 @@ void CanvasHostImpl::wireIntoApplication(ExtensionSystem::PluginManager& manager
 	if (m_controller) {
 		auto updateMode = [this, modeValue]() {
 			if (m_modeField && m_controller)
-				m_modeField->setValue(modeValue(m_controller->mode(), m_controller->linkingMode()));
+				m_modeField->setValue(modeValue(m_controller->mode(),
+                                               m_controller->linkingMode(),
+                                               m_controller->isBoundProducerPlacementActive()));
 		};
 		connect(m_controller, &CanvasController::modeChanged, this,
 		        [updateMode](CanvasController::Mode) { updateMode(); });
 		connect(m_controller, &CanvasController::linkingModeChanged, this,
 		        [updateMode](CanvasController::LinkingMode) { updateMode(); });
+        connect(m_controller, &CanvasController::boundProducerPlacementChanged, this,
+                [updateMode](bool) { updateMode(); });
 		updateMode();
 	}
 
@@ -161,6 +160,8 @@ void CanvasHostImpl::wireIntoApplication(ExtensionSystem::PluginManager& manager
 	connect(m_view, &CanvasView::canvasMousePressed, m_controller, &CanvasController::onCanvasMousePressed);
 	connect(m_view, &CanvasView::canvasMouseMoved, m_controller, &CanvasController::onCanvasMouseMoved);
 	connect(m_view, &CanvasView::canvasMouseReleased, m_controller, &CanvasController::onCanvasMouseReleased);
+    connect(m_view, &CanvasView::canvasContextMenuRequested,
+            m_controller, &CanvasController::onCanvasContextMenuRequested);
 	connect(m_view, &CanvasView::canvasWheel, m_controller, &CanvasController::onCanvasWheel);
 	connect(m_view, &CanvasView::canvasKeyPressed, m_controller, &CanvasController::onCanvasKeyPressed);
 

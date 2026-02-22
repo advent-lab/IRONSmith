@@ -31,6 +31,10 @@ struct CANVAS_EXPORT CanvasPort final {
     double t = 0.5;
 
     QString name{};
+
+    bool hasBinding = false;
+    ObjectId bindingItemId{};
+    PortId bindingPortId{};
 };
 
 } // namespace Canvas

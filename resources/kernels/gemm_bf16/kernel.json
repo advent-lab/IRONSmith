@@ -1,0 +1,17 @@
+{
+  "id": "gemm_bf16",
+  "name": "GEMM (BF16)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void gemm_bf16(const bf16* a, const bf16* b, bf16* c, int m, int n, int k);",
+  "description": "Reference BF16 matrix multiply kernel used as a built-in catalog fixture.",
+  "entry": "gemm_bf16.cpp",
+  "files": [
+    "gemm_bf16.cpp"
+  ],
+  "tags": [
+    "gemm",
+    "bf16",
+    "matmul"
+  ]
+}

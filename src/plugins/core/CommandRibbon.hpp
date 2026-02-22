@@ -8,6 +8,7 @@
 #include <QtCore/QString>
 #include <QtCore/QVector>
 #include <QtCore/QHash>
+#include <qnamespace.h>
 
 #include <QAction>
 
@@ -17,7 +18,9 @@
 
 #include "core/CoreGlobal.hpp"
 
+QT_BEGIN_NAMESPACE
 class QWidget;
+QT_END_NAMESPACE
 
 namespace Core {
 
@@ -274,6 +277,9 @@ public:
 
     QString activePageId() const { return m_activePageId; }
     RibbonResult setActivePageId(const QString& pageId);
+    void beginUpdateBatch();
+    void endUpdateBatch();
+    bool isInUpdateBatch() const { return m_updateBatchDepth > 0; }
 
 signals:
     void structureChanged();
@@ -282,11 +288,17 @@ signals:
 private:
     static bool isValidId(const QString& id);
     bool pageIdTaken(const QString& pageId) const;
+    void notifyStructureChanged();
+    void notifyActivePageChanged(const QString& activePageId);
 
 private:
     QVector<CommandRibbonPage*> m_pages;
     QHash<QString, CommandRibbonPage*> m_pagesById;
     QString m_activePageId;
+    int m_updateBatchDepth = 0;
+    bool m_structureChangePending = false;
+    bool m_activePageChangePending = false;
+    QString m_pendingActivePageId;
 };
 
 } // namespace Core

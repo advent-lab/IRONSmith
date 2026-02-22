@@ -4,14 +4,77 @@
 #include "aieplugin/design/DesignBundleCreator.hpp"
 
 #include <utils/DocumentBundle.hpp>
+#include <utils/filesystem/JsonFileUtils.hpp>
 #include <utils/filesystem/FileSystemUtils.hpp>
 
 #include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 
 namespace Aie::Internal {
+
+namespace {
+
+const QString kAieSpecRelativePath = QStringLiteral("aie/spec.json");
+const QString kCanvasDocumentRelativePath = QStringLiteral("canvas/document.json");
+
+Utils::Result writeAieBundleManifestV2(const QString& bundlePath, const QString& deviceFamily)
+{
+    QString readError;
+    QJsonObject manifest = Utils::DocumentBundle::readManifest(bundlePath, &readError);
+    if (!readError.isEmpty())
+        return Utils::Result::failure(readError);
+
+    manifest.insert(QStringLiteral("bundleSchemaVersion"), 2);
+
+    QJsonObject documents;
+    documents.insert(QStringLiteral("aieSpec"),
+                     QJsonObject{
+                         { QStringLiteral("path"), kAieSpecRelativePath },
+                         { QStringLiteral("schema"), QStringLiteral("aie.spec/1") }
+                     });
+    documents.insert(QStringLiteral("canvas"),
+                     QJsonObject{
+                         { QStringLiteral("path"), kCanvasDocumentRelativePath },
+                         { QStringLiteral("schema"), QStringLiteral("canvas.doc/1") }
+                     });
+    manifest.insert(QStringLiteral("documents"), documents);
+
+    QJsonArray files = manifest.value(QStringLiteral("files")).toArray();
+    auto ensureFile = [&files](const QString& path) {
+        for (const auto& entry : files) {
+            if (entry.toString() == path)
+                return;
+        }
+        files.append(path);
+    };
+    ensureFile(kAieSpecRelativePath);
+    ensureFile(kCanvasDocumentRelativePath);
+    manifest.insert(QStringLiteral("files"), files);
+
+    QJsonObject spec;
+    spec.insert(QStringLiteral("schemaVersion"), 1);
+    spec.insert(QStringLiteral("deviceFamily"), deviceFamily);
+
+    const QString specPath = QDir(bundlePath).filePath(kAieSpecRelativePath);
+    QDir specDir = QFileInfo(specPath).dir();
+    if (!specDir.exists() && !specDir.mkpath(QStringLiteral("."))) {
+        return Utils::Result::failure(QStringLiteral("Failed to create AIE specification folder."));
+    }
+
+    const Utils::Result writeSpecResult = Utils::JsonFileUtils::writeObjectAtomic(specPath,
+                                                                                   spec,
+                                                                                   QJsonDocument::Indented);
+    if (!writeSpecResult)
+        return writeSpecResult;
+
+    return Utils::DocumentBundle::writeManifest(bundlePath, manifest);
+}
+
+} // namespace
 
 Utils::Result DesignBundleCreator::validateRequest(const DesignBundleCreateRequest& request)
 {
@@ -97,6 +160,11 @@ Utils::Result DesignBundleCreator::create(const DesignBundleCreateRequest& reque
     const Utils::Result created = Utils::DocumentBundle::create(bundlePath, init);
     if (!created)
         return created;
+
+    const Utils::Result manifestUpgradeResult =
+        writeAieBundleManifestV2(bundlePath, request.deviceFamily.trimmed());
+    if (!manifestUpgradeResult)
+        return manifestUpgradeResult;
 
     outResult.bundlePath = bundlePath;
     outResult.displayName = init.name;

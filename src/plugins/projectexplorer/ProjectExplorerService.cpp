@@ -6,7 +6,11 @@
 #include "projectexplorer/ProjectExplorerFilterModel.hpp"
 #include "projectexplorer/ProjectExplorerModel.hpp"
 
+#include <QtCore/QDir>
+#include <QtCore/QFileInfo>
+#include <QtCore/QHash>
 #include <QtCore/QModelIndex>
+#include <QtCore/QSet>
 
 namespace ProjectExplorer::Internal {
 
@@ -43,8 +47,25 @@ void ProjectExplorerService::setRootLabel(const QString& label)
 
 void ProjectExplorerService::setEntries(const ProjectExplorer::ProjectEntryList& entries)
 {
+    const ProjectExplorer::ProjectEntryList previous = m_model->entries();
     m_model->setEntries(entries);
     emit entriesChanged(entries);
+
+    QHash<QString, ProjectExplorer::ProjectEntryKind> previousByPath;
+    previousByPath.reserve(previous.size());
+    for (const auto& entry : previous)
+        previousByPath.insert(entry.path, entry.kind);
+
+    QSet<QString> currentPaths;
+    currentPaths.reserve(entries.size());
+    for (const auto& entry : entries)
+        currentPaths.insert(entry.path);
+
+    for (auto it = previousByPath.cbegin(); it != previousByPath.cend(); ++it) {
+        if (currentPaths.contains(it.key()))
+            continue;
+        emit entryRemoved(absolutizePath(it.key()), it.value());
+    }
 }
 
 ProjectExplorer::ProjectEntryList ProjectExplorerService::entries() const
@@ -126,11 +147,31 @@ void ProjectExplorerService::setRootPath(const QString& path, bool userInitiated
     if (m_model)
         m_model->setRootPath(m_rootPath);
     emit rootPathChanged(m_rootPath, userInitiated);
+    emit workspaceRootChanged(m_rootPath, userInitiated);
 }
 
 QString ProjectExplorerService::rootPath() const
 {
     return m_rootPath;
+}
+
+void ProjectExplorerService::notifyEntryRemoved(const QString& path, ProjectExplorer::ProjectEntryKind kind)
+{
+    const QString cleaned = path.trimmed();
+    if (cleaned.isEmpty())
+        return;
+    emit entryRemoved(absolutizePath(cleaned), kind);
+}
+
+void ProjectExplorerService::notifyEntryRenamed(const QString& oldPath,
+                                                const QString& newPath,
+                                                ProjectExplorer::ProjectEntryKind kind)
+{
+    const QString oldCleaned = oldPath.trimmed();
+    const QString newCleaned = newPath.trimmed();
+    if (oldCleaned.isEmpty() || newCleaned.isEmpty())
+        return;
+    emit entryRenamed(absolutizePath(oldCleaned), absolutizePath(newCleaned), kind);
 }
 
 void ProjectExplorerService::setSearchText(const QString& text)
@@ -227,6 +268,20 @@ void ProjectExplorerService::requestContextAction(const QString& id, const QMode
 void ProjectExplorerService::requestOpenRoot()
 {
     openRoot();
+}
+
+QString ProjectExplorerService::absolutizePath(const QString& path) const
+{
+    const QString cleaned = path.trimmed();
+    if (cleaned.isEmpty())
+        return {};
+
+    const QFileInfo info(cleaned);
+    if (info.isAbsolute())
+        return QDir::cleanPath(info.absoluteFilePath());
+    if (m_rootPath.isEmpty())
+        return QDir::cleanPath(cleaned);
+    return QDir::cleanPath(QDir(m_rootPath).filePath(cleaned));
 }
 
 } // namespace ProjectExplorer::Internal

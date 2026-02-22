@@ -4,6 +4,7 @@
 #include "core/CoreImpl.hpp"
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QEvent>
 #include <QtCore/QTimer>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QMainWindow>
@@ -12,6 +13,7 @@
 
 #include "core/CoreGlobal.hpp"
 #include "core/CoreConstants.hpp"
+#include "core/state/CoreUiState.hpp"
 #include "core/widgets/FrameWidget.hpp"
 #include "core/ui/UiHostImpl.hpp"
 #include "core/ui/UiStyle.hpp"
@@ -55,16 +57,31 @@ void MainWindow::mousePressEvent(QMouseEvent* event) {
 }
 } // namespace Internal
 
+namespace {
+
+constexpr int kMainWindowStateSaveDelayMs = 200;
+
+} // namespace
+
 CoreImpl::CoreImpl(QObject* parent)
     : ICore(parent)
+    , m_uiState(std::make_unique<Internal::CoreUiState>())
 {
+    m_windowStateSaveTimer.setSingleShot(true);
+    m_windowStateSaveTimer.setInterval(kMainWindowStateSaveDelayMs);
+    connect(&m_windowStateSaveTimer, &QTimer::timeout,
+            this, &CoreImpl::flushMainWindowStateSave);
+
     ensureWindowCreated();
 }
 
 CoreImpl::~CoreImpl()
 {
+    m_shuttingDown = true;
     if (m_mainWindow)
-        m_mainWindow->close();
+        m_mainWindow->removeEventFilter(this);
+    if (m_windowStateSaveTimer.isActive())
+        m_windowStateSaveTimer.stop();
 }
 
 void CoreImpl::ensureWindowCreated()
@@ -78,13 +95,22 @@ void CoreImpl::ensureWindowCreated()
     qCInfo(corelog) << "Creating main application window";
     m_mainWindow = new Internal::MainWindow();
     m_mainWindow->setObjectName(Constants::MAIN_WINDOW_OBJECT_NAME);
+    m_mainWindow->installEventFilter(this);
 
     m_frame = new FrameWidget(m_mainWindow);
     m_mainWindow->setCentralWidget(m_frame);
 
     m_uiHost = new UiHostImpl(m_frame, this);
 
-    m_mainWindow->resize(Constants::DEFAULT_MAIN_WINDOW_WIDTH, Constants::DEFAULT_MAIN_WINDOW_HEIGHT);
+    bool restoredGeometry = false;
+    if (m_uiState) {
+        const QByteArray geometry = m_uiState->mainWindowGeometry();
+        if (!geometry.isEmpty())
+            restoredGeometry = m_mainWindow->restoreGeometry(geometry);
+    }
+
+    if (!restoredGeometry)
+        m_mainWindow->resize(Constants::DEFAULT_MAIN_WINDOW_WIDTH, Constants::DEFAULT_MAIN_WINDOW_HEIGHT);
 
     qCInfo(corelog) << "Created main window";
 }
@@ -126,6 +152,58 @@ void CoreImpl::open()
         m_mainWindow->show();
         QTimer::singleShot(0, this, [this] { emit coreOpened(); });
     });
+}
+
+bool CoreImpl::eventFilter(QObject* watched, QEvent* event)
+{
+    if (m_shuttingDown)
+        return ICore::eventFilter(watched, event);
+
+    if (watched == m_mainWindow && event) {
+        switch (event->type()) {
+        case QEvent::Resize:
+        case QEvent::Move:
+        case QEvent::WindowStateChange:
+            scheduleMainWindowStateSave();
+            break;
+        case QEvent::Close:
+            flushMainWindowStateSave();
+            break;
+        default:
+            break;
+        }
+    }
+
+    return ICore::eventFilter(watched, event);
+}
+
+void CoreImpl::scheduleMainWindowStateSave()
+{
+    if (m_shuttingDown)
+        return;
+    if (!m_mainWindow || !m_uiState)
+        return;
+
+    if (m_mainWindow->windowState().testFlag(Qt::WindowMinimized))
+        return;
+
+    m_windowStateSaveTimer.start();
+}
+
+void CoreImpl::flushMainWindowStateSave()
+{
+    if (m_shuttingDown && !m_uiState)
+        return;
+    if (!m_mainWindow || !m_uiState)
+        return;
+
+    if (m_windowStateSaveTimer.isActive())
+        m_windowStateSaveTimer.stop();
+
+    if (m_mainWindow->windowState().testFlag(Qt::WindowMinimized))
+        return;
+
+    m_uiState->setMainWindowGeometry(m_mainWindow->saveGeometry());
 }
 
 } // namespace Core

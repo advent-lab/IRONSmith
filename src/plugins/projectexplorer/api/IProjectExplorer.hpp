@@ -37,6 +37,11 @@ public:
     virtual QString rootPath() const = 0;
 
 signals:
+    void workspaceRootChanged(const QString& rootPath, bool userInitiated);
+    void entryRemoved(const QString& absolutePath, ProjectExplorer::ProjectEntryKind kind);
+    void entryRenamed(const QString& oldAbsolutePath,
+                      const QString& newAbsolutePath,
+                      ProjectExplorer::ProjectEntryKind kind);
     void openRequested(const QString& path, ProjectExplorer::ProjectEntryKind kind);
     void entryActivated(const QString& path);
     void selectionChanged(const QString& path);

@@ -25,8 +25,20 @@
 #include "core/CommandRibbon.hpp"
 #include "core/SidebarModel.hpp"
 #include "core/SidebarRegistryImpl.hpp"
+#include "core/state/CoreUiState.hpp"
 
 namespace Core {
+
+namespace {
+
+constexpr int kSidebarWidthSaveDelayMs = 250;
+
+QString sidebarWidthMapKey(SidebarSide side, SidebarFamily family)
+{
+    return QStringLiteral("%1:%2").arg(static_cast<int>(side)).arg(static_cast<int>(family));
+}
+
+} // namespace
 
 static QWidget* ensureSingleSlotHost(QWidget* host)
 {
@@ -42,7 +54,13 @@ UiHostImpl::UiHostImpl(FrameWidget* frame, QObject* parent)
     : IUiHost(parent)
     , m_frame(frame)
     , m_playground(frame ? frame->playground() : nullptr)
+    , m_uiState(std::make_unique<Internal::CoreUiState>())
 {
+    m_sidebarWidthSaveTimer.setSingleShot(true);
+    m_sidebarWidthSaveTimer.setInterval(kSidebarWidthSaveDelayMs);
+    connect(&m_sidebarWidthSaveTimer, &QTimer::timeout,
+            this, &UiHostImpl::flushSidebarPanelWidthState);
+
     m_menuModel = new GlobalMenuBar(this);
     m_ribbonModel = new CommandRibbon(this);
     m_sidebarRegistry = new SidebarRegistryImpl(this);
@@ -153,17 +171,19 @@ UiHostImpl::UiHostImpl(FrameWidget* frame, QObject* parent)
             lay->setContentsMargins(0, 0, 0, 0);
             lay->setSpacing(0);
 
-            lay->addWidget(new SidebarOverlayHostWidget(m_sidebarRegistry->model(),
-                                                        SidebarSide::Left,
-                                                        SidebarFamily::Vertical,
-                                                        leftPanelStack),
-                           1);
+            auto* leftVerticalOverlay = new SidebarOverlayHostWidget(m_sidebarRegistry->model(),
+                                                                      SidebarSide::Left,
+                                                                      SidebarFamily::Vertical,
+                                                                      leftPanelStack);
+            restoreAndTrackOverlayHost(leftVerticalOverlay, SidebarSide::Left, SidebarFamily::Vertical);
+            lay->addWidget(leftVerticalOverlay, 1);
 
-            lay->addWidget(new SidebarOverlayHostWidget(m_sidebarRegistry->model(),
-                                                        SidebarSide::Left,
-                                                        SidebarFamily::Horizontal,
-                                                        leftPanelStack),
-                           1);
+            auto* leftHorizontalOverlay = new SidebarOverlayHostWidget(m_sidebarRegistry->model(),
+                                                                        SidebarSide::Left,
+                                                                        SidebarFamily::Horizontal,
+                                                                        leftPanelStack);
+            restoreAndTrackOverlayHost(leftHorizontalOverlay, SidebarSide::Left, SidebarFamily::Horizontal);
+            lay->addWidget(leftHorizontalOverlay, 1);
 
             replaceSingleChild(leftPanelHost, leftPanelStack);
         }
@@ -175,22 +195,26 @@ UiHostImpl::UiHostImpl(FrameWidget* frame, QObject* parent)
             lay->setContentsMargins(0, 0, 0, 0);
             lay->setSpacing(0);
 
-            lay->addWidget(new SidebarOverlayHostWidget(m_sidebarRegistry->model(),
-                                                        SidebarSide::Right,
-                                                        SidebarFamily::Vertical,
-                                                        rightPanelStack),
-                           1);
+            auto* rightVerticalOverlay = new SidebarOverlayHostWidget(m_sidebarRegistry->model(),
+                                                                       SidebarSide::Right,
+                                                                       SidebarFamily::Vertical,
+                                                                       rightPanelStack);
+            restoreAndTrackOverlayHost(rightVerticalOverlay, SidebarSide::Right, SidebarFamily::Vertical);
+            lay->addWidget(rightVerticalOverlay, 1);
 
-            lay->addWidget(new SidebarOverlayHostWidget(m_sidebarRegistry->model(),
-                                                        SidebarSide::Right,
-                                                        SidebarFamily::Horizontal,
-                                                        rightPanelStack),
-                           1);
+            auto* rightHorizontalOverlay = new SidebarOverlayHostWidget(m_sidebarRegistry->model(),
+                                                                         SidebarSide::Right,
+                                                                         SidebarFamily::Horizontal,
+                                                                         rightPanelStack);
+            restoreAndTrackOverlayHost(rightHorizontalOverlay, SidebarSide::Right, SidebarFamily::Horizontal);
+            lay->addWidget(rightHorizontalOverlay, 1);
 
             replaceSingleChild(rightPanelHost, rightPanelStack);
         }
     }
 }
+
+UiHostImpl::~UiHostImpl() = default;
 
 bool UiHostImpl::addMenuTab(QString id, QString title)
 {
@@ -245,6 +269,18 @@ RibbonResult UiHostImpl::setRibbonGroupLayout(QString pageId,
     if (!group)
         return RibbonResult::failure(QString("Ribbon: unknown group id '%1' on page '%2'.").arg(groupId, pageId));
     return group->setLayout(std::move(root));
+}
+
+void UiHostImpl::beginRibbonUpdateBatch()
+{
+    if (m_ribbonModel)
+        m_ribbonModel->beginUpdateBatch();
+}
+
+void UiHostImpl::endRibbonUpdateBatch()
+{
+    if (m_ribbonModel)
+        m_ribbonModel->endUpdateBatch();
 }
 
 QAction * UiHostImpl::ribbonCommand(QString pageId, QString groupId, QString itemId) {
@@ -377,6 +413,50 @@ void UiHostImpl::setPlaygroundCenterBase(QWidget* w)
 QWidget* UiHostImpl::playgroundOverlayHost() const
 {
     return m_playground ? m_playground->overlayHost() : nullptr;
+}
+
+void UiHostImpl::restoreAndTrackOverlayHost(SidebarOverlayHostWidget* host,
+                                            SidebarSide side,
+                                            SidebarFamily family)
+{
+    if (!host || !m_uiState)
+        return;
+
+    const int fallbackWidth = host->panelWidth();
+    const int persistedWidth = m_uiState->sidebarPanelWidth(side, family, fallbackWidth);
+    host->setPanelWidthClamped(persistedWidth);
+
+    connect(host, &SidebarOverlayHostWidget::panelWidthChanged, this,
+            [this, side, family](int width) {
+                m_pendingSidebarWidths.insert(sidebarWidthMapKey(side, family), width);
+                m_sidebarWidthSaveTimer.start();
+            });
+}
+
+void UiHostImpl::flushSidebarPanelWidthState()
+{
+    if (!m_uiState || m_pendingSidebarWidths.isEmpty())
+        return;
+
+    if (m_sidebarWidthSaveTimer.isActive())
+        m_sidebarWidthSaveTimer.stop();
+
+    for (auto it = m_pendingSidebarWidths.cbegin(); it != m_pendingSidebarWidths.cend(); ++it) {
+        const QStringList tokens = it.key().split(':');
+        if (tokens.size() != 2)
+            continue;
+
+        bool okSide = false;
+        bool okFamily = false;
+        const auto side = static_cast<SidebarSide>(tokens.at(0).toInt(&okSide));
+        const auto family = static_cast<SidebarFamily>(tokens.at(1).toInt(&okFamily));
+        if (!okSide || !okFamily)
+            continue;
+
+        m_uiState->setSidebarPanelWidth(side, family, it.value());
+    }
+
+    m_pendingSidebarWidths.clear();
 }
 
 } // namespace Core

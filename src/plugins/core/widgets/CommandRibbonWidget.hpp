@@ -27,12 +27,14 @@ public:
 	CommandRibbon* model() const { return m_model; }
 
 private slots:
+	void scheduleRebuild();
 	void rebuildAll();
 	void syncActivePage();
 
 private:
 	QWidget* buildPageWidget(CommandRibbonPage* page);
 	QWidget* buildGroupWidget(CommandRibbonGroup* group);
+	QWidget* buildGroupDividerWidget(QWidget* parent);
 
 	QWidget* buildNodeWidget(const RibbonNode& node, QWidget* parent);
 	QWidget* buildLeafCommandWidget(const RibbonNode& node, QWidget* parent);
@@ -44,6 +46,7 @@ private:
 	QStackedWidget* m_stack = nullptr;
 
 	QHash<QString, int> m_pageIndex;
+	bool m_rebuildScheduled = false;
 };
 
 } // namespace Core

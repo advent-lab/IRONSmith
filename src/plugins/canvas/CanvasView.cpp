@@ -9,6 +9,7 @@
 
 #include <QtGui/QPainter>
 #include <QtGui/QMouseEvent>
+#include <QtGui/QContextMenuEvent>
 #include <QtGui/QKeyEvent>
 #include <QtGui/QWheelEvent>
 #include <QtGui/QResizeEvent>
@@ -146,6 +147,40 @@ void CanvasView::clearHoveredPort()
         m_scene->clearHoveredPort();
 }
 
+void CanvasView::setHoveredWire(ObjectId itemId)
+{
+    if (m_scene)
+        m_scene->setHoveredWire(itemId);
+}
+
+void CanvasView::clearHoveredWire()
+{
+    if (m_scene)
+        m_scene->clearHoveredWire();
+}
+
+bool CanvasView::hasHoveredWire() const noexcept
+{
+    return m_scene ? m_scene->hasHoveredWire() : false;
+}
+
+ObjectId CanvasView::hoveredWire() const noexcept
+{
+    return m_scene ? m_scene->hoveredWire() : ObjectId{};
+}
+
+void CanvasView::setHoveredStereotype(ObjectId itemId)
+{
+    if (m_scene)
+        m_scene->setHoveredStereotype(itemId);
+}
+
+void CanvasView::clearHoveredStereotype()
+{
+    if (m_scene)
+        m_scene->clearHoveredStereotype();
+}
+
 void CanvasView::setHoveredEdge(ObjectId itemId, PortSide side, const QPointF& anchorScene)
 {
     if (m_scene)
@@ -168,6 +203,50 @@ void CanvasView::clearMarqueeRect()
 {
     if (m_scene)
         m_scene->clearMarqueeRect();
+}
+
+void CanvasView::setWireAnnotationVisibilityMode(WireAnnotationVisibilityMode mode)
+{
+    if (m_scene)
+        m_scene->setWireAnnotationVisibilityMode(mode);
+}
+
+WireAnnotationVisibilityMode CanvasView::wireAnnotationVisibilityMode() const noexcept
+{
+    return m_scene ? m_scene->wireAnnotationVisibilityMode() : WireAnnotationVisibilityMode::Auto;
+}
+
+void CanvasView::setWireAnnotationDetailMode(WireAnnotationDetailMode mode)
+{
+    if (m_scene)
+        m_scene->setWireAnnotationDetailMode(mode);
+}
+
+WireAnnotationDetailMode CanvasView::wireAnnotationDetailMode() const noexcept
+{
+    return m_scene ? m_scene->wireAnnotationDetailMode() : WireAnnotationDetailMode::Adaptive;
+}
+
+void CanvasView::setWireAnnotationsScaleWithZoom(bool enabled)
+{
+    if (m_scene)
+        m_scene->setWireAnnotationsScaleWithZoom(enabled);
+}
+
+bool CanvasView::wireAnnotationsScaleWithZoom() const noexcept
+{
+    return m_scene ? m_scene->wireAnnotationsScaleWithZoom() : true;
+}
+
+void CanvasView::setShowAllWireAnnotations(bool enabled)
+{
+    if (m_scene)
+        m_scene->setShowAllWireAnnotations(enabled);
+}
+
+bool CanvasView::showAllWireAnnotations() const noexcept
+{
+    return m_scene ? m_scene->showAllWireAnnotations() : false;
 }
 
 void CanvasView::setEmptyStateVisible(bool visible)
@@ -271,6 +350,15 @@ void CanvasView::mousePressEvent(QMouseEvent* event)
         event->accept();
         return;
     }
+
+    if (event->button() == Qt::RightButton) {
+        emit canvasContextMenuRequested(viewToScene(event->position()),
+                                        event->globalPosition().toPoint(),
+                                        event->modifiers());
+        event->accept();
+        return;
+    }
+
 	emit canvasMousePressed(viewToScene(event->position()), event->buttons(), event->modifiers());
 	event->accept();
 }
@@ -293,6 +381,20 @@ void CanvasView::mouseReleaseEvent(QMouseEvent* event)
     }
 	emit canvasMouseReleased(viewToScene(event->position()), event->buttons(), event->modifiers());
 	event->accept();
+}
+
+void CanvasView::contextMenuEvent(QContextMenuEvent* event)
+{
+    if (m_emptyStateVisible) {
+        event->accept();
+        return;
+    }
+
+    if (event->reason() != QContextMenuEvent::Mouse) {
+        const QPointF scenePos = viewToScene(event->pos());
+        emit canvasContextMenuRequested(scenePos, event->globalPos(), event->modifiers());
+    }
+    event->accept();
 }
 
 void CanvasView::wheelEvent(QWheelEvent* event)

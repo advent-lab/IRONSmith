@@ -23,6 +23,7 @@ public:
 					  QString* errorOut = nullptr) override;
 
 	bool unregisterTool(const QString& id, QString* errorOut = nullptr) override;
+	bool isToolOpen(const QString& id) const override;
 
 public slots:
 	void requestShowTool(const QString& id) override;

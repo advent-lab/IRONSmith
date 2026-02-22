@@ -15,6 +15,7 @@
 #include "canvas/controllers/CanvasDragController.hpp"
 #include "canvas/controllers/CanvasInteractionHelpers.hpp"
 #include "canvas/controllers/CanvasLinkingController.hpp"
+#include "canvas/controllers/CanvasContextMenuController.hpp"
 #include "canvas/controllers/CanvasSelectionController.hpp"
 
 #include <QtCore/QString>
@@ -52,6 +53,10 @@ CanvasController::CanvasController(CanvasDocument* doc, CanvasView* view, Canvas
 	m_linkingController = std::make_unique<Controllers::CanvasLinkingController>(m_doc, m_view,
 	                                                                             m_selectionController.get(),
 	                                                                             m_dragController.get());
+    m_contextMenuController = std::make_unique<Controllers::CanvasContextMenuController>(m_doc,
+                                                                                          m_view,
+                                                                                          m_selectionController.get(),
+                                                                                          this);
 }
 
 CanvasController::~CanvasController() = default;
@@ -78,6 +83,11 @@ bool CanvasController::isLinkingInProgress() const noexcept
 bool CanvasController::isEndpointDragActive() const noexcept
 {
     return m_dragController && m_dragController->isEndpointDragActive();
+}
+
+bool CanvasController::isBoundProducerPlacementActive() const noexcept
+{
+    return m_boundProducerPlacementActive;
 }
 
 ObjectId CanvasController::linkStartItem() const noexcept
@@ -153,7 +163,6 @@ void CanvasController::updatePanning(const QPointF& viewPos)
     const QPointF deltaScene(delta.x() / zoom, delta.y() / zoom);
     m_view->setPan(m_view->pan() + deltaScene);
     m_lastViewPos = viewPos;
-    m_view->update();
 }
 
 void CanvasController::endPanning()
@@ -165,12 +174,52 @@ void CanvasController::endPanning()
     setMode(m_modeBeforePan);
 }
 
+void CanvasController::updateHoveredWire(const QPointF& scenePos)
+{
+    if (!m_view || !m_doc) {
+        clearHoveredWire();
+        return;
+    }
+
+    CanvasRenderContext ctx;
+    if (m_view)
+        ctx = Controllers::Detail::buildRenderContext(m_doc, m_view);
+
+    CanvasItem* hit = Services::hitTestItem(*m_doc, scenePos, &ctx);
+    if (auto* wire = dynamic_cast<CanvasWire*>(hit))
+        m_view->setHoveredWire(wire->id());
+    else
+        m_view->clearHoveredWire();
+}
+
+void CanvasController::clearHoveredWire()
+{
+    if (m_view)
+        m_view->clearHoveredWire();
+}
+
 void CanvasController::clearTransientDragState()
 {
     if (m_dragController)
         m_dragController->clearTransientState();
     if (m_selectionController)
         m_selectionController->clearMarqueeSelection();
+}
+
+void CanvasController::syncBoundProducerPlacementUiState()
+{
+    const bool active = m_contextMenuController &&
+                        m_contextMenuController->hasPendingBoundProducerPlacement();
+    if (m_view) {
+        if (active)
+            m_view->setCursor(Qt::CrossCursor);
+        else
+            m_view->unsetCursor();
+    }
+    if (m_boundProducerPlacementActive == active)
+        return;
+    m_boundProducerPlacementActive = active;
+    emit boundProducerPlacementChanged(active);
 }
 
 void CanvasController::onCanvasMousePressed(const QPointF& scenePos, Qt::MouseButtons buttons, Qt::KeyboardModifiers mods)
@@ -191,6 +240,12 @@ void CanvasController::onCanvasMousePressed(const QPointF& scenePos, Qt::MouseBu
 
     if (!buttons.testFlag(Qt::LeftButton) || !m_doc)
         return;
+
+    if (m_contextMenuController && m_contextMenuController->hasPendingBoundProducerPlacement()) {
+        m_contextMenuController->tryPlacePendingBoundProducer(scenePos);
+        syncBoundProducerPlacementUiState();
+        return;
+    }
 
     if (m_dragController && m_dragController->beginPendingEndpoint(scenePos, viewPos))
         return;
@@ -267,10 +322,15 @@ void CanvasController::onCanvasMouseMoved(const QPointF& scenePos, Qt::MouseButt
     if (!m_view)
         return;
 
-    if (m_dragController && m_dragController->updatePendingEndpoint(scenePos, buttons))
+    syncBoundProducerPlacementUiState();
+
+    if (m_dragController && m_dragController->updatePendingEndpoint(scenePos, buttons)) {
+        clearHoveredWire();
         return;
+    }
 
     if (m_selectionController && m_selectionController->isMarqueeActive() && buttons.testFlag(Qt::LeftButton)) {
+        clearHoveredWire();
         m_selectionController->updateMarqueeSelection(scenePos);
         return;
     }
@@ -283,6 +343,7 @@ void CanvasController::onCanvasMouseMoved(const QPointF& scenePos, Qt::MouseButt
     }
 
     if (m_panning) {
+        clearHoveredWire();
         const bool allowPan = buttons.testFlag(Qt::MiddleButton) ||
                               (m_mode == Mode::Panning && buttons.testFlag(Qt::LeftButton));
         if (allowPan)
@@ -293,20 +354,32 @@ void CanvasController::onCanvasMouseMoved(const QPointF& scenePos, Qt::MouseButt
     }
 
     if (m_dragController && m_dragController->isWireSegmentDragActive()) {
+        clearHoveredWire();
         m_dragController->updateWireSegmentDrag(scenePos);
         return;
     }
 
     if (m_dragController && m_dragController->isEndpointDragActive()) {
+        clearHoveredWire();
         m_dragController->updateEndpointDrag(scenePos);
         return;
     }
 
-    if (m_mode == Mode::Linking)
+    if (m_mode == Mode::Linking) {
+        clearHoveredWire();
         return;
+    }
 
-    if (m_dragController && m_dragController->isBlockDragActive() && buttons.testFlag(Qt::LeftButton))
+    if (m_dragController && m_dragController->isBlockDragActive() && buttons.testFlag(Qt::LeftButton)) {
+        clearHoveredWire();
         m_dragController->updateBlockDrag(scenePos);
+        return;
+    }
+
+    if (!buttons.testFlag(Qt::LeftButton))
+        updateHoveredWire(scenePos);
+    else
+        clearHoveredWire();
 }
 
 void CanvasController::onCanvasMouseReleased(const QPointF& scenePos, Qt::MouseButtons buttons, Qt::KeyboardModifiers mods)
@@ -362,8 +435,18 @@ void CanvasController::onCanvasMouseReleased(const QPointF& scenePos, Qt::MouseB
         return;
     }
 
-    if (m_dragController && m_dragController->isBlockDragActive())
-        m_dragController->endBlockDrag();
+	    if (m_dragController && m_dragController->isBlockDragActive())
+	        m_dragController->endBlockDrag();
+}
+
+void CanvasController::onCanvasContextMenuRequested(const QPointF& scenePos,
+                                                    const QPoint& globalPos,
+                                                    Qt::KeyboardModifiers mods)
+{
+    if (m_contextMenuController) {
+        m_contextMenuController->showContextMenu(scenePos, globalPos, mods);
+        syncBoundProducerPlacementUiState();
+    }
 }
 
 
@@ -409,6 +492,12 @@ void CanvasController::onCanvasKeyPressed(int key, Qt::KeyboardModifiers mods)
         return;
 
     if (key == Qt::Key_Escape) {
+        if (m_contextMenuController &&
+            m_contextMenuController->hasPendingBoundProducerPlacement()) {
+            m_contextMenuController->clearPendingBoundProducerPlacement();
+            syncBoundProducerPlacementUiState();
+            return;
+        }
 		if (m_panning) {
 			m_modeBeforePan = Mode::Normal;
 			return;
@@ -442,6 +531,13 @@ void CanvasController::onCanvasKeyPressed(int key, Qt::KeyboardModifiers mods)
 			}
 			if (key == Qt::Key_B) {
 				setLinkingMode(LinkingMode::Broadcast);
+				return;
+			}
+			if (key == Qt::Key_F) {
+				if (mods.testFlag(Qt::ShiftModifier))
+					setLinkingMode(LinkingMode::ForwardFifo);
+				else
+					setLinkingMode(LinkingMode::Fifo);
 				return;
 			}
 		}

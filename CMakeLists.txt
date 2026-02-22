@@ -37,6 +37,9 @@ option(BUILD_WITH_SANITIZE  "Build with sanitizer enabled (Debug builds)"  ${_BU
 
 set(SANITIZE_FLAGS "" CACHE STRING "Additional sanitizer flags (e.g., -fsanitize=address,undefined)")
 
+include(IRONSmithQtDiscovery)
+ironsmith_configure_qt6_discovery()
+
 if (BUILD_WITH_TESTS)
     set(_QT_TEST_COMPONENT Test)
 endif()

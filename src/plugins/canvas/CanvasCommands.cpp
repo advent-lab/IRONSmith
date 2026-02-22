@@ -7,7 +7,6 @@
 #include "canvas/CanvasItem.hpp"
 #include "canvas/CanvasBlock.hpp"
 #include "canvas/CanvasWire.hpp"
-#include "canvas/utils/CanvasAutoPorts.hpp"
 
 #include <algorithm>
 #include <utility>
@@ -43,23 +42,6 @@ void cleanupOrphanDynamicPorts(CanvasDocument& doc,
         auto removed = block->removePort(ref.portId, &idx);
         if (removed)
             savedPorts.push_back(SavedPort{ref.itemId, idx, *removed});
-    };
-
-    tryRemove(wire.a());
-    tryRemove(wire.b());
-}
-
-void cleanupOppositeProducerPorts(CanvasDocument& doc,
-                                  const CanvasWire& wire,
-                                  std::vector<SavedPort>& savedPorts)
-{
-    auto tryRemove = [&](const CanvasWire::Endpoint& endpoint) {
-        if (!endpoint.attached)
-            return;
-        const auto ref = *endpoint.attached;
-        auto removed = Support::removeOppositeProducerPort(doc, ref.itemId, ref.portId);
-        if (removed)
-            savedPorts.push_back(SavedPort{removed->itemId, removed->index, removed->port});
     };
 
     tryRemove(wire.a());
@@ -125,7 +107,6 @@ bool DeleteItemCommand::apply(CanvasDocument& doc)
                     if (removed) {
                         if (auto* wire = dynamic_cast<CanvasWire*>(removed->item.get())) {
                             cleanupOrphanDynamicPorts(doc, *wire, m_savedPorts);
-                            cleanupOppositeProducerPorts(doc, *wire, m_savedPorts);
                         }
                         m_savedItems.push_back(SavedItem{id, removed->index, std::move(removed->item)});
                     }
@@ -138,7 +119,6 @@ bool DeleteItemCommand::apply(CanvasDocument& doc)
             return false;
         if (auto* wire = dynamic_cast<CanvasWire*>(removed->item.get())) {
             cleanupOrphanDynamicPorts(doc, *wire, m_savedPorts);
-            cleanupOppositeProducerPorts(doc, *wire, m_savedPorts);
         }
         m_savedItems.push_back(SavedItem{m_itemId, removed->index, std::move(removed->item)});
         m_initialized = true;
@@ -272,7 +252,6 @@ bool DeletePortCommand::apply(CanvasDocument& doc)
             if (removed) {
                 if (auto* wire = dynamic_cast<CanvasWire*>(removed->item.get())) {
                     cleanupOrphanDynamicPorts(doc, *wire, m_savedOrphanPorts, PortRef{m_itemId, m_portId});
-                    cleanupOppositeProducerPorts(doc, *wire, m_savedOrphanPorts);
                 }
                 m_savedWires.push_back(SavedWire{id, removed->index, std::move(removed->item)});
             }

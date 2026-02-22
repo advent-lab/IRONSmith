@@ -5,10 +5,12 @@
 
 #include "canvas/CanvasConstants.hpp"
 #include "canvas/CanvasController.hpp"
+#include "canvas/CanvasBlock.hpp"
 #include "canvas/CanvasDocument.hpp"
 #include "canvas/CanvasItem.hpp"
 #include "canvas/CanvasSelectionModel.hpp"
 #include "canvas/CanvasStyle.hpp"
+#include "canvas/CanvasWire.hpp"
 #include "canvas/Tools.hpp"
 #include "canvas/utils/CanvasRenderContextBuilder.hpp"
 
@@ -17,6 +19,8 @@
 #include <QtGui/QColor>
 
 #include <algorithm>
+#include <cmath>
+#include <vector>
 
 namespace Canvas {
 
@@ -32,6 +36,43 @@ bool isPortSelectedThunk(void* user, ObjectId itemId, PortId portId)
 {
     const auto* scene = static_cast<const CanvasScene*>(user);
     return scene && scene->isPortSelected(itemId, portId);
+}
+
+struct FabricKeepoutBounds final {
+    int minX = 0;
+    int maxX = 0;
+    int minY = 0;
+    int maxY = 0;
+};
+
+struct FabricBlockerContext final {
+    const std::vector<FabricKeepoutBounds>* keepouts = nullptr;
+};
+
+FabricKeepoutBounds keepoutToFabricBounds(const QRectF& keepoutSceneRect, double step)
+{
+    const QRectF normalized = keepoutSceneRect.normalized();
+    FabricKeepoutBounds bounds;
+    bounds.minX = static_cast<int>(std::floor(normalized.left() / step));
+    bounds.maxX = static_cast<int>(std::ceil(normalized.right() / step));
+    bounds.minY = static_cast<int>(std::floor(normalized.top() / step));
+    bounds.maxY = static_cast<int>(std::ceil(normalized.bottom() / step));
+    return bounds;
+}
+
+bool isFabricPointBlockedByKeepouts(const FabricCoord& coord, void* user)
+{
+    const auto* context = static_cast<const FabricBlockerContext*>(user);
+    if (!context || !context->keepouts)
+        return false;
+
+    for (const auto& keepout : *context->keepouts) {
+        if (coord.x >= keepout.minX && coord.x <= keepout.maxX
+            && coord.y >= keepout.minY && coord.y <= keepout.maxY) {
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace
@@ -173,6 +214,56 @@ void CanvasScene::clearHoveredPort()
     emit hoveredPortCleared();
 }
 
+void CanvasScene::setHoveredWire(ObjectId itemId)
+{
+    if (itemId.isNull()) {
+        clearHoveredWire();
+        return;
+    }
+
+    if (m_hasHoveredWire && m_hoveredWireItem == itemId)
+        return;
+
+    m_hasHoveredWire = true;
+    m_hoveredWireItem = itemId;
+    emit requestUpdate();
+}
+
+void CanvasScene::clearHoveredWire()
+{
+    if (!m_hasHoveredWire)
+        return;
+
+    m_hasHoveredWire = false;
+    m_hoveredWireItem = ObjectId{};
+    emit requestUpdate();
+}
+
+void CanvasScene::setHoveredStereotype(ObjectId itemId)
+{
+    if (itemId.isNull()) {
+        clearHoveredStereotype();
+        return;
+    }
+
+    if (m_hasHoveredStereotype && m_hoveredStereotypeItem == itemId)
+        return;
+
+    m_hasHoveredStereotype = true;
+    m_hoveredStereotypeItem = itemId;
+    emit requestUpdate();
+}
+
+void CanvasScene::clearHoveredStereotype()
+{
+    if (!m_hasHoveredStereotype)
+        return;
+
+    m_hasHoveredStereotype = false;
+    m_hoveredStereotypeItem = ObjectId{};
+    emit requestUpdate();
+}
+
 void CanvasScene::setHoveredEdge(ObjectId itemId, PortSide side, const QPointF& anchorScene)
 {
     if (m_hasHoveredEdge && m_hoveredEdgeItem == itemId && m_hoveredEdgeSide == side
@@ -215,6 +306,37 @@ void CanvasScene::clearMarqueeRect()
     emit requestUpdate();
 }
 
+void CanvasScene::setWireAnnotationVisibilityMode(WireAnnotationVisibilityMode mode)
+{
+    if (m_wireAnnotationVisibilityMode == mode)
+        return;
+    m_wireAnnotationVisibilityMode = mode;
+    emit requestUpdate();
+}
+
+void CanvasScene::setWireAnnotationDetailMode(WireAnnotationDetailMode mode)
+{
+    if (m_wireAnnotationDetailMode == mode)
+        return;
+    m_wireAnnotationDetailMode = mode;
+    emit requestUpdate();
+}
+
+void CanvasScene::setWireAnnotationsScaleWithZoom(bool enabled)
+{
+    if (m_wireAnnotationsScaleWithZoom == enabled)
+        return;
+    m_wireAnnotationsScaleWithZoom = enabled;
+    emit requestUpdate();
+}
+
+void CanvasScene::setShowAllWireAnnotations(bool enabled)
+{
+    setWireAnnotationVisibilityMode(enabled
+                                        ? WireAnnotationVisibilityMode::ShowAll
+                                        : WireAnnotationVisibilityMode::Auto);
+}
+
 void CanvasScene::paint(QPainter& p, const ViewState& view) const
 {
     drawBackgroundLayer(p);
@@ -255,7 +377,26 @@ void CanvasScene::drawGridFabric(QPainter& p, const QRectF& visibleScene) const
     if (!m_document)
         return;
 
-    m_document->fabric().draw(p, visibleScene, &CanvasDocument::isFabricPointBlockedThunk, m_document);
+    const double step = m_document->fabric().config().step;
+    if (step <= 0.0) {
+        m_document->fabric().draw(p, visibleScene, &CanvasDocument::isFabricPointBlockedThunk, m_document);
+        return;
+    }
+
+    const QRectF visibleWithPadding = visibleScene.adjusted(-step, -step, step, step);
+    std::vector<FabricKeepoutBounds> keepouts;
+    keepouts.reserve(m_document->items().size());
+    for (const auto& item : m_document->items()) {
+        if (!item || !item->blocksFabric())
+            continue;
+        const QRectF keepout = item->keepoutSceneRect();
+        if (!keepout.intersects(visibleWithPadding))
+            continue;
+        keepouts.push_back(keepoutToFabricBounds(keepout, step));
+    }
+
+    FabricBlockerContext blocker{&keepouts};
+    m_document->fabric().draw(p, visibleScene, &isFabricPointBlockedByKeepouts, &blocker);
 }
 
 void CanvasScene::drawContentLayer(QPainter& p, const QRectF& visibleScene, double zoom) const
@@ -264,9 +405,18 @@ void CanvasScene::drawContentLayer(QPainter& p, const QRectF& visibleScene, doub
         return;
 
     CanvasRenderContext ctx = buildRenderContext(visibleScene, true, zoom);
+
+    // Render wires first so block bodies, ports, and labels stay legible on top.
     for (const auto& item : m_document->items()) {
-        if (item)
-            item->draw(p, ctx);
+        if (!item || !dynamic_cast<const CanvasWire*>(item.get()))
+            continue;
+        item->draw(p, ctx);
+    }
+
+    for (const auto& item : m_document->items()) {
+        if (!item || dynamic_cast<const CanvasWire*>(item.get()))
+            continue;
+        item->draw(p, ctx);
     }
 }
 
@@ -274,6 +424,53 @@ void CanvasScene::drawOverlayLayer(QPainter& p, const QRectF& visibleScene, doub
 {
     if (!m_document || !m_controller)
         return;
+
+    const CanvasRenderContext wireOverlayCtx = buildRenderContext(visibleScene, false, zoom);
+    for (const auto& item : m_document->items()) {
+        const auto* wire = dynamic_cast<const CanvasWire*>(item.get());
+        if (!wire)
+            continue;
+        if (!wire->shouldShowAnnotation(wireOverlayCtx))
+            continue;
+
+        const CanvasWire::AnnotationDetail detail = wire->annotationDetail(wireOverlayCtx);
+        if (detail == CanvasWire::AnnotationDetail::Hidden)
+            continue;
+
+        const QRectF annotationBounds = wire->annotationRect(wireOverlayCtx, detail);
+        if (!annotationBounds.isValid())
+            continue;
+        if (!annotationBounds.intersects(visibleScene))
+            continue;
+
+        const QString annotationText = wire->annotationText(detail, wireOverlayCtx);
+        const bool useHandlePalette = annotationText.startsWith(QStringLiteral("C: HANDLE<"));
+        CanvasStyle::drawWireAnnotation(p,
+                                        annotationBounds,
+                                        zoom,
+                                        annotationText,
+                                        isSelected(wire->id()),
+                                        wire->hasForwardObjectFifo() || useHandlePalette,
+                                        wireOverlayCtx.wireAnnotationsScaleWithZoom);
+    }
+
+    for (const auto& item : m_document->items()) {
+        const auto* block = dynamic_cast<const CanvasBlock*>(item.get());
+        if (!block)
+            continue;
+        if (block->stereotype().trimmed().isEmpty())
+            continue;
+
+        const bool hoveredLink = (m_hasHoveredStereotype && block->id() == m_hoveredStereotypeItem);
+        CanvasStyle::drawBlockStereotype(p,
+                                         block->boundsScene(),
+                                         zoom,
+                                         block->stereotype(),
+                                         QColor(hoveredLink
+                                                    ? Constants::kBlockStereotypeLinkColor
+                                                    : Constants::kBlockStereotypeColor),
+                                         hoveredLink);
+    }
 
     if (m_hasHoveredEdge && (m_controller->mode() == CanvasController::Mode::Linking
                              || m_controller->isEndpointDragActive())) {
@@ -327,6 +524,8 @@ CanvasRenderContext CanvasScene::buildRenderContext(const QRectF& sceneRect, boo
     Support::RenderContextSelection selection;
     selection.isSelected = &isSelectedThunk;
     selection.user = const_cast<CanvasScene*>(this);
+    selection.hasHoveredItem = m_hasHoveredWire;
+    selection.hoveredItem = m_hoveredWireItem;
 
     Support::RenderContextPortState ports;
     if (includeHover) {
@@ -342,7 +541,12 @@ CanvasRenderContext CanvasScene::buildRenderContext(const QRectF& sceneRect, boo
         ports.isPortSelectedUser = const_cast<CanvasScene*>(this);
     }
 
-    return Support::buildRenderContext(m_document, sceneRect, zoom, selection, ports);
+    Support::RenderContextAnnotationState annotations;
+    annotations.wireAnnotationVisibilityMode = m_wireAnnotationVisibilityMode;
+    annotations.wireAnnotationDetailMode = m_wireAnnotationDetailMode;
+    annotations.wireAnnotationsScaleWithZoom = m_wireAnnotationsScaleWithZoom;
+
+    return Support::buildRenderContext(m_document, sceneRect, zoom, selection, ports, annotations);
 }
 
 } // namespace Canvas

@@ -49,37 +49,10 @@ void ProjectExplorerFileSystemController::setConfirmDeletes(bool enabled)
     emit confirmDeletesChanged(m_confirmDeletes);
 }
 
-void ProjectExplorerFileSystemController::handleEntryActivated(const QString& relPath)
-{
-    if (m_fs)
-        m_fs->openPath(relPath);
-}
-
 void ProjectExplorerFileSystemController::handleRevealPath(const QString& relPath)
 {
     if (m_fs)
         m_fs->revealPath(relPath);
-}
-
-void ProjectExplorerFileSystemController::handleOpenRequest(const QString& relPath,
-                                                            ProjectExplorer::ProjectEntryKind kind)
-{
-    if (!m_fs)
-        return;
-
-    switch (kind) {
-    case ProjectExplorer::ProjectEntryKind::Asset:
-    case ProjectExplorer::ProjectEntryKind::Unknown:
-        m_fs->openPath(relPath);
-        return;
-    case ProjectExplorer::ProjectEntryKind::Design:
-        // Design open is handled by other plugins (e.g., canvas); no default action here.
-        return;
-    case ProjectExplorer::ProjectEntryKind::Folder:
-    case ProjectExplorer::ProjectEntryKind::Meta:
-    case ProjectExplorer::ProjectEntryKind::Cache:
-        return;
-    }
 }
 
 void ProjectExplorerFileSystemController::handleContextAction(const QString& actionId, const QString& relPath)

@@ -20,4 +20,5 @@ ironsmith_define_tests(
                 ProjectExplorerTreeStateTests.cpp
                 ProjectExplorerMetaTypesTests.cpp
                 ProjectExplorerPanelStateTests.cpp
+                ProjectExplorerSidebarStateTests.cpp
 )

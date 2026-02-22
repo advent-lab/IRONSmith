@@ -58,10 +58,29 @@ struct DesignNode final {
 };
 
 struct DesignLink final {
+    struct ObjectFifoType final {
+        QString dimensions;
+        QString valueType = QStringLiteral("i32");
+    };
+
+    struct ObjectFifo final {
+        enum class Operation : unsigned char {
+            Fifo,
+            Forward
+        };
+
+        QString name = QStringLiteral("in");
+        int depth = 2;
+        Operation operation = Operation::Fifo;
+        ObjectFifoType type;
+    };
+
     QString id;
     DesignEndpoint from;
     DesignEndpoint to;
     QVector<Canvas::FabricCoord> routeOverride;
+    ObjectFifo objectFifo;
+    bool hasObjectFifo = false;
 };
 
 struct DesignView final {

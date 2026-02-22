@@ -4,7 +4,6 @@
 #include "aieplugin/design/CanvasDocumentImporter.hpp"
 
 #include "aieplugin/AieService.hpp"
-#include "aieplugin/AieCanvasCoordinator.hpp"
 #include "aieplugin/design/DesignStateCanvas.hpp"
 #include "aieplugin/design/DesignStateJson.hpp"
 
@@ -22,24 +21,27 @@ CanvasDocumentImporter::CanvasDocumentImporter(AieService* service)
 {
 }
 
-Utils::Result CanvasDocumentImporter::importDesign(const DesignModel& model) const
+Utils::Result CanvasDocumentImporter::applyProfile(const QString& deviceId) const
 {
     if (!m_service)
         return Utils::Result::failure(QStringLiteral("AIE service is not available."));
 
-    qCDebug(aieimportlog) << "importDesign: setting profile" << model.deviceId;
-    const Utils::Result profileResult = m_service->setProfileId(model.deviceId);
-    if (!profileResult)
-        return profileResult;
-
-    if (auto* host = m_service->canvasHost())
-        host->setCanvasActive(true);
-
-    qCDebug(aieimportlog) << "importDesign: applyDesignState";
-    return applyDesignState(model);
+    qCDebug(aieimportlog) << "applyProfile:" << deviceId;
+    return m_service->setProfileId(deviceId);
 }
 
-Utils::Result CanvasDocumentImporter::applyDesignState(const DesignModel& model) const
+Utils::Result CanvasDocumentImporter::importLegacyDesignState(const QJsonObject& designState) const
+{
+    const Utils::Result designResult = applyDesignState(designState);
+    if (!designResult)
+        return designResult;
+
+    if (auto* host = m_service ? m_service->canvasHost() : nullptr)
+        host->setCanvasActive(true);
+    return Utils::Result::success();
+}
+
+Utils::Result CanvasDocumentImporter::applyDesignState(const QJsonObject& designState) const
 {
     if (!m_service)
         return Utils::Result::failure(QStringLiteral("AIE service is not available."));
@@ -49,7 +51,7 @@ Utils::Result CanvasDocumentImporter::applyDesignState(const DesignModel& model)
 
     qCDebug(aieimportlog) << "applyDesignState: parsing design state";
     DesignState state;
-    Utils::Result parseResult = parseDesignState(model.design, state);
+    Utils::Result parseResult = parseDesignState(designState, state);
     if (!parseResult)
         return parseResult;
 

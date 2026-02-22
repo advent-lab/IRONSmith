@@ -88,6 +88,52 @@ void CanvasStyle::drawBlockLabel(QPainter& p,
     p.drawText(r, Qt::AlignLeft | Qt::AlignTop, text);
 }
 
+void CanvasStyle::drawBlockStereotype(QPainter& p,
+                                      const QRectF& boundsScene,
+                                      double zoom,
+                                      const QString& text)
+{
+    drawBlockStereotype(p, boundsScene, zoom, text, QColor(Constants::kBlockStereotypeColor));
+}
+
+void CanvasStyle::drawBlockStereotype(QPainter& p,
+                                      const QRectF& boundsScene,
+                                      double zoom,
+                                      const QString& text,
+                                      const QColor& color)
+{
+    drawBlockStereotype(p, boundsScene, zoom, text, color, false);
+}
+
+void CanvasStyle::drawBlockStereotype(QPainter& p,
+                                      const QRectF& boundsScene,
+                                      double zoom,
+                                      const QString& text,
+                                      const QColor& color,
+                                      bool underline)
+{
+    Q_UNUSED(zoom);
+
+    const QString normalized = text.trimmed();
+    if (normalized.isEmpty())
+        return;
+
+    QFont f = p.font();
+    f.setPointSizeF(Constants::kBlockStereotypePointSize);
+    f.setBold(false);
+    f.setItalic(true);
+    f.setUnderline(underline);
+    p.setFont(f);
+    p.setPen(color);
+
+    QFontMetricsF metrics(p.font());
+    const QSizeF size = metrics.size(Qt::TextSingleLine, normalized);
+    const double x = boundsScene.center().x() - (size.width() * 0.5);
+    const double y = boundsScene.top() - Constants::kBlockStereotypeOffsetY - size.height();
+    const QRectF textRect(x, y, size.width(), size.height());
+    p.drawText(textRect, Qt::AlignCenter, normalized);
+}
+
 void CanvasStyle::drawPort(QPainter& p, const QPointF& anchorScene, PortSide side, PortRole role, double zoom, bool hovered)
 {
     const double base = 1.0 / clamped(zoom, 0.25, 8.0);
@@ -167,6 +213,81 @@ void CanvasStyle::drawPortLabel(QPainter& p,
         topLeft = QPointF(base.x() - size.width() * 0.5, base.y());
 
     p.drawText(QRectF(topLeft, size), Qt::AlignLeft | Qt::AlignTop, text);
+}
+
+void CanvasStyle::drawWireAnnotation(QPainter& p,
+                                     const QRectF& annotationRect,
+                                     double zoom,
+                                     const QString& text,
+                                     bool selected,
+                                     bool forwardObjectFifo,
+                                     bool scaleWithZoom)
+{
+    if (!annotationRect.isValid())
+        return;
+
+    const QString normalized = text.trimmed();
+    if (normalized.isEmpty())
+        return;
+
+    p.save();
+
+    const double base = 1.0 / clamped(zoom, 0.25, 8.0);
+    const double penW = clamped(base, 0.25, 1.5);
+
+    const QColor outlineColor = QColor(selected
+                                           ? (forwardObjectFifo
+                                                  ? Constants::kWireAnnotationForwardSelectedOutlineColor
+                                                  : Constants::kWireAnnotationSelectedOutlineColor)
+                                           : (forwardObjectFifo
+                                                  ? Constants::kWireAnnotationForwardOutlineColor
+                                                  : Constants::kWireAnnotationOutlineColor));
+    const QColor fillColor = QColor(selected
+                                        ? (forwardObjectFifo
+                                               ? Constants::kWireAnnotationForwardSelectedFillColor
+                                               : Constants::kWireAnnotationSelectedFillColor)
+                                        : (forwardObjectFifo
+                                               ? Constants::kWireAnnotationForwardFillColor
+                                               : Constants::kWireAnnotationFillColor));
+    const QColor textColor = QColor(selected
+                                        ? (forwardObjectFifo
+                                               ? Constants::kWireAnnotationForwardSelectedTextColor
+                                               : Constants::kWireAnnotationSelectedTextColor)
+                                        : (forwardObjectFifo
+                                               ? Constants::kWireAnnotationForwardTextColor
+                                               : Constants::kWireAnnotationTextColor));
+
+    QPen pen(outlineColor);
+    pen.setWidthF(penW);
+    pen.setJoinStyle(Qt::RoundJoin);
+    p.setPen(pen);
+    p.setBrush(fillColor);
+
+    const double scale = scaleWithZoom ? 1.0 : (1.0 / clamped(zoom, 0.25, 8.0));
+    const double radius = Constants::kWireAnnotationCornerRadius * scale;
+    p.drawRoundedRect(annotationRect, radius, radius);
+
+    if (selected) {
+        QPen accentPen{QColor(Constants::kBlockSelectionColor)};
+        accentPen.setWidthF(clamped(penW * 1.8, 1.0, 2.75));
+        accentPen.setJoinStyle(Qt::RoundJoin);
+        p.setPen(accentPen);
+        p.setBrush(Qt::NoBrush);
+        p.drawRoundedRect(annotationRect, radius, radius);
+    }
+
+    QFont font = p.font();
+    font.setPointSizeF(Constants::kWireAnnotationPointSize * scale);
+    font.setBold(false);
+    p.setFont(font);
+    p.setPen(textColor);
+
+    const double padX = Constants::kWireAnnotationPadX * scale;
+    const double padY = Constants::kWireAnnotationPadY * scale;
+    const QRectF textRect = annotationRect.adjusted(padX, padY, -padX, -padY);
+    p.drawText(textRect, Qt::AlignCenter, normalized);
+
+    p.restore();
 }
 
 void CanvasStyle::drawWire(QPainter& p,

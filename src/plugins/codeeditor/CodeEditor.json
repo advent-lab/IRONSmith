@@ -1,0 +1,9 @@
+{
+  "Name": "CodeEditor",
+  "Version": "0.1.0",
+  "CompatVersion": "0.1.0",
+  "Vendor": "IRONSmith",
+  "Category": "Core",
+  "Description": "Code editor plugin.",
+  "Dependencies": ["Core", "ProjectExplorer"]
+}

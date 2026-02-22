@@ -34,6 +34,8 @@ public:
 	virtual RibbonResult setRibbonGroupLayout(QString pageId,
 											  QString groupId,
 											  std::unique_ptr<RibbonNode> root) = 0;
+	virtual void beginRibbonUpdateBatch() = 0;
+	virtual void endRibbonUpdateBatch() = 0;
 
 	virtual QAction* ribbonCommand(QString pageId, QString groupId, QString itemId) = 0;
 	virtual RibbonResult addRibbonCommand(QString pageId,

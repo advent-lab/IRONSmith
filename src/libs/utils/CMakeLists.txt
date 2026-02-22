@@ -40,6 +40,8 @@ ironsmith_add_library(Utils
             filesystem/RecursiveFileSystemWatcher.cpp
             filesystem/FileSystemUtils.hpp
             filesystem/FileSystemUtils.cpp
+            filesystem/JsonFileUtils.hpp
+            filesystem/JsonFileUtils.cpp
             filesystem/PathPatternMatcher.hpp
             filesystem/PathPatternMatcher.cpp
 

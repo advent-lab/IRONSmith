@@ -12,6 +12,7 @@
 namespace Utils::PathUtils {
 
 UTILS_EXPORT QString normalizePath(QStringView path);
+UTILS_EXPORT QString cleanPath(QStringView path);
 UTILS_EXPORT QString basename(QStringView path);
 UTILS_EXPORT QString extension(QStringView path);
 UTILS_EXPORT QString stem(QStringView path);

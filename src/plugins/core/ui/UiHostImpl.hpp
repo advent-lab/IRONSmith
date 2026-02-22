@@ -4,6 +4,10 @@
 #pragma once
 
 #include "core/ui/IUiHost.hpp"
+#include "core/api/SidebarToolSpec.hpp"
+
+#include <QtCore/QHash>
+#include <QtCore/QTimer>
 
 namespace Core {
 
@@ -14,6 +18,8 @@ class PlaygroundWidget;
 class GlobalMenuBar;
 class SidebarRegistryImpl;
 class ISidebarRegistry;
+class SidebarOverlayHostWidget;
+namespace Internal { class CoreUiState; }
 
 class UiHostImpl final : public IUiHost
 {
@@ -21,6 +27,7 @@ class UiHostImpl final : public IUiHost
 
 public:
 	explicit UiHostImpl(FrameWidget* frame, QObject* parent = nullptr);
+    ~UiHostImpl() override;
 
 	bool addMenuTab(QString id, QString title) override;
 	bool setActiveMenuTab(QString id) override;
@@ -33,6 +40,8 @@ public:
 	RibbonResult setRibbonGroupLayout(QString pageId,
 									 QString groupId,
 									 std::unique_ptr<RibbonNode> root) override;
+	void beginRibbonUpdateBatch() override;
+	void endRibbonUpdateBatch() override;
 
 	QAction* ribbonCommand(QString pageId, QString groupId, QString itemId) override;
 	RibbonResult addRibbonCommand(QString pageId,
@@ -57,6 +66,10 @@ public:
 
 private:
 	static void replaceSingleChild(QWidget* host, QWidget* child);
+    void restoreAndTrackOverlayHost(class SidebarOverlayHostWidget* host,
+                                    SidebarSide side,
+                                    SidebarFamily family);
+    void flushSidebarPanelWidthState();
 
 private:
 	FrameWidget* m_frame = nullptr;
@@ -65,6 +78,9 @@ private:
 	CommandRibbonWidget* m_ribbonWidget = nullptr;
 	PlaygroundWidget* m_playground = nullptr;
 	SidebarRegistryImpl* m_sidebarRegistry = nullptr;
+    std::unique_ptr<Internal::CoreUiState> m_uiState;
+    QHash<QString, int> m_pendingSidebarWidths;
+    QTimer m_sidebarWidthSaveTimer;
 };
 
 } // namespace Core

@@ -9,6 +9,8 @@ ironsmith_define_tests(
         TEST SidebarModelTest
             SOURCES
                 SidebarModelTests.cpp
+                CoreUiStateTests.cpp
+                CommandRibbonTests.cpp
         TEST NewTestGroup
             SOURCES
 

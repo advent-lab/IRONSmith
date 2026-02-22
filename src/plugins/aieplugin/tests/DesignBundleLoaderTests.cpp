@@ -84,6 +84,9 @@ TEST(DesignBundleLoaderTests, LoadsBundleAndResolvesTopology)
     EXPECT_EQ(model.tiles.shimRows, 1);
     EXPECT_EQ(model.tiles.memRows, 1);
     EXPECT_EQ(model.tiles.aieRows, 4);
+    EXPECT_EQ(model.canvasPersistenceRelativePath, QStringLiteral("canvas/document.json"));
+    EXPECT_FALSE(model.canvasPersistenceExists);
+    EXPECT_EQ(model.aieSpec.value(QStringLiteral("deviceFamily")).toString(), QStringLiteral("aie-ml"));
 }
 
 TEST(DesignBundleLoaderTests, RejectsUnsupportedFamily)

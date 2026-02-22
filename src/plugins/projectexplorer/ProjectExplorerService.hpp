@@ -44,6 +44,11 @@ public:
     void setRootPath(const QString& path, bool userInitiated = false);
     QString rootPath() const override;
 
+    void notifyEntryRemoved(const QString& path, ProjectExplorer::ProjectEntryKind kind);
+    void notifyEntryRenamed(const QString& oldPath,
+                            const QString& newPath,
+                            ProjectExplorer::ProjectEntryKind kind);
+
     void setSearchText(const QString& text);
     QString searchText() const;
 
@@ -69,6 +74,8 @@ signals:
     void actionsChanged();
 
 private:
+    QString absolutizePath(const QString& path) const;
+
     ProjectExplorerModel* m_model = nullptr;
     ProjectExplorerFilterModel* m_filter = nullptr;
     QString m_rootPath;

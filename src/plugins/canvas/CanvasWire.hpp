@@ -7,6 +7,9 @@
 
 #include <QtGui/QColor>
 #include <QtCore/QHash>
+#include <QtCore/QRectF>
+#include <QtCore/QString>
+#include <cstdint>
 #include <optional>
 
 namespace Canvas {
@@ -30,6 +33,29 @@ inline size_t qHash(const PortRef& ref, size_t seed = 0) noexcept
 class CANVAS_EXPORT CanvasWire final : public CanvasItem
 {
 public:
+    enum class ObjectFifoOperation : uint8_t {
+        Fifo,
+        Forward
+    };
+
+    enum class AnnotationDetail : uint8_t {
+        Hidden,
+        Compact,
+        Full
+    };
+
+    struct ObjectFifoTypeAbstraction final {
+        QString dimensions;
+        QString valueType = QStringLiteral("i32");
+    };
+
+    struct ObjectFifoConfig final {
+        QString name = QStringLiteral("in");
+        int depth = 2;
+        ObjectFifoOperation operation = ObjectFifoOperation::Fifo;
+        ObjectFifoTypeAbstraction type;
+    };
+
     struct Endpoint final {
         std::optional<PortRef> attached;
         QPointF freeScene{0.0, 0.0};
@@ -54,6 +80,15 @@ public:
     void setColorOverride(const QColor& color);
     void clearColorOverride();
 
+    bool hasObjectFifo() const noexcept { return m_objectFifo.has_value(); }
+    bool hasForwardObjectFifo() const noexcept
+    {
+        return m_objectFifo.has_value() && m_objectFifo->operation == ObjectFifoOperation::Forward;
+    }
+    const std::optional<ObjectFifoConfig>& objectFifo() const noexcept { return m_objectFifo; }
+    void setObjectFifo(ObjectFifoConfig config);
+    void clearObjectFifo();
+
     void draw(QPainter& p, const CanvasRenderContext& ctx) const override;
     QRectF boundsScene() const override;
     std::unique_ptr<CanvasItem> clone() const override;
@@ -70,6 +105,10 @@ public:
 
     std::vector<QPointF> resolvedPathScene(const CanvasRenderContext& ctx) const;
     std::vector<FabricCoord> resolvedPathCoords(const CanvasRenderContext& ctx) const;
+    bool shouldShowAnnotation(const CanvasRenderContext& ctx) const;
+    AnnotationDetail annotationDetail(const CanvasRenderContext& ctx) const;
+    QString annotationText(AnnotationDetail detail, const CanvasRenderContext& ctx) const;
+    QRectF annotationRect(const CanvasRenderContext& ctx, AnnotationDetail detail) const;
 
 private:
     Endpoint m_a;
@@ -81,6 +120,7 @@ private:
     WireArrowPolicy m_arrowPolicy = WireArrowPolicy::End;
     bool m_hasColorOverride = false;
     QColor m_colorOverride;
+    std::optional<ObjectFifoConfig> m_objectFifo;
 };
 
 } // namespace Canvas

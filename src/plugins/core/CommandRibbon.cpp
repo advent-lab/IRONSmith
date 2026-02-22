@@ -325,6 +325,7 @@ RibbonResult CommandRibbonPage::addGroup(const QString& groupId, const QString& 
         return RibbonResult::failure(QString("Ribbon page '%1': duplicate group id '%2'.").arg(m_id, groupId));
 
     auto* g = new CommandRibbonGroup(groupId, title, this);
+    connect(g, &CommandRibbonGroup::changed, this, &CommandRibbonPage::changed, Qt::UniqueConnection);
     m_groups.push_back(g);
     m_groupsById.insert(groupId, g);
 
@@ -384,6 +385,34 @@ CommandRibbon::CommandRibbon(QObject* parent)
 {
 }
 
+void CommandRibbon::beginUpdateBatch()
+{
+    ++m_updateBatchDepth;
+}
+
+void CommandRibbon::endUpdateBatch()
+{
+    if (m_updateBatchDepth <= 0) {
+        qCWarning(corelog) << "Ribbon: endUpdateBatch called without matching beginUpdateBatch.";
+        m_updateBatchDepth = 0;
+        return;
+    }
+
+    --m_updateBatchDepth;
+    if (m_updateBatchDepth > 0)
+        return;
+
+    if (m_structureChangePending) {
+        m_structureChangePending = false;
+        emit structureChanged();
+    }
+
+    if (m_activePageChangePending) {
+        m_activePageChangePending = false;
+        emit activePageChanged(m_pendingActivePageId);
+    }
+}
+
 bool CommandRibbon::isValidId(const QString& id)
 {
     if (id.isEmpty())
@@ -400,6 +429,27 @@ bool CommandRibbon::pageIdTaken(const QString& pageId) const
     return m_pagesById.contains(pageId);
 }
 
+void CommandRibbon::notifyStructureChanged()
+{
+    if (isInUpdateBatch()) {
+        m_structureChangePending = true;
+        return;
+    }
+
+    emit structureChanged();
+}
+
+void CommandRibbon::notifyActivePageChanged(const QString& activePageId)
+{
+    if (isInUpdateBatch()) {
+        m_activePageChangePending = true;
+        m_pendingActivePageId = activePageId;
+        return;
+    }
+
+    emit activePageChanged(activePageId);
+}
+
 CommandRibbonPage* CommandRibbon::pageById(const QString& pageId) const
 {
     return m_pagesById.value(pageId, nullptr);
@@ -413,17 +463,18 @@ RibbonResult CommandRibbon::addPage(const QString& pageId, const QString& title,
         return RibbonResult::failure(QString("Ribbon: duplicate page id '%1'.").arg(pageId));
 
     auto* p = new CommandRibbonPage(pageId, title, this);
+    connect(p, &CommandRibbonPage::changed, this, &CommandRibbon::notifyStructureChanged, Qt::UniqueConnection);
     m_pages.push_back(p);
     m_pagesById.insert(pageId, p);
 
     if (outPage)
         *outPage = p;
 
-    emit structureChanged();
+    notifyStructureChanged();
 
     if (m_activePageId.isEmpty()) {
         m_activePageId = pageId;
-        emit activePageChanged(m_activePageId);
+        notifyActivePageChanged(m_activePageId);
     }
 
     return RibbonResult::success();
@@ -459,15 +510,15 @@ bool CommandRibbon::removePage(const QString& pageId)
     m_pages.removeOne(p);
     p->deleteLater();
 
-    emit structureChanged();
+    notifyStructureChanged();
 
     if (removingActive) {
         if (!m_pages.isEmpty()) {
             m_activePageId = m_pages.front()->id();
-            emit activePageChanged(m_activePageId);
+            notifyActivePageChanged(m_activePageId);
         } else {
             m_activePageId.clear();
-            emit activePageChanged(QString());
+            notifyActivePageChanged(QString());
         }
     }
 
@@ -485,11 +536,11 @@ void CommandRibbon::clearPages()
     m_pages.clear();
     m_pagesById.clear();
 
-    emit structureChanged();
+    notifyStructureChanged();
 
     if (!m_activePageId.isEmpty()) {
         m_activePageId.clear();
-        emit activePageChanged(QString());
+        notifyActivePageChanged(QString());
     }
 }
 
@@ -503,7 +554,7 @@ RibbonResult CommandRibbon::setActivePageId(const QString& pageId)
         return RibbonResult::success();
 
     m_activePageId = pageId;
-    emit activePageChanged(m_activePageId);
+    notifyActivePageChanged(m_activePageId);
     return RibbonResult::success();
 }
 

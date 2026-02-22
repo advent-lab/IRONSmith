@@ -16,6 +16,10 @@ QString normalizePath(QStringView path)
     return cleaned;
 }
 
+QString cleanPath(QStringView path) {
+    return normalizePath(path);
+}
+
 QString basename(QStringView path)
 {
     const QString cleaned = normalizePath(path);

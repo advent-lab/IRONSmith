@@ -18,6 +18,8 @@ ironsmith_add_plugin(ProjectExplorerPlugin
             ProjectExplorerTreeState.cpp
             state/ProjectExplorerPanelState.hpp
             state/ProjectExplorerPanelState.cpp
+            state/ProjectExplorerSidebarState.hpp
+            state/ProjectExplorerSidebarState.cpp
             search/ProjectExplorerSearchController.hpp
             search/ProjectExplorerSearchController.cpp
             search/ProjectExplorerSearchMatcher.hpp

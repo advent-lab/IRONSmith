@@ -1,0 +1,71 @@
+{
+    "surface": {
+        "paper": "#15181A",
+        "text": "#D7E0EA",
+        "selectionBackground": "#28466F",
+        "selectionForeground": "#F4F8FC",
+        "caret": "#E6EDF3",
+        "caretLine": "#141D2A",
+        "marginBaseBackground": "#15181A",
+        "marginBaseForeground": "#6E8092",
+        "lineNumberBackground": "#15181A",
+        "lineNumberForeground": "#91A2B7",
+        "foldMarkerForeground": "#91A2B7"
+    },
+    "languageFallbacks": {
+        "c": "cpp",
+        "json": "cpp",
+        "text": "cpp"
+    },
+    "languages": {
+        "cpp": {
+            "styles": [
+                {"id": 1, "foreground": "#5F6B7A"},
+                {"id": 2, "foreground": "#5F6B7A"},
+                {"id": 3, "foreground": "#657487"},
+                {"id": 4, "foreground": "#E0AF68"},
+                {"id": 5, "foreground": "#7AA2F7"},
+                {"id": 6, "foreground": "#9ECE6A"},
+                {"id": 7, "foreground": "#9ECE6A"},
+                {"id": 10, "foreground": "#89DDFF"},
+                {"id": 11, "foreground": "#D7E0EA"},
+                {"id": 12, "foreground": "#F7768E"},
+                {"id": 16, "foreground": "#BB9AF7"}
+            ]
+        },
+        "python": {
+            "styles": [
+                {"id": 1, "foreground": "#5F6B7A"},
+                {"id": 2, "foreground": "#E0AF68"},
+                {"id": 3, "foreground": "#9ECE6A"},
+                {"id": 4, "foreground": "#9ECE6A"},
+                {"id": 5, "foreground": "#7AA2F7"},
+                {"id": 6, "foreground": "#9ECE6A"},
+                {"id": 7, "foreground": "#9ECE6A"},
+                {"id": 8, "foreground": "#7DCFFF"},
+                {"id": 9, "foreground": "#7DCFFF"},
+                {"id": 10, "foreground": "#89DDFF"},
+                {"id": 11, "foreground": "#D7E0EA"},
+                {"id": 12, "foreground": "#657487"},
+                {"id": 15, "foreground": "#BB9AF7"}
+            ]
+        },
+        "xml": {
+            "styles": [
+                {"id": 1, "foreground": "#7AA2F7"},
+                {"id": 2, "foreground": "#F7768E"},
+                {"id": 3, "foreground": "#89DDFF"},
+                {"id": 4, "foreground": "#F7768E"},
+                {"id": 5, "foreground": "#E0AF68"},
+                {"id": 6, "foreground": "#9ECE6A"},
+                {"id": 7, "foreground": "#9ECE6A"},
+                {"id": 8, "foreground": "#D7E0EA"},
+                {"id": 9, "foreground": "#5F6B7A"},
+                {"id": 10, "foreground": "#BB9AF7"},
+                {"id": 11, "foreground": "#7AA2F7"},
+                {"id": 12, "foreground": "#7AA2F7"},
+                {"id": 13, "foreground": "#7AA2F7"}
+            ]
+        }
+    }
+}

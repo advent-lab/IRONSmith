@@ -21,4 +21,5 @@ ironsmith_define_tests(
                 TreeIndexTests.cpp
                 TreeChangeSetTests.cpp
                 DocumentBundleTests.cpp
+                ContextMenuTests.cpp
 )

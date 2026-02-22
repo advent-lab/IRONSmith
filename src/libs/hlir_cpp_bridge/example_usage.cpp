@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brock Sorenson
+// SPDX-License-Identifier: GPL-3.0-only
+
 /**
  * HLIR C++ Bridge - Example Usage
  *
@@ -317,8 +320,8 @@ int main() {
             8,                  // Increased depth from 2 to 8
             *shim0,
             {*mem0},
-            {},
-            *fifoIn
+            *fifoIn,
+            {}
         );
         if (!updatedFifoIn) {
             printError(updatedFifoIn.error());

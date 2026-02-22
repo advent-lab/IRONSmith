@@ -32,7 +32,7 @@ public:
             : step(16.0)
             , pointRadius(1.25)
             , pointInnerRadius(0.0)
-            , pointColor("#2A2F36")
+            , pointColor("#662A2F36")
             , pointInnerColor("#3A424C")
         {}
     };

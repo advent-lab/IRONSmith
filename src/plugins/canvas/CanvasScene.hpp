@@ -59,10 +59,24 @@ public:
 
     void setHoveredPort(ObjectId itemId, PortId portId);
     void clearHoveredPort();
+    void setHoveredWire(ObjectId itemId);
+    void clearHoveredWire();
+    bool hasHoveredWire() const noexcept { return m_hasHoveredWire; }
+    ObjectId hoveredWire() const noexcept { return m_hoveredWireItem; }
+    void setHoveredStereotype(ObjectId itemId);
+    void clearHoveredStereotype();
     void setHoveredEdge(ObjectId itemId, PortSide side, const QPointF& anchorScene);
     void clearHoveredEdge();
     void setMarqueeRect(const QRectF& sceneRect);
     void clearMarqueeRect();
+    void setWireAnnotationVisibilityMode(WireAnnotationVisibilityMode mode);
+    WireAnnotationVisibilityMode wireAnnotationVisibilityMode() const noexcept { return m_wireAnnotationVisibilityMode; }
+    void setWireAnnotationDetailMode(WireAnnotationDetailMode mode);
+    WireAnnotationDetailMode wireAnnotationDetailMode() const noexcept { return m_wireAnnotationDetailMode; }
+    void setWireAnnotationsScaleWithZoom(bool enabled);
+    bool wireAnnotationsScaleWithZoom() const noexcept { return m_wireAnnotationsScaleWithZoom; }
+    void setShowAllWireAnnotations(bool enabled);
+    bool showAllWireAnnotations() const noexcept { return m_wireAnnotationVisibilityMode == WireAnnotationVisibilityMode::ShowAll; }
 
     void paint(QPainter& p, const ViewState& view) const;
     QRectF sceneRect(const ViewState& view) const;
@@ -89,12 +103,19 @@ private:
     bool m_hasHoveredPort = false;
     ObjectId m_hoveredItem{};
     PortId m_hoveredPort{};
+    bool m_hasHoveredWire = false;
+    ObjectId m_hoveredWireItem{};
+    bool m_hasHoveredStereotype = false;
+    ObjectId m_hoveredStereotypeItem{};
     bool m_hasHoveredEdge = false;
     ObjectId m_hoveredEdgeItem{};
     PortSide m_hoveredEdgeSide = PortSide::Left;
     QPointF m_hoveredEdgeAnchor{};
     bool m_hasMarquee = false;
     QRectF m_marqueeSceneRect;
+    WireAnnotationVisibilityMode m_wireAnnotationVisibilityMode = WireAnnotationVisibilityMode::Auto;
+    WireAnnotationDetailMode m_wireAnnotationDetailMode = WireAnnotationDetailMode::Adaptive;
+    bool m_wireAnnotationsScaleWithZoom = true;
 };
 
 } // namespace Canvas

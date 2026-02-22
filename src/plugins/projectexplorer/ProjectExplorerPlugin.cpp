@@ -10,10 +10,12 @@
 #include "projectexplorer/metadata/ProjectExplorerThumbnailService.hpp"
 #include "projectexplorer/filesystem/ProjectExplorerFileSystemService.hpp"
 #include "projectexplorer/filesystem/ProjectExplorerFileSystemController.hpp"
+#include "projectexplorer/state/ProjectExplorerSidebarState.hpp"
 
 #include <extensionsystem/IPlugin.hpp>
 #include <extensionsystem/PluginManager.hpp>
 #include <utils/Result.hpp>
+#include <utils/DocumentBundle.hpp>
 
 #include "core/api/ISidebarRegistry.hpp"
 #include "core/api/SidebarToolSpec.hpp"
@@ -27,10 +29,25 @@
 #include <QPointer>
 #include <QStringList>
 #include <QWidget>
+#include <QFileInfo>
 
 Q_LOGGING_CATEGORY(projectexplorerlog, "ironsmith.projectexplorer")
 
 namespace ProjectExplorer::Internal {
+
+namespace {
+
+ProjectExplorer::ProjectEntryKind inferEntryKindFromPath(const QString& path)
+{
+    const QFileInfo info(path);
+    if (info.suffix().compare(Utils::DocumentBundle::extension(), Qt::CaseInsensitive) == 0)
+        return ProjectExplorer::ProjectEntryKind::Design;
+    return ProjectExplorer::ProjectEntryKind::Unknown;
+}
+
+const QString kProjectSidebarToolId = QStringLiteral("IRONSmith.ProjectExplorer");
+
+} // namespace
 
 class ProjectExplorerPlugin final : public ExtensionSystem::IPlugin {
     Q_OBJECT
@@ -53,7 +70,8 @@ private:
     QPointer<ProjectExplorerFileSystemService> m_fileSystem;
     QPointer<ProjectExplorerFileSystemController> m_fileController;
     QPointer<ProjectExplorerMetadataService> m_metadataService;
-    QPointer<ProjectExplorerThumbnailService> m_thumbnailService;
+	QPointer<ProjectExplorerThumbnailService> m_thumbnailService;
+    ProjectExplorerSidebarState m_sidebarState;
 	bool m_registered = false;
 };
 
@@ -111,18 +129,37 @@ void ProjectExplorerPlugin::extensionsInitialized(ExtensionSystem::PluginManager
         return;
     }
 
-    if (m_service && m_fileSystem && !m_fileController) {
-        m_fileController = new ProjectExplorerFileSystemController(m_service, m_fileSystem, this);
+	    if (m_service && m_fileSystem && !m_fileController) {
+	        m_fileController = new ProjectExplorerFileSystemController(m_service, m_fileSystem, this);
         m_fileController->setDialogParent(uiHost->playgroundOverlayHost());
         connect(m_service, &ProjectExplorerService::contextActionRequested,
                 m_fileController, &ProjectExplorerFileSystemController::handleContextAction);
-        connect(m_service, &ProjectExplorerService::openRequested,
-                m_fileController, &ProjectExplorerFileSystemController::handleOpenRequest);
         connect(m_service, &ProjectExplorerService::revealPathRequested,
                 m_fileController, &ProjectExplorerFileSystemController::handleRevealPath);
-        connect(m_service, &ProjectExplorerService::openRootRequested,
-                this, [this, uiHost]() { openRootFolder(uiHost); });
-    }
+	        connect(m_service, &ProjectExplorerService::openRootRequested,
+	                this, [this, uiHost]() { openRootFolder(uiHost); });
+            connect(m_fileSystem, &ProjectExplorerFileSystemService::operationCompleted,
+                    this, [this](ProjectExplorerFileSystemService::Operation op,
+                                 const QString& path,
+                                 const QString& newPath) {
+                        if (!m_service)
+                            return;
+                        switch (op) {
+                            case ProjectExplorerFileSystemService::Operation::Delete:
+                                m_service->notifyEntryRemoved(path, inferEntryKindFromPath(path));
+                                break;
+                            case ProjectExplorerFileSystemService::Operation::Rename:
+                                if (!newPath.trimmed().isEmpty()) {
+                                    m_service->notifyEntryRenamed(path,
+                                                                  newPath,
+                                                                  inferEntryKindFromPath(newPath));
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    });
+	    }
 
     QAction* openAction = uiHost->ribbonCommand(Core::Constants::RIBBON_TAB_HOME,
                                                 Core::Constants::RIBBON_TAB_HOME_PROJECT_GROUP,
@@ -131,7 +168,7 @@ void ProjectExplorerPlugin::extensionsInitialized(ExtensionSystem::PluginManager
         qCWarning(projectexplorerlog) << "ProjectExplorerPlugin: Open action not available";
 
     Core::SidebarToolSpec spec;
-    spec.id = QStringLiteral("IRONSmith.ProjectExplorer");
+    spec.id = kProjectSidebarToolId;
     spec.title = QStringLiteral("Project");
     spec.iconResource = QStringLiteral(":/ui/icons/svg/folder.svg");
     spec.side = Core::SidebarSide::Left;
@@ -153,6 +190,17 @@ void ProjectExplorerPlugin::extensionsInitialized(ExtensionSystem::PluginManager
 
     m_registered = true;
 
+    connect(m_sidebarRegistry, &Core::ISidebarRegistry::toolOpenStateChanged,
+            this,
+            [this](const QString& id, bool open) {
+                if (id != kProjectSidebarToolId)
+                    return;
+                m_sidebarState.setPanelOpen(open);
+            });
+
+    if (m_sidebarState.panelOpen())
+        m_sidebarRegistry->requestShowTool(kProjectSidebarToolId);
+
     if (openAction)
         connectRibbonActions(uiHost, openAction);
 }
@@ -161,8 +209,9 @@ ExtensionSystem::IPlugin::ShutdownFlag ProjectExplorerPlugin::aboutToShutdown()
 {
     qCInfo(projectexplorerlog) << "ProjectExplorerPlugin: aboutToShutdown";
     if (m_sidebarRegistry && m_registered) {
+        m_sidebarState.setPanelOpen(m_sidebarRegistry->isToolOpen(kProjectSidebarToolId));
         QString error;
-        if (!m_sidebarRegistry->unregisterTool(QStringLiteral("IRONSmith.ProjectExplorer"), &error)) {
+        if (!m_sidebarRegistry->unregisterTool(kProjectSidebarToolId, &error)) {
             qCWarning(projectexplorerlog) << "ProjectExplorerPlugin: unregisterTool failed:" << error;
         }
     }

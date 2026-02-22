@@ -99,8 +99,10 @@ TEST(ProjectExplorerDataSourceTests, ScansDirectoryEntries)
 
     source.setRootPath(temp.path());
 
-    ASSERT_TRUE(labelSpy.wait(1000));
-    ASSERT_TRUE(entriesSpy.wait(1000));
+    if (labelSpy.isEmpty())
+        ASSERT_TRUE(labelSpy.wait(1000));
+    if (entriesSpy.isEmpty())
+        ASSERT_TRUE(entriesSpy.wait(1000));
 
     EXPECT_EQ(label, QFileInfo(temp.path()).fileName());
 

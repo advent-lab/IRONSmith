@@ -21,7 +21,7 @@ namespace Core {
 
 static constexpr int kSidebarOverlayPanelWidth = 320;
 static constexpr int kSidebarOverlayMinWidth = 220;
-static constexpr int kSidebarOverlayMaxWidth = 720;
+static constexpr int kSidebarOverlayMaxWidth = 1720;
 
 SidebarOverlayHostWidget::SidebarOverlayHostWidget(SidebarModel* model,
                                                    SidebarSide side,
@@ -184,11 +184,15 @@ void SidebarOverlayHostWidget::setOverlayWidth(int width)
 void SidebarOverlayHostWidget::setPanelWidth(int width)
 {
     const int w = qMax(0, width);
+    if (m_panelWidth == w)
+        return;
 
     m_panelWidth = w;
 
     if (m_hasPanels)
         setOverlayWidth(w);
+
+    emit panelWidthChanged(m_panelWidth);
 }
 
 void SidebarOverlayHostWidget::setPanelWidthClamped(int w)
@@ -302,8 +306,6 @@ void SidebarOverlayHostWidget::syncFromModel()
             keep.insert(exId);
             addedExclusive = true;
         } else {
-            // Tool is marked active, but no panel factory exists (or panel creation failed).
-            // Avoid showing an empty chrome/splitter artifact.
             m_model->requestHideTool(exId, nullptr);
         }
     }
@@ -316,8 +318,6 @@ void SidebarOverlayHostWidget::syncFromModel()
             keep.insert(id);
             addedAdditive = true;
         } else {
-            // Same reasoning as above: don't leave a phantom dock/handle when the tool
-            // has no renderable panel.
             m_model->requestHideTool(id, nullptr);
         }
     }
@@ -347,7 +347,6 @@ void SidebarOverlayHostWidget::syncFromModel()
     } else {
         m_familyPanel->setAdditiveFillMode(false);
         if (hasAdditive && hasExclusive) {
-            // Ensure layouts are up to date before querying hints.
             if (m_familyPanel->additiveInstallHost()->layout())
                 m_familyPanel->additiveInstallHost()->layout()->activate();
             const QSize hint = m_familyPanel->additiveInstallHost()->sizeHint();

@@ -79,21 +79,42 @@ bool ensureOppositeProducerPort(CanvasDocument& doc, ObjectId itemId, PortId por
 
     const PortSide targetSide = oppositeSide(meta.side);
     const double targetT = meta.t;
-    QString targetName;
-    if (isPairedPortName(meta.name)) {
-        targetName = meta.name;
-    } else if (isLegacyPairedPortName(meta.name)) {
-        targetName = meta.name;
+    QString pairKey;
+    if (const auto existingKey = pairedPortKeyFromName(meta.name); existingKey && !existingKey->isEmpty()) {
+        pairKey = *existingKey;
     } else {
-        const QString pairKey = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        targetName = pairedPortName(pairKey);
-        if (block->updatePortName(portId, targetName))
-            doc.notifyChanged();
+        // Legacy documents can leave the consumer unnamed while the producer key is based on consumer port id.
+        const QString consumerIdKey = portId.toString();
+        bool foundLegacyProducer = false;
+        for (const auto& port : block->ports()) {
+            if (port.role != PortRole::Producer)
+                continue;
+            if (const auto key = pairedPortKey(port); key && *key == consumerIdKey) {
+                foundLegacyProducer = true;
+                break;
+            }
+        }
+        pairKey = foundLegacyProducer
+            ? consumerIdKey
+            : QUuid::createUuid().toString(QUuid::WithoutBraces);
     }
 
+    const QString targetName = pairedPortName(pairKey);
+    bool renamed = false;
+    if (meta.name != targetName && block->updatePortName(portId, targetName))
+        renamed = true;
+
     for (const auto& port : block->ports()) {
-        if (port.role == PortRole::Producer && port.name == targetName)
-            return false;
+        if (port.role != PortRole::Producer)
+            continue;
+        const auto key = pairedPortKey(port);
+        if (!key || *key != pairKey)
+            continue;
+        if (port.name != targetName && block->updatePortName(port.id, targetName))
+            renamed = true;
+        if (renamed)
+            doc.notifyChanged();
+        return false;
     }
 
     const PortId created = block->addPort(targetSide, targetT, PortRole::Producer, targetName);

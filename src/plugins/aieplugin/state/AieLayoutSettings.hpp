@@ -27,6 +27,8 @@ struct DisplaySettings final {
     bool showPorts = true;
     bool showLabels = true;
     bool showAnnotations = false;
+    bool showStereotypes = true;
+    bool showPortAnnotations = true;
 };
 
 struct StyleSettings final {

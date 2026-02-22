@@ -18,4 +18,9 @@ ironsmith_define_tests(
                 DesignBundleLoaderTests.cpp
                 DesignStateCanvasTests.cpp
                 DesignStateJsonTests.cpp
+                AieSidebarStateTests.cpp
+                AieWorkspaceStateTests.cpp
+                AieKernelsPanelStateTests.cpp
+                KernelCatalogTests.cpp
+                KernelRegistryServiceTests.cpp
 )

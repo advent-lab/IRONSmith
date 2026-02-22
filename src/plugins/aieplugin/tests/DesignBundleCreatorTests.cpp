@@ -6,6 +6,7 @@
 #include "aieplugin/design/DesignBundleCreator.hpp"
 
 #include <utils/DocumentBundle.hpp>
+#include <utils/filesystem/JsonFileUtils.hpp>
 
 #include <QtCore/QDir>
 #include <QtCore/QJsonObject>
@@ -39,6 +40,19 @@ TEST(DesignBundleCreatorTests, CreatesBundleWithRequestedDeviceFamily)
     const QJsonObject program = Utils::DocumentBundle::readProgram(created.bundlePath, &readError);
     ASSERT_TRUE(readError.isEmpty()) << readError.toStdString();
     EXPECT_EQ(program.value(QStringLiteral("deviceFamily")).toString(), QStringLiteral("aie-ml"));
+
+    const QJsonObject manifest = Utils::DocumentBundle::readManifest(created.bundlePath, &readError);
+    ASSERT_TRUE(readError.isEmpty()) << readError.toStdString();
+    const QJsonObject documents = manifest.value(QStringLiteral("documents")).toObject();
+    EXPECT_EQ(documents.value(QStringLiteral("aieSpec")).toObject().value(QStringLiteral("path")).toString(),
+              QStringLiteral("aie/spec.json"));
+    EXPECT_EQ(documents.value(QStringLiteral("canvas")).toObject().value(QStringLiteral("path")).toString(),
+              QStringLiteral("canvas/document.json"));
+
+    const QString specPath = QDir(created.bundlePath).filePath(QStringLiteral("aie/spec.json"));
+    const QJsonObject spec = Utils::JsonFileUtils::readObject(specPath, &readError);
+    ASSERT_TRUE(readError.isEmpty()) << readError.toStdString();
+    EXPECT_EQ(spec.value(QStringLiteral("deviceFamily")).toString(), QStringLiteral("aie-ml"));
 }
 
 TEST(DesignBundleCreatorTests, CreateCopyUsesUniqueBundleName)

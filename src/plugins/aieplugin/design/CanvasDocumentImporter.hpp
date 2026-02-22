@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "aieplugin/design/DesignModel.hpp"
-
 #include <utils/Result.hpp>
+#include <QtCore/QJsonObject>
 
 namespace Aie::Internal {
 
@@ -16,10 +15,11 @@ class CanvasDocumentImporter final
 public:
     explicit CanvasDocumentImporter(AieService* service);
 
-    Utils::Result importDesign(const DesignModel& model) const;
+    Utils::Result applyProfile(const QString& deviceId) const;
+    Utils::Result importLegacyDesignState(const QJsonObject& designState) const;
 
 private:
-    Utils::Result applyDesignState(const DesignModel& model) const;
+    Utils::Result applyDesignState(const QJsonObject& designState) const;
 
     AieService* m_service = nullptr;
 };

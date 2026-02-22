@@ -27,7 +27,21 @@ CanvasRenderContext buildRenderContext(const CanvasDocument* doc,
 
     const double zoom = view ? view->zoom() : 1.0;
     const QRectF visible = view ? Support::computeVisibleSceneRect(*view) : QRectF();
-    return Support::buildRenderContext(doc, visible, zoom);
+
+    Support::RenderContextSelection selection;
+    if (view && view->hasHoveredWire()) {
+        selection.hasHoveredItem = true;
+        selection.hoveredItem = view->hoveredWire();
+    }
+
+    Support::RenderContextAnnotationState annotations;
+    if (view) {
+        annotations.wireAnnotationVisibilityMode = view->wireAnnotationVisibilityMode();
+        annotations.wireAnnotationDetailMode = view->wireAnnotationDetailMode();
+        annotations.wireAnnotationsScaleWithZoom = view->wireAnnotationsScaleWithZoom();
+    }
+
+    return Support::buildRenderContext(doc, visible, zoom, selection, Support::RenderContextPortState{}, annotations);
 }
 
 std::optional<WireEndpointHit> pickWireEndpoint(CanvasWire* wire,

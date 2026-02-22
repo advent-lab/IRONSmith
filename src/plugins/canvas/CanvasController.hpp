@@ -27,6 +27,7 @@ namespace Controllers {
 class CanvasSelectionController;
 class CanvasLinkingController;
 class CanvasDragController;
+class CanvasContextMenuController;
 }
 
 class CANVAS_EXPORT CanvasController final : public QObject
@@ -37,7 +38,7 @@ public:
 	enum class Mode { Normal, Panning, Linking };
 	Q_ENUM(Mode)
 
-	enum class LinkingMode { Normal, Split, Join, Broadcast };
+	enum class LinkingMode { Normal, Split, Join, Broadcast, Fifo, ForwardFifo };
 	Q_ENUM(LinkingMode)
 
 	CanvasController(CanvasDocument* doc, CanvasView* view, CanvasSelectionModel* selection, QObject* parent = nullptr);
@@ -47,6 +48,7 @@ public:
 	LinkingMode linkingMode() const noexcept;
 	bool isLinkingInProgress() const noexcept;
 	bool isEndpointDragActive() const noexcept;
+    bool isBoundProducerPlacementActive() const noexcept;
 	ObjectId linkStartItem() const noexcept;
 	PortId linkStartPort() const noexcept;
 	QPointF linkPreviewScene() const noexcept;
@@ -56,6 +58,7 @@ public slots:
 	void onCanvasMousePressed(const QPointF& scenePos, Qt::MouseButtons buttons, Qt::KeyboardModifiers mods);
 	void onCanvasMouseMoved(const QPointF& scenePos, Qt::MouseButtons buttons, Qt::KeyboardModifiers mods);
 	void onCanvasMouseReleased(const QPointF& scenePos, Qt::MouseButtons buttons, Qt::KeyboardModifiers mods);
+	void onCanvasContextMenuRequested(const QPointF& scenePos, const QPoint& globalPos, Qt::KeyboardModifiers mods);
 	void onCanvasWheel(const QPointF& scenePos, const QPoint& angleDelta, const QPoint& pixelDelta, Qt::KeyboardModifiers mods);
 	void onCanvasKeyPressed(int key, Qt::KeyboardModifiers mods);
 	void setMode(Mode mode);
@@ -64,26 +67,32 @@ public slots:
 signals:
 	void modeChanged(CanvasController::Mode mode);
 	void linkingModeChanged(CanvasController::LinkingMode mode);
+    void boundProducerPlacementChanged(bool active);
 
 private:
 	QPointF sceneToView(const QPointF& scenePos) const;
 	void beginPanning(const QPointF& viewPos);
 	void updatePanning(const QPointF& viewPos);
 	void endPanning();
+    void updateHoveredWire(const QPointF& scenePos);
+    void clearHoveredWire();
 
 	void clearTransientDragState();
+    void syncBoundProducerPlacementUiState();
 
 	CanvasDocument* m_doc = nullptr;
 	CanvasView* m_view = nullptr;
 	std::unique_ptr<Controllers::CanvasSelectionController> m_selectionController;
 	std::unique_ptr<Controllers::CanvasLinkingController> m_linkingController;
 	std::unique_ptr<Controllers::CanvasDragController> m_dragController;
+	std::unique_ptr<Controllers::CanvasContextMenuController> m_contextMenuController;
 
 	bool    m_panning = false;
 	QPointF m_lastViewPos;
 	QPointF m_panStart;
 	Mode m_mode = Mode::Normal;
 	Mode m_modeBeforePan = Mode::Normal;
+    bool m_boundProducerPlacementActive = false;
 };
 
 } // namespace Canvas

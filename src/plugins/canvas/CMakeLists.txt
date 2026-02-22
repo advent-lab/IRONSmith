@@ -53,10 +53,14 @@ ironsmith_add_plugin(CanvasPlugin
             utils/CanvasLinkHubStyle.cpp
             utils/CanvasLinkWireStyle.hpp
             utils/CanvasLinkWireStyle.cpp
+            utils/CanvasLinkingMode.hpp
+            utils/CanvasLinkingMode.cpp
             utils/CanvasRenderContextBuilder.hpp
             utils/CanvasRenderContextBuilder.cpp
             utils/CanvasPortUsage.hpp
             utils/CanvasPortUsage.cpp
+            utils/CanvasPortBindings.hpp
+            utils/CanvasPortBindings.cpp
             services/CanvasHitTestService.hpp
             services/CanvasHitTestService.cpp
             services/CanvasGeometryService.hpp
@@ -67,6 +71,8 @@ ironsmith_add_plugin(CanvasPlugin
             controllers/CanvasInteractionHelpers.cpp
             controllers/CanvasSelectionController.hpp
             controllers/CanvasSelectionController.cpp
+            controllers/CanvasContextMenuController.hpp
+            controllers/CanvasContextMenuController.cpp
             controllers/CanvasDragController.hpp
             controllers/CanvasDragController.cpp
             controllers/CanvasLinkingController.hpp
@@ -78,6 +84,8 @@ ironsmith_add_plugin(CanvasPlugin
 
         #-== Public APIs ==-#
             api/ICanvasHost.hpp
+            api/CanvasDocumentTypes.hpp
+            api/ICanvasDocumentService.hpp
             api/CanvasGridTypes.hpp
             api/ICanvasBlockHandle.hpp
             api/ICanvasGridHost.hpp
@@ -95,6 +103,10 @@ ironsmith_add_plugin(CanvasPlugin
             api/ICanvasStyleHost.hpp
             internal/CanvasWireRouting.hpp
             internal/CanvasWireRouting.cpp
+            document/CanvasDocumentJsonSerializer.hpp
+            document/CanvasDocumentJsonSerializer.cpp
+            document/CanvasDocumentServiceImpl.hpp
+            document/CanvasDocumentServiceImpl.cpp
 
         PUBLIC_DEPENDS
             ${QT6_REQUIRED_COMPONENTS}

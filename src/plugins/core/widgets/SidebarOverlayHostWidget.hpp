@@ -37,6 +37,7 @@ public:
 
 signals:
 	void hasPanelsChanged(bool hasPanels);
+    void panelWidthChanged(int width);
 
 private slots:
 	void syncFromModel();

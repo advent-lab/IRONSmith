@@ -53,7 +53,7 @@ inline QRectF snapBoundsToGrid(const QRectF& r, double step)
     return out;
 }
 
-inline double clampT(double t, double lo = 0.10, double hi = 0.90)
+inline double clampT(double t, double lo = 0.0, double hi = 1.0)
 {
     return t < lo ? lo : (t > hi ? hi : t);
 }

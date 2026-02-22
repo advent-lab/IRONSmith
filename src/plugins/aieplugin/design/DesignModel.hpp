@@ -28,7 +28,12 @@ struct DesignModel final {
 
     QJsonObject manifest;
     QJsonObject program;
-    QJsonObject design;
+    QJsonObject aieSpec;
+    QJsonObject legacyDesignState;
+
+    QString canvasPersistenceRelativePath;
+    QString canvasPersistencePath;
+    bool canvasPersistenceExists = false;
 
     bool hasDesignState() const;
 };

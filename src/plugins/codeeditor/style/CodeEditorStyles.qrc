@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/codeeditor/styles">
+        <file>default_dark.json</file>
+    </qresource>
+</RCC>

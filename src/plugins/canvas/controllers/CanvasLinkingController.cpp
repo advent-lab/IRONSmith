@@ -19,9 +19,9 @@
 #include "canvas/utils/CanvasGeometry.hpp"
 #include "canvas/utils/CanvasAutoPorts.hpp"
 #include "canvas/utils/CanvasLinkHubStyle.hpp"
+#include "canvas/utils/CanvasLinkingMode.hpp"
 #include "canvas/utils/CanvasLinkWireStyle.hpp"
 #include "canvas/utils/CanvasPortUsage.hpp"
-#include "canvas/CanvasSymbolContent.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -29,25 +29,6 @@
 namespace Canvas::Controllers {
 
 namespace {
-
-bool isSpecialLinkingMode(CanvasController::LinkingMode mode)
-{
-    return mode != CanvasController::LinkingMode::Normal;
-}
-
-Support::LinkWireRole startWireRole(CanvasController::LinkingMode mode)
-{
-    return mode == CanvasController::LinkingMode::Join
-        ? Support::LinkWireRole::Consumer
-        : Support::LinkWireRole::Producer;
-}
-
-Support::LinkWireRole finishWireRole(CanvasController::LinkingMode mode)
-{
-    return mode == CanvasController::LinkingMode::Join
-        ? Support::LinkWireRole::Producer
-        : Support::LinkWireRole::Consumer;
-}
 
 PortRole oppositePortRole(Support::LinkWireRole role)
 {
@@ -77,28 +58,19 @@ std::optional<WireArrowPolicy> arrowPolicyFromPortRoles(const CanvasDocument* do
     return std::nullopt;
 }
 
-std::optional<Support::LinkWireRole> linkWireRoleFromHubEndpoint(const CanvasDocument* doc,
-                                                                 const PortRef& endpoint)
+QString defaultObjectFifoNameForPort(const CanvasDocument* doc, const PortRef& portRef)
 {
     if (!doc)
-        return std::nullopt;
-    auto* block = dynamic_cast<CanvasBlock*>(doc->findItem(endpoint.itemId));
-    if (!block || !block->isLinkHub())
-        return std::nullopt;
+        return QStringLiteral("in");
 
     CanvasPort meta;
-    if (!doc->getPort(endpoint.itemId, endpoint.portId, meta))
-        return std::nullopt;
+    if (!doc->getPort(portRef.itemId, portRef.portId, meta))
+        return QStringLiteral("in");
 
-    switch (meta.role) {
-        case PortRole::Producer:
-            return Support::LinkWireRole::Consumer;
-        case PortRole::Consumer:
-            return Support::LinkWireRole::Producer;
-        case PortRole::Dynamic:
-            break;
-    }
-    return std::nullopt;
+    const QString name = meta.name.trimmed();
+    if (name.isEmpty())
+        return QStringLiteral("in");
+    return name.toLower();
 }
 
 std::optional<Support::LinkHubKind> hubKindFromBlock(CanvasBlock* block)
@@ -204,7 +176,7 @@ CanvasLinkingController::handleLinkingPress(const QPointF& scenePos,
     }
 
     if (!resolvedPort) {
-        if (isSpecialLinkingMode(m_linkingMode))
+        if (Support::isHubLinkingMode(m_linkingMode))
             return LinkingPressResult::RequestLinkingModeReset;
 
         if (m_wiring) {
@@ -228,7 +200,7 @@ CanvasLinkingController::handleLinkingPress(const QPointF& scenePos,
         return LinkingPressResult::Handled;
     }
 
-    if (isSpecialLinkingMode(m_linkingMode))
+    if (Support::isHubLinkingMode(m_linkingMode))
         return handleLinkingHubPress(scenePos, *resolvedPort);
 
     if (!m_wiring) {
@@ -256,13 +228,14 @@ CanvasLinkingController::handleLinkingPress(const QPointF& scenePos,
 
     CanvasPort startMeta;
     CanvasPort endMeta;
+    Q_UNUSED(startMeta);
+    Q_UNUSED(endMeta);
     if (m_doc->getPort(m_wireStartItem, m_wireStartPort, startMeta) &&
         m_doc->getPort(resolvedPort->itemId, resolvedPort->portId, endMeta))
     {
-        const CanvasWire::Endpoint a{PortRef{m_wireStartItem, m_wireStartPort}, QPointF()};
-        const CanvasWire::Endpoint b{PortRef{resolvedPort->itemId, resolvedPort->portId}, QPointF()};
-
-        auto w = std::make_unique<CanvasWire>(a, b);
+        const PortRef startRef{m_wireStartItem, m_wireStartPort};
+        const PortRef endRef{resolvedPort->itemId, resolvedPort->portId};
+        auto w = buildWire(startRef, endRef);
         w->setId(m_doc->allocateId());
         std::optional<Support::LinkWireRole> hubRole;
         if (auto* startBlock = dynamic_cast<CanvasBlock*>(m_doc->findItem(m_wireStartItem));
@@ -279,9 +252,9 @@ CanvasLinkingController::handleLinkingPress(const QPointF& scenePos,
             const auto style = Support::linkWireStyle(*hubRole);
             w->setColorOverride(style.color);
         }
+        applyLinkingModeDefaults(*w, startRef, endRef);
 
         m_doc->commands().execute(std::make_unique<CreateItemCommand>(std::move(w)));
-        Support::ensureOppositeProducerPort(*m_doc, resolvedPort->itemId, resolvedPort->portId);
 
         resetLinkingSession();
         m_view->clearHoveredPort();
@@ -389,6 +362,61 @@ std::unique_ptr<CanvasWire> CanvasLinkingController::buildWire(const PortRef& a,
     return wire;
 }
 
+void CanvasLinkingController::applyLinkingModeDefaults(CanvasWire& wire,
+                                                       const PortRef& start,
+                                                       const PortRef& end) const
+{
+    const auto config = defaultObjectFifoConfig(start, end);
+    if (!config.has_value()) {
+        wire.clearObjectFifo();
+        return;
+    }
+
+    wire.setObjectFifo(*config);
+}
+
+std::optional<CanvasWire::ObjectFifoConfig>
+CanvasLinkingController::defaultObjectFifoConfig(const PortRef& start,
+                                                 const PortRef& end) const
+{
+    if (m_linkingMode != CanvasController::LinkingMode::Fifo &&
+        m_linkingMode != CanvasController::LinkingMode::ForwardFifo)
+        return std::nullopt;
+
+    CanvasWire::ObjectFifoConfig config;
+    config.name = QStringLiteral("in");
+    config.depth = 2;
+    config.operation = CanvasWire::ObjectFifoOperation::Fifo;
+    config.type.valueType = QStringLiteral("i32");
+    config.type.dimensions.clear();
+
+    config.operation = (m_linkingMode == CanvasController::LinkingMode::ForwardFifo)
+        ? CanvasWire::ObjectFifoOperation::Forward
+        : CanvasWire::ObjectFifoOperation::Fifo;
+
+    if (!m_doc)
+        return config;
+
+    CanvasPort startMeta;
+    CanvasPort endMeta;
+    if (!m_doc->getPort(start.itemId, start.portId, startMeta) ||
+        !m_doc->getPort(end.itemId, end.portId, endMeta)) {
+        return config;
+    }
+
+    if (startMeta.role == PortRole::Consumer && endMeta.role != PortRole::Consumer) {
+        config.name = defaultObjectFifoNameForPort(m_doc, start);
+        return config;
+    }
+    if (endMeta.role == PortRole::Consumer && startMeta.role != PortRole::Consumer) {
+        config.name = defaultObjectFifoNameForPort(m_doc, end);
+        return config;
+    }
+
+    config.name = defaultObjectFifoNameForPort(m_doc, end);
+    return config;
+}
+
 CanvasBlock* CanvasLinkingController::findLinkHub() const
 {
     if (!m_doc || m_linkHubId.isNull())
@@ -411,17 +439,16 @@ bool CanvasLinkingController::connectToExistingHub(const QPointF& scenePos, cons
     if (!resolvePortTerminal(hitPort, endAnchor, endBorder, endFabric))
         return true;
 
-    const auto finishRole = finishWireRole(m_linkingMode);
+    const auto finishRole = Support::linkFinishWireRole(m_linkingMode);
     const PortId hubPort = hub->addPortToward(endAnchor, oppositePortRole(finishRole));
     auto w = buildWire(PortRef{hub->id(), hubPort}, hitPort);
     w->setId(m_doc->allocateId());
-    const auto finishStyle = Support::linkWireStyle(finishWireRole(m_linkingMode));
+    const auto finishStyle = Support::linkWireStyle(Support::linkFinishWireRole(m_linkingMode));
     w->setColorOverride(finishStyle.color);
     w->setArrowPolicy(finishRole == Support::LinkWireRole::Consumer
                           ? WireArrowPolicy::End
                           : WireArrowPolicy::None);
     m_doc->commands().execute(std::make_unique<CreateItemCommand>(std::move(w)));
-    Support::ensureOppositeProducerPort(*m_doc, hitPort.itemId, hitPort.portId);
 
     m_wiring = true;
     m_wireStartItem = hub->id();
@@ -454,18 +481,21 @@ bool CanvasLinkingController::createHubAndWires(const QPointF& scenePos, const P
     const QPointF topLeft(hubCenter.x() - size * 0.5, hubCenter.y() - size * 0.5);
     auto hub = std::make_unique<CanvasBlock>(QRectF(topLeft, QSizeF(size, size)), true, QString());
     hub->setShowPorts(false);
-    hub->setAutoPortLayout(true);
+    hub->setAutoPortLayout(false);
     hub->setPortSnapStep(Constants::kGridStep);
     hub->setLinkHub(true);
     hub->setKeepoutMargin(0.0);
     hub->setContentPadding(QMarginsF(0.0, 0.0, 0.0, 0.0));
     hub->setId(m_doc->allocateId());
 
-    const Support::LinkHubKind kind =
-        (m_linkingMode == CanvasController::LinkingMode::Split) ? Support::LinkHubKind::Split :
-        (m_linkingMode == CanvasController::LinkingMode::Join) ? Support::LinkHubKind::Join :
-                                                                 Support::LinkHubKind::Broadcast;
-    const auto style = Support::linkHubStyle(kind);
+    const auto hubKind = Support::linkHubKindForMode(m_linkingMode);
+    if (!hubKind) {
+        resetLinkingSession();
+        if (m_view)
+            m_view->update();
+        return false;
+    }
+    const auto style = Support::linkHubStyle(*hubKind);
     hub->setCustomColors(style.outline, style.fill, style.text);
 
     SymbolContentStyle symbolStyle;
@@ -473,8 +503,8 @@ bool CanvasLinkingController::createHubAndWires(const QPointF& scenePos, const P
     auto content = std::make_unique<BlockContentSymbol>(style.symbol, symbolStyle);
     hub->setContent(std::move(content));
 
-    const auto startRole = startWireRole(m_linkingMode);
-    const auto finishRole = finishWireRole(m_linkingMode);
+    const auto startRole = Support::linkStartWireRole(m_linkingMode);
+    const auto finishRole = Support::linkFinishWireRole(m_linkingMode);
     const PortId hubPortA = hub->addPortToward(startAnchor, oppositePortRole(startRole));
     const PortId hubPortB = hub->addPortToward(endAnchor, oppositePortRole(finishRole));
     const ObjectId hubId = hub->id();
@@ -498,7 +528,6 @@ bool CanvasLinkingController::createHubAndWires(const QPointF& scenePos, const P
                            ? WireArrowPolicy::End
                            : WireArrowPolicy::None);
     m_doc->commands().execute(std::make_unique<CreateItemCommand>(std::move(w1)));
-    Support::ensureOppositeProducerPort(*m_doc, hitPort.itemId, hitPort.portId);
 
     m_linkHubId = hubId;
     m_wiring = true;

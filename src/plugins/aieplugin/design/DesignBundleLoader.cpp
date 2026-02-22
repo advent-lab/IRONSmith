@@ -7,6 +7,8 @@
 #include "aieplugin/NpuProfileLoader.hpp"
 
 #include <utils/DocumentBundle.hpp>
+#include <utils/filesystem/JsonFileUtils.hpp>
+#include <QtCore/QDir>
 #include <QtCore/QFileInfo>
 
 namespace Aie::Internal {
@@ -18,12 +20,24 @@ using namespace Qt::StringLiterals;
 const QString kArchAieMl = u"AIE-ML"_s;
 const QString kFamilyAieMl = u"aie-ml"_s;
 const QString kFamilyAieMlV2 = u"aie-ml-v2"_s;
+const QString kDefaultAieSpecPath = u"aie/spec.json"_s;
+const QString kDefaultCanvasDocumentPath = u"canvas/document.json"_s;
 
 QString normalizeToken(const QString& input)
 {
     QString out = input.trimmed().toLower();
     out.replace(u'_', u'-');
     return out;
+}
+
+QString normalizeRelativePath(const QString& path, const QString& fallback)
+{
+    QString cleaned = QDir::cleanPath(path.trimmed());
+    if (cleaned.isEmpty() || cleaned == QStringLiteral("."))
+        cleaned = fallback;
+    while (cleaned.startsWith(u'/'))
+        cleaned.remove(0, 1);
+    return cleaned;
 }
 
 } // namespace
@@ -52,13 +66,34 @@ Utils::Result DesignBundleLoader::load(const QString& bundlePath, DesignModel& o
     if (program.isEmpty())
         return Utils::Result::failure(QStringLiteral("Program configuration is empty."));
 
-    const QJsonObject design = Utils::DocumentBundle::readDesign(normalizedPath, &error);
+    const QJsonObject legacyDesignState = Utils::DocumentBundle::readDesign(normalizedPath, &error);
     if (!error.isEmpty())
         return Utils::Result::failure(error);
 
     const QJsonObject manifest = Utils::DocumentBundle::readManifest(normalizedPath, &error);
     if (!error.isEmpty())
         return Utils::Result::failure(error);
+
+    const QJsonObject documents = manifest.value(QStringLiteral("documents")).toObject();
+    const QString aieSpecRelativePath = normalizeRelativePath(
+        documents.value(QStringLiteral("aieSpec")).toObject().value(QStringLiteral("path")).toString(),
+        kDefaultAieSpecPath);
+    const QString canvasDocumentRelativePath = normalizeRelativePath(
+        documents.value(QStringLiteral("canvas")).toObject().value(QStringLiteral("path")).toString(),
+        kDefaultCanvasDocumentPath);
+
+    const QString aieSpecPath = QDir(normalizedPath).filePath(aieSpecRelativePath);
+    const QString canvasDocumentPath = QDir(normalizedPath).filePath(canvasDocumentRelativePath);
+
+    QJsonObject aieSpec;
+    if (QFileInfo::exists(aieSpecPath)) {
+        const QJsonObject loadedSpec = Utils::JsonFileUtils::readObject(aieSpecPath, &error);
+        if (!error.isEmpty())
+            return Utils::Result::failure(error);
+        aieSpec = loadedSpec;
+    } else {
+        aieSpec.insert(QStringLiteral("deviceFamily"), program.value(QStringLiteral("deviceFamily")));
+    }
 
     const QString deviceFamily = program.value(QStringLiteral("deviceFamily")).toString();
     if (deviceFamily.trimmed().isEmpty())
@@ -91,7 +126,11 @@ Utils::Result DesignBundleLoader::load(const QString& bundlePath, DesignModel& o
     model.tiles = counts;
     model.manifest = manifest;
     model.program = program;
-    model.design = design;
+    model.aieSpec = aieSpec;
+    model.legacyDesignState = legacyDesignState;
+    model.canvasPersistenceRelativePath = canvasDocumentRelativePath;
+    model.canvasPersistencePath = QDir::cleanPath(canvasDocumentPath);
+    model.canvasPersistenceExists = QFileInfo::exists(model.canvasPersistencePath);
 
     outModel = std::move(model);
     return Utils::Result::success();

@@ -41,6 +41,18 @@ class AieCanvasCoordinator final : public QObject
     Q_PROPERTY(QColor labelColor READ labelColor WRITE setLabelColor NOTIFY labelColorChanged)
 
 public:
+    enum class WireAnnotationVisibilityMode : quint8 {
+        Auto,
+        ShowAll,
+        Hidden
+    };
+
+    enum class WireAnnotationDetailMode : quint8 {
+        Adaptive,
+        Compact,
+        Full
+    };
+
     enum class SelectionSpacingAxis {
         Horizontal,
         Vertical,
@@ -63,6 +75,14 @@ public:
 
     void setBaseStyles(const QHash<QString, Canvas::Api::CanvasBlockStyle>& styles);
     QHash<QString, Canvas::Api::CanvasBlockStyle> baseStyles() const { return m_baseStyles; }
+    void setBlockLabelOverrides(const QHash<QString, QString>& overrides);
+    void setBlockLabelOverride(const QString& blockId, const QString& label);
+    void clearBlockLabelOverride(const QString& blockId);
+    void clearBlockLabelOverrides();
+    void setBlockStereotypeOverrides(const QHash<QString, QString>& overrides);
+    void setBlockStereotypeOverride(const QString& blockId, const QString& stereotype);
+    void clearBlockStereotypeOverride(const QString& blockId);
+    void clearBlockStereotypeOverrides();
 
     double tileSpacing() const;
     void setTileSpacing(double spacing);
@@ -93,6 +113,21 @@ public:
 
     bool showAnnotations() const { return hasFlag(FlagBit::ShowAnnotations); }
     void setShowAnnotations(bool enabled);
+
+    bool showStereotypes() const { return hasFlag(FlagBit::ShowStereotypes); }
+    void setShowStereotypes(bool enabled);
+
+    bool showPortAnnotations() const { return hasFlag(FlagBit::ShowPortAnnotations); }
+    void setShowPortAnnotations(bool enabled);
+
+    WireAnnotationVisibilityMode wireAnnotationVisibilityMode() const { return m_wireAnnotationVisibilityMode; }
+    void setWireAnnotationVisibilityMode(WireAnnotationVisibilityMode mode);
+
+    WireAnnotationDetailMode wireAnnotationDetailMode() const { return m_wireAnnotationDetailMode; }
+    void setWireAnnotationDetailMode(WireAnnotationDetailMode mode);
+
+    bool wireAnnotationsScaleWithZoom() const { return m_wireAnnotationsScaleWithZoom; }
+    void setWireAnnotationsScaleWithZoom(bool enabled);
 
     double keepoutMargin() const { return m_layout.keepoutMargin; }
     void setKeepoutMargin(double margin);
@@ -154,16 +189,21 @@ private:
         ShowPorts = 1u << 2,
         ShowLabels = 1u << 3,
         ShowAnnotations = 1u << 4,
-        UseCustomColors = 1u << 5
+        UseCustomColors = 1u << 5,
+        ShowStereotypes = 1u << 6,
+        ShowPortAnnotations = 1u << 7
     };
 
     static constexpr quint8 kDefaultFlags =
         static_cast<quint8>(FlagBit::AutoCellSize) |
         static_cast<quint8>(FlagBit::ShowPorts) |
-        static_cast<quint8>(FlagBit::ShowLabels);
+        static_cast<quint8>(FlagBit::ShowLabels) |
+        static_cast<quint8>(FlagBit::ShowStereotypes) |
+        static_cast<quint8>(FlagBit::ShowPortAnnotations);
 
     bool hasFlag(FlagBit flag) const;
     bool setFlag(FlagBit flag, bool enabled);
+    void applyWireAnnotationSettings();
 
     struct SelectionSnapshot;
     void requestApply();
@@ -174,6 +214,8 @@ private:
     QPointer<Canvas::Api::ICanvasStyleHost> m_styleHost;
     CanvasGridModel m_baseModel;
     QHash<QString, Canvas::Api::CanvasBlockStyle> m_baseStyles;
+    QHash<QString, QString> m_blockLabelOverrides;
+    QHash<QString, QString> m_blockStereotypeOverrides;
     QHash<QString, QPointF> m_blockOffsets;
 
     Utils::Async::DebouncedInvoker m_applyDebounce;
@@ -181,6 +223,9 @@ private:
     quint8 m_flags = kDefaultFlags;
     LayoutState m_layout;
     ColorState m_colors;
+    WireAnnotationVisibilityMode m_wireAnnotationVisibilityMode = WireAnnotationVisibilityMode::Auto;
+    WireAnnotationDetailMode m_wireAnnotationDetailMode = WireAnnotationDetailMode::Adaptive;
+    bool m_wireAnnotationsScaleWithZoom = true;
 
     std::unique_ptr<SelectionSnapshot> m_selectionSnapshot;
 };
