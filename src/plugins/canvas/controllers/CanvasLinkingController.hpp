@@ -62,6 +62,8 @@ private:
                              QPointF& outBorder,
                              QPointF& outFabric) const;
     std::unique_ptr<CanvasWire> buildWire(const PortRef& a, const PortRef& b) const;
+    void applyLinkingModeDefaults(CanvasWire& wire, const PortRef& start, const PortRef& end) const;
+    std::optional<CanvasWire::ObjectFifoConfig> defaultObjectFifoConfig(const PortRef& start, const PortRef& end) const;
     CanvasBlock* findLinkHub() const;
     bool connectToExistingHub(const QPointF& scenePos, const PortRef& hitPort);
     bool createHubAndWires(const QPointF& scenePos, const PortRef& hitPort);

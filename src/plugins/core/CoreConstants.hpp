@@ -59,6 +59,8 @@ inline constexpr char CANVAS_LINK_ITEMID[] = "canvas.link";
 inline constexpr char CANVAS_LINK_SPLIT_ITEMID[] = "canvas.link.split";
 inline constexpr char CANVAS_LINK_JOIN_ITEMID[] = "canvas.link.join";
 inline constexpr char CANVAS_LINK_BROADCAST_ITEMID[] = "canvas.link.broadcast";
+inline constexpr char CANVAS_LINK_FIFO_ITEMID[] = "canvas.link.fifo";
+inline constexpr char CANVAS_LINK_FORWARD_FIFO_ITEMID[] = "canvas.link.forward_fifo";
 
 inline constexpr char CANVAS_WIRE_AUTO_ROUTE_ITEMID[] = "canvas.wire.auto.route";
 inline constexpr char CANVAS_WIRE_CLEAR_OVERRIDES_ITEMID[] = "canvas.wire.clear.overrides";

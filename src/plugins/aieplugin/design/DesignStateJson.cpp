@@ -126,6 +126,23 @@ bool portRoleFromString(const QString& text, Canvas::PortRole& out)
     return false;
 }
 
+QString objectFifoOperationToString(DesignLink::ObjectFifo::Operation operation)
+{
+    switch (operation) {
+        case DesignLink::ObjectFifo::Operation::Forward: return u"forward"_s;
+        case DesignLink::ObjectFifo::Operation::Fifo: return u"fifo"_s;
+    }
+    return u"fifo"_s;
+}
+
+DesignLink::ObjectFifo::Operation objectFifoOperationFromString(const QString& text)
+{
+    const QString key = text.trimmed().toLower();
+    if (key == u"forward"_s || key == u"fwd"_s || key == u"forward_fifo"_s || key == u"forward-fifo"_s)
+        return DesignLink::ObjectFifo::Operation::Forward;
+    return DesignLink::ObjectFifo::Operation::Fifo;
+}
+
 QJsonObject pointObject(const QPointF& point)
 {
     QJsonObject obj;
@@ -222,6 +239,16 @@ QJsonObject serializeDesignState(const DesignState& state)
             for (const auto& coord : link.routeOverride)
                 route.append(coordObject(coord));
             obj.insert(u"routeOverride"_s, route);
+        }
+
+        if (link.hasObjectFifo) {
+            QJsonObject objectFifo;
+            objectFifo.insert(u"name"_s, link.objectFifo.name);
+            objectFifo.insert(u"depth"_s, link.objectFifo.depth);
+            objectFifo.insert(u"operation"_s, objectFifoOperationToString(link.objectFifo.operation));
+            objectFifo.insert(u"dimensions"_s, link.objectFifo.type.dimensions);
+            objectFifo.insert(u"valueType"_s, link.objectFifo.type.valueType);
+            obj.insert(u"objectFifo"_s, objectFifo);
         }
 
         links.append(obj);
@@ -439,6 +466,22 @@ Utils::Result parseDesignState(const QJsonObject& json, DesignState& out)
                                                      .arg(i).arg(r));
                             }
                         }
+                    }
+                }
+
+                const QJsonValue objectFifoValue = obj.value(u"objectFifo"_s);
+                if (!objectFifoValue.isUndefined()) {
+                    if (!objectFifoValue.isObject()) {
+                        errors.push_back(QStringLiteral("links[%1].objectFifo must be an object.").arg(i));
+                    } else {
+                        const QJsonObject objectFifoObject = objectFifoValue.toObject();
+                        link.objectFifo.name = objectFifoObject.value(u"name"_s).toString();
+                        link.objectFifo.depth = objectFifoObject.value(u"depth"_s).toInt(2);
+                        link.objectFifo.operation =
+                            objectFifoOperationFromString(objectFifoObject.value(u"operation"_s).toString());
+                        link.objectFifo.type.dimensions = objectFifoObject.value(u"dimensions"_s).toString();
+                        link.objectFifo.type.valueType = objectFifoObject.value(u"valueType"_s).toString();
+                        link.hasObjectFifo = true;
                     }
                 }
 

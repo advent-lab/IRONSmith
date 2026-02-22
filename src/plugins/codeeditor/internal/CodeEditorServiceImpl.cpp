@@ -6,6 +6,7 @@
 #include "codeeditor/CodeEditorGlobal.hpp"
 #include "codeeditor/Constants.hpp"
 
+#include <core/api/ISidebarRegistry.hpp>
 #include <core/ui/IUiHost.hpp>
 #include <utils/Comparisons.hpp>
 #include <utils/PathUtils.hpp>
@@ -112,6 +113,8 @@ Utils::Result CodeEditorServiceImpl::openFile(const CodeEditor::Api::CodeEditorO
                 if (!activateResult)
                     return activateResult;
             }
+            if (request.activate)
+                revealCodeSidebar();
 
             qCInfo(ceditorlog) << "CodeEditor: reused file session:" << outHandle.filePath
                                << outHandle.languageId;
@@ -149,6 +152,8 @@ Utils::Result CodeEditorServiceImpl::openFile(const CodeEditor::Api::CodeEditorO
         if (!activateResult)
             return activateResult;
     }
+    if (request.activate)
+        revealCodeSidebar();
 
     qCInfo(ceditorlog) << "CodeEditor: opened file session:" << outHandle.filePath << outHandle.languageId;
     return Utils::Result::success();
@@ -419,6 +424,18 @@ Utils::Result CodeEditorServiceImpl::setActiveFileById(const QString& id)
     m_active = state->handle;
     emit activeFileChanged(m_active);
     return Utils::Result::success();
+}
+
+void CodeEditorServiceImpl::revealCodeSidebar()
+{
+    if (!m_uiHost)
+        return;
+
+    Core::ISidebarRegistry* sidebarRegistry = m_uiHost->sidebarRegistry();
+    if (!sidebarRegistry)
+        return;
+
+    sidebarRegistry->requestShowTool(QString::fromLatin1(Constants::kSidebarToolId));
 }
 
 QString CodeEditorServiceImpl::normalizeAbsolutePath(const QString& path)

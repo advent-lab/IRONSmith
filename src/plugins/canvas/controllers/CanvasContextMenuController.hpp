@@ -38,6 +38,9 @@ public:
                                 QObject* parent = nullptr);
 
     void showContextMenu(const QPointF& scenePos, const QPoint& globalPos, Qt::KeyboardModifiers mods);
+    bool tryPlacePendingBoundProducer(const QPointF& scenePos);
+    bool hasPendingBoundProducerPlacement() const noexcept;
+    void clearPendingBoundProducerPlacement();
 
 private slots:
     void handleMenuAction(const QString& actionId);
@@ -58,6 +61,11 @@ private:
         QPoint globalPos;
         ObjectId itemId{};
         PortId portId{};
+    };
+
+    struct PendingBoundProducerPlacement final {
+        ObjectId consumerItemId{};
+        PortId consumerPortId{};
     };
 
     MenuTarget resolveTarget(const QPointF& scenePos, const QPoint& globalPos, Qt::KeyboardModifiers mods);
@@ -95,6 +103,7 @@ private:
     Utils::ContextMenu* m_menu = nullptr;
     QList<Utils::ContextMenuAction> m_actions;
     std::optional<MenuTarget> m_activeTarget;
+    std::optional<PendingBoundProducerPlacement> m_pendingBoundProducerPlacement;
 };
 
 } // namespace Canvas::Controllers

@@ -5,6 +5,7 @@
 
 #include "canvas/CanvasConstants.hpp"
 #include "canvas/CanvasController.hpp"
+#include "canvas/CanvasBlock.hpp"
 #include "canvas/CanvasDocument.hpp"
 #include "canvas/CanvasItem.hpp"
 #include "canvas/CanvasSelectionModel.hpp"
@@ -213,6 +214,56 @@ void CanvasScene::clearHoveredPort()
     emit hoveredPortCleared();
 }
 
+void CanvasScene::setHoveredWire(ObjectId itemId)
+{
+    if (itemId.isNull()) {
+        clearHoveredWire();
+        return;
+    }
+
+    if (m_hasHoveredWire && m_hoveredWireItem == itemId)
+        return;
+
+    m_hasHoveredWire = true;
+    m_hoveredWireItem = itemId;
+    emit requestUpdate();
+}
+
+void CanvasScene::clearHoveredWire()
+{
+    if (!m_hasHoveredWire)
+        return;
+
+    m_hasHoveredWire = false;
+    m_hoveredWireItem = ObjectId{};
+    emit requestUpdate();
+}
+
+void CanvasScene::setHoveredStereotype(ObjectId itemId)
+{
+    if (itemId.isNull()) {
+        clearHoveredStereotype();
+        return;
+    }
+
+    if (m_hasHoveredStereotype && m_hoveredStereotypeItem == itemId)
+        return;
+
+    m_hasHoveredStereotype = true;
+    m_hoveredStereotypeItem = itemId;
+    emit requestUpdate();
+}
+
+void CanvasScene::clearHoveredStereotype()
+{
+    if (!m_hasHoveredStereotype)
+        return;
+
+    m_hasHoveredStereotype = false;
+    m_hoveredStereotypeItem = ObjectId{};
+    emit requestUpdate();
+}
+
 void CanvasScene::setHoveredEdge(ObjectId itemId, PortSide side, const QPointF& anchorScene)
 {
     if (m_hasHoveredEdge && m_hoveredEdgeItem == itemId && m_hoveredEdgeSide == side
@@ -253,6 +304,37 @@ void CanvasScene::clearMarqueeRect()
     m_hasMarquee = false;
     m_marqueeSceneRect = QRectF();
     emit requestUpdate();
+}
+
+void CanvasScene::setWireAnnotationVisibilityMode(WireAnnotationVisibilityMode mode)
+{
+    if (m_wireAnnotationVisibilityMode == mode)
+        return;
+    m_wireAnnotationVisibilityMode = mode;
+    emit requestUpdate();
+}
+
+void CanvasScene::setWireAnnotationDetailMode(WireAnnotationDetailMode mode)
+{
+    if (m_wireAnnotationDetailMode == mode)
+        return;
+    m_wireAnnotationDetailMode = mode;
+    emit requestUpdate();
+}
+
+void CanvasScene::setWireAnnotationsScaleWithZoom(bool enabled)
+{
+    if (m_wireAnnotationsScaleWithZoom == enabled)
+        return;
+    m_wireAnnotationsScaleWithZoom = enabled;
+    emit requestUpdate();
+}
+
+void CanvasScene::setShowAllWireAnnotations(bool enabled)
+{
+    setWireAnnotationVisibilityMode(enabled
+                                        ? WireAnnotationVisibilityMode::ShowAll
+                                        : WireAnnotationVisibilityMode::Auto);
 }
 
 void CanvasScene::paint(QPainter& p, const ViewState& view) const
@@ -343,6 +425,53 @@ void CanvasScene::drawOverlayLayer(QPainter& p, const QRectF& visibleScene, doub
     if (!m_document || !m_controller)
         return;
 
+    const CanvasRenderContext wireOverlayCtx = buildRenderContext(visibleScene, false, zoom);
+    for (const auto& item : m_document->items()) {
+        const auto* wire = dynamic_cast<const CanvasWire*>(item.get());
+        if (!wire)
+            continue;
+        if (!wire->shouldShowAnnotation(wireOverlayCtx))
+            continue;
+
+        const CanvasWire::AnnotationDetail detail = wire->annotationDetail(wireOverlayCtx);
+        if (detail == CanvasWire::AnnotationDetail::Hidden)
+            continue;
+
+        const QRectF annotationBounds = wire->annotationRect(wireOverlayCtx, detail);
+        if (!annotationBounds.isValid())
+            continue;
+        if (!annotationBounds.intersects(visibleScene))
+            continue;
+
+        const QString annotationText = wire->annotationText(detail, wireOverlayCtx);
+        const bool useHandlePalette = annotationText.startsWith(QStringLiteral("C: HANDLE<"));
+        CanvasStyle::drawWireAnnotation(p,
+                                        annotationBounds,
+                                        zoom,
+                                        annotationText,
+                                        isSelected(wire->id()),
+                                        wire->hasForwardObjectFifo() || useHandlePalette,
+                                        wireOverlayCtx.wireAnnotationsScaleWithZoom);
+    }
+
+    for (const auto& item : m_document->items()) {
+        const auto* block = dynamic_cast<const CanvasBlock*>(item.get());
+        if (!block)
+            continue;
+        if (block->stereotype().trimmed().isEmpty())
+            continue;
+
+        const bool hoveredLink = (m_hasHoveredStereotype && block->id() == m_hoveredStereotypeItem);
+        CanvasStyle::drawBlockStereotype(p,
+                                         block->boundsScene(),
+                                         zoom,
+                                         block->stereotype(),
+                                         QColor(hoveredLink
+                                                    ? Constants::kBlockStereotypeLinkColor
+                                                    : Constants::kBlockStereotypeColor),
+                                         hoveredLink);
+    }
+
     if (m_hasHoveredEdge && (m_controller->mode() == CanvasController::Mode::Linking
                              || m_controller->isEndpointDragActive())) {
         p.save();
@@ -395,6 +524,8 @@ CanvasRenderContext CanvasScene::buildRenderContext(const QRectF& sceneRect, boo
     Support::RenderContextSelection selection;
     selection.isSelected = &isSelectedThunk;
     selection.user = const_cast<CanvasScene*>(this);
+    selection.hasHoveredItem = m_hasHoveredWire;
+    selection.hoveredItem = m_hoveredWireItem;
 
     Support::RenderContextPortState ports;
     if (includeHover) {
@@ -410,7 +541,12 @@ CanvasRenderContext CanvasScene::buildRenderContext(const QRectF& sceneRect, boo
         ports.isPortSelectedUser = const_cast<CanvasScene*>(this);
     }
 
-    return Support::buildRenderContext(m_document, sceneRect, zoom, selection, ports);
+    Support::RenderContextAnnotationState annotations;
+    annotations.wireAnnotationVisibilityMode = m_wireAnnotationVisibilityMode;
+    annotations.wireAnnotationDetailMode = m_wireAnnotationDetailMode;
+    annotations.wireAnnotationsScaleWithZoom = m_wireAnnotationsScaleWithZoom;
+
+    return Support::buildRenderContext(m_document, sceneRect, zoom, selection, ports, annotations);
 }
 
 } // namespace Canvas

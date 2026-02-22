@@ -39,6 +39,8 @@ public:
 
     const QString& label() const { return m_label; }
     void setLabel(QString s) { m_label = std::move(s); }
+    const QString& stereotype() const { return m_stereotype; }
+    void setStereotype(QString text) { m_stereotype = std::move(text); }
 
     const QString& specId() const { return m_specId; }
     void setSpecId(QString id) { m_specId = std::move(id); }
@@ -48,6 +50,8 @@ public:
     PortId addPortToward(const QPointF& targetScene, PortRole role = PortRole::Dynamic, QString name = {});
     bool updatePort(PortId id, PortSide side, double t);
     bool updatePortName(PortId id, QString name);
+    bool updatePortBinding(PortId id, ObjectId bindingItemId, PortId bindingPortId);
+    bool clearPortBinding(PortId id);
     std::optional<CanvasPort> removePort(PortId id, size_t* indexOut = nullptr);
     bool insertPort(size_t index, CanvasPort port);
     bool hasPorts() const override { return !m_ports.empty(); }
@@ -113,6 +117,7 @@ private:
     QRectF m_boundsScene;
     bool m_movable = false;
     QString m_label;
+    QString m_stereotype;
     QString m_specId;
     std::vector<CanvasPort> m_ports;
     bool m_showPorts = true;

@@ -165,6 +165,23 @@ bool arrowPolicyFromString(const QString& text, WireArrowPolicy& out)
     return false;
 }
 
+QString objectFifoOperationToString(CanvasWire::ObjectFifoOperation operation)
+{
+    switch (operation) {
+        case CanvasWire::ObjectFifoOperation::Forward: return u"forward"_s;
+        case CanvasWire::ObjectFifoOperation::Fifo: return u"fifo"_s;
+    }
+    return u"fifo"_s;
+}
+
+CanvasWire::ObjectFifoOperation objectFifoOperationFromString(const QString& text)
+{
+    const QString key = text.trimmed().toLower();
+    if (key == u"forward"_s || key == u"fwd"_s || key == u"forward_fifo"_s || key == u"forward-fifo"_s)
+        return CanvasWire::ObjectFifoOperation::Forward;
+    return CanvasWire::ObjectFifoOperation::Fifo;
+}
+
 bool parsePoint(const QJsonObject& object, QPointF& out)
 {
     const QJsonValue x = object.value(u"x"_s);
@@ -319,6 +336,8 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
             obj.insert(u"movable"_s, block->isMovable());
             obj.insert(u"deletable"_s, block->isDeletable());
             obj.insert(u"label"_s, block->label());
+            if (!block->stereotype().trimmed().isEmpty())
+                obj.insert(u"stereotype"_s, block->stereotype());
             obj.insert(u"specId"_s, block->specId());
             obj.insert(u"showPorts"_s, block->showPorts());
             obj.insert(u"allowMultiplePorts"_s, block->allowMultiplePorts());
@@ -362,6 +381,12 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
                 portObject.insert(u"role"_s, portRoleToString(port.role));
                 portObject.insert(u"t"_s, port.t);
                 portObject.insert(u"name"_s, port.name);
+                if (port.hasBinding) {
+                    QJsonObject bindingObject;
+                    bindingObject.insert(u"itemId"_s, port.bindingItemId.toString());
+                    bindingObject.insert(u"portId"_s, port.bindingPortId.toString());
+                    portObject.insert(u"binding"_s, bindingObject);
+                }
                 ports.append(portObject);
             }
             obj.insert(u"ports"_s, ports);
@@ -390,6 +415,16 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
             obj.insert(u"arrowPolicy"_s, arrowPolicyToString(wire->arrowPolicy()));
             if (wire->hasColorOverride())
                 obj.insert(u"colorOverride"_s, colorToString(wire->colorOverride()));
+            if (wire->hasObjectFifo()) {
+                const auto& fifo = wire->objectFifo().value();
+                QJsonObject fifoObject;
+                fifoObject.insert(u"name"_s, fifo.name);
+                fifoObject.insert(u"depth"_s, fifo.depth);
+                fifoObject.insert(u"operation"_s, objectFifoOperationToString(fifo.operation));
+                fifoObject.insert(u"dimensions"_s, fifo.type.dimensions);
+                fifoObject.insert(u"valueType"_s, fifo.type.valueType);
+                obj.insert(u"objectFifo"_s, fifoObject);
+            }
             if (wire->hasRouteOverride()) {
                 QJsonArray route;
                 for (const auto& coord : wire->routeOverride())
@@ -462,6 +497,7 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
         WireArrowPolicy arrowPolicy = WireArrowPolicy::End;
         QColor colorOverride;
         bool hasColorOverride = false;
+        std::optional<CanvasWire::ObjectFifoConfig> objectFifo;
         QVector<FabricCoord> routeOverride;
     };
 
@@ -516,6 +552,7 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                                                        item.value(u"label"_s).toString());
             block->setId(*parsedId);
             block->setDeletable(item.value(u"deletable"_s).toBool(true));
+            block->setStereotype(item.value(u"stereotype"_s).toString());
             block->setSpecId(item.value(u"specId"_s).toString());
             block->setShowPorts(item.value(u"showPorts"_s).toBool(true));
             block->setAllowMultiplePorts(item.value(u"allowMultiplePorts"_s).toBool(false));
@@ -608,6 +645,24 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                 port.role = role;
                 port.t = portObject.value(u"t"_s).toDouble(0.5);
                 port.name = portObject.value(u"name"_s).toString();
+
+                const QJsonObject bindingObject = portObject.value(u"binding"_s).toObject();
+                if (!bindingObject.isEmpty()) {
+                    const QString bindingItemIdText =
+                        bindingObject.value(u"itemId"_s).toString().trimmed();
+                    const QString bindingPortIdText =
+                        bindingObject.value(u"portId"_s).toString().trimmed();
+                    const auto bindingItemId = ObjectId::fromString(bindingItemIdText);
+                    const auto bindingPortId = PortId::fromString(bindingPortIdText);
+                    if (bindingItemId && bindingPortId) {
+                        port.hasBinding = true;
+                        port.bindingItemId = *bindingItemId;
+                        port.bindingPortId = *bindingPortId;
+                    } else {
+                        errors.push_back(QStringLiteral("items[%1].ports[%2]: invalid binding endpoint.")
+                                             .arg(index).arg(portIndex));
+                    }
+                }
                 ports.push_back(port);
                 portIdMap.insert(makePortKey(idText, port.id.toString()), port.id);
             }
@@ -664,6 +719,17 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
             if (overrideColor.isValid()) {
                 wire.colorOverride = overrideColor;
                 wire.hasColorOverride = true;
+            }
+
+            const QJsonObject objectFifoObject = item.value(u"objectFifo"_s).toObject();
+            if (!objectFifoObject.isEmpty()) {
+                CanvasWire::ObjectFifoConfig objectFifo;
+                objectFifo.name = objectFifoObject.value(u"name"_s).toString();
+                objectFifo.depth = objectFifoObject.value(u"depth"_s).toInt(2);
+                objectFifo.operation = objectFifoOperationFromString(objectFifoObject.value(u"operation"_s).toString());
+                objectFifo.type.dimensions = objectFifoObject.value(u"dimensions"_s).toString();
+                objectFifo.type.valueType = objectFifoObject.value(u"valueType"_s).toString();
+                wire.objectFifo = objectFifo;
             }
 
             const QJsonArray routeArray = item.value(u"routeOverride"_s).toArray();
@@ -728,6 +794,8 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
         wire->setArrowPolicy(parsed.arrowPolicy);
         if (parsed.hasColorOverride)
             wire->setColorOverride(parsed.colorOverride);
+        if (parsed.objectFifo.has_value())
+            wire->setObjectFifo(*parsed.objectFifo);
         if (!parsed.routeOverride.isEmpty()) {
             std::vector<FabricCoord> route;
             route.reserve(static_cast<size_t>(parsed.routeOverride.size()));

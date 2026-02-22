@@ -14,17 +14,24 @@ CanvasRenderContext buildRenderContext(const CanvasDocument* doc,
                                        const QRectF& visibleSceneRect,
                                        double zoom,
                                        const RenderContextSelection& selection,
-                                       const RenderContextPortState& ports)
+                                       const RenderContextPortState& ports,
+                                       const RenderContextAnnotationState& annotations)
 {
     CanvasRenderContext ctx;
     ctx.zoom = zoom;
     ctx.visibleSceneRect = visibleSceneRect;
     ctx.isSelected = selection.isSelected;
     ctx.isSelectedUser = selection.user;
+    ctx.hasHoveredItem = selection.hasHoveredItem;
+    ctx.hoveredItem = selection.hoveredItem;
 
     if (doc) {
         ctx.computePortTerminal = &CanvasDocument::computePortTerminalThunk;
         ctx.computePortTerminalUser = const_cast<CanvasDocument*>(doc);
+        ctx.resolveObjectFifoNameForEndpoint = &CanvasDocument::resolveObjectFifoNameForEndpointThunk;
+        ctx.resolveObjectFifoNameForEndpointUser = const_cast<CanvasDocument*>(doc);
+        ctx.resolveConsumerHandleLabelForEndpoint = &CanvasDocument::resolveConsumerHandleLabelForEndpointThunk;
+        ctx.resolveConsumerHandleLabelForEndpointUser = const_cast<CanvasDocument*>(doc);
         ctx.isFabricBlocked = &CanvasDocument::isFabricPointBlockedThunk;
         ctx.isFabricBlockedUser = const_cast<CanvasDocument*>(doc);
         ctx.fabricStep = doc->fabric().config().step;
@@ -41,6 +48,11 @@ CanvasRenderContext buildRenderContext(const CanvasDocument* doc,
     ctx.selectedPortId = ports.selectedPortId;
     ctx.isPortSelected = ports.isPortSelected;
     ctx.isPortSelectedUser = ports.isPortSelectedUser;
+
+    ctx.wireAnnotationVisibilityMode = annotations.wireAnnotationVisibilityMode;
+    ctx.wireAnnotationDetailMode = annotations.wireAnnotationDetailMode;
+    ctx.wireAnnotationsScaleWithZoom = annotations.wireAnnotationsScaleWithZoom;
+    ctx.showAllWireAnnotations = (annotations.wireAnnotationVisibilityMode == WireAnnotationVisibilityMode::ShowAll);
 
     return ctx;
 }

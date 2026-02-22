@@ -20,6 +20,7 @@ struct CANVAS_EXPORT CanvasBlockSpec final {
     QString id;
     Utils::GridRect gridRect;
     QString label;
+    QString stereotype;
 
     QSizeF preferredSize{};
     bool useGridSize = true;

@@ -53,10 +53,14 @@ ironsmith_add_plugin(CanvasPlugin
             utils/CanvasLinkHubStyle.cpp
             utils/CanvasLinkWireStyle.hpp
             utils/CanvasLinkWireStyle.cpp
+            utils/CanvasLinkingMode.hpp
+            utils/CanvasLinkingMode.cpp
             utils/CanvasRenderContextBuilder.hpp
             utils/CanvasRenderContextBuilder.cpp
             utils/CanvasPortUsage.hpp
             utils/CanvasPortUsage.cpp
+            utils/CanvasPortBindings.hpp
+            utils/CanvasPortBindings.cpp
             services/CanvasHitTestService.hpp
             services/CanvasHitTestService.cpp
             services/CanvasGeometryService.hpp

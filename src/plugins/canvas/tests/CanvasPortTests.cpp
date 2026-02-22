@@ -10,6 +10,7 @@
 #include "canvas/CanvasCommands.hpp"
 #include "canvas/services/CanvasLayoutEngine.hpp"
 #include "canvas/utils/CanvasAutoPorts.hpp"
+#include "canvas/utils/CanvasPortBindings.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -194,4 +195,129 @@ TEST(CanvasPortTests, LinkHubManualPortRelocationIsNotOverriddenByAutoLayout)
     ASSERT_TRUE(doc.getPort(hub->id(), hubPort, after));
     EXPECT_EQ(after.side, Canvas::PortSide::Top);
     EXPECT_DOUBLE_EQ(after.t, 0.85);
+}
+
+TEST(CanvasPortTests, BoundProducerPersistsWithInvalidBindingWhenConsumerDeleted)
+{
+    Canvas::CanvasDocument doc;
+
+    auto* consumerBlock = doc.createBlock(QRectF(0.0, 0.0, 80.0, 80.0), false);
+    ASSERT_NE(consumerBlock, nullptr);
+    const Canvas::PortId consumerPort =
+        consumerBlock->addPort(Canvas::PortSide::Bottom,
+                               0.5,
+                               Canvas::PortRole::Consumer,
+                               QStringLiteral("in"));
+    ASSERT_TRUE(consumerPort);
+
+    Canvas::EdgeCandidate edge;
+    edge.itemId = consumerBlock->id();
+    edge.side = Canvas::PortSide::Left;
+    edge.t = 0.4;
+
+    Canvas::Support::BoundProducerPlacementRequest request;
+    request.consumerItemId = consumerBlock->id();
+    request.consumerPortId = consumerPort;
+    request.producerEdge = edge;
+
+    const auto created = Canvas::Support::createBoundProducerPort(doc, request);
+    ASSERT_TRUE(created.has_value());
+
+    Canvas::CanvasPort producerMeta;
+    ASSERT_TRUE(doc.getPort(created->producerItemId, created->producerPortId, producerMeta));
+    EXPECT_TRUE(producerMeta.hasBinding);
+    EXPECT_EQ(producerMeta.bindingItemId, consumerBlock->id());
+    EXPECT_EQ(producerMeta.bindingPortId, consumerPort);
+    EXPECT_EQ(producerMeta.name, QStringLiteral("C: \"in\""));
+    EXPECT_TRUE(Canvas::Support::isBoundConsumerEndpointValid(doc, producerMeta));
+
+    ASSERT_TRUE(doc.commands().execute(
+        std::make_unique<Canvas::DeletePortCommand>(consumerBlock->id(), consumerPort)));
+
+    ASSERT_TRUE(doc.getPort(created->producerItemId, created->producerPortId, producerMeta));
+    EXPECT_TRUE(producerMeta.hasBinding);
+    EXPECT_EQ(producerMeta.bindingItemId, consumerBlock->id());
+    EXPECT_EQ(producerMeta.bindingPortId, consumerPort);
+    EXPECT_FALSE(Canvas::Support::isBoundConsumerEndpointValid(doc, producerMeta));
+}
+
+TEST(CanvasPortTests, BoundProducerLabelUsesConnectedObjectFifoName)
+{
+    Canvas::CanvasDocument doc;
+
+    auto* consumerBlock = doc.createBlock(QRectF(0.0, 0.0, 80.0, 80.0), false);
+    ASSERT_NE(consumerBlock, nullptr);
+    const Canvas::PortId consumerPort = consumerBlock->addPort(Canvas::PortSide::Top,
+                                                                0.5,
+                                                                Canvas::PortRole::Consumer,
+                                                                Canvas::Support::pairedPortName(
+                                                                    QStringLiteral("legacy-id")));
+    ASSERT_TRUE(consumerPort);
+
+    auto* sourceBlock = doc.createBlock(QRectF(-200.0, 0.0, 80.0, 80.0), false);
+    ASSERT_NE(sourceBlock, nullptr);
+    const Canvas::PortId sourcePort = sourceBlock->addPort(Canvas::PortSide::Right,
+                                                           0.5,
+                                                           Canvas::PortRole::Producer,
+                                                           QStringLiteral("out"));
+    ASSERT_TRUE(sourcePort);
+
+    Canvas::CanvasWire::Endpoint a;
+    a.attached = Canvas::PortRef{sourceBlock->id(), sourcePort};
+    Canvas::CanvasWire::Endpoint b;
+    b.attached = Canvas::PortRef{consumerBlock->id(), consumerPort};
+    auto wire = std::make_unique<Canvas::CanvasWire>(a, b);
+    wire->setId(doc.allocateId());
+    Canvas::CanvasWire::ObjectFifoConfig fifo;
+    fifo.name = QStringLiteral("in");
+    wire->setObjectFifo(fifo);
+    ASSERT_TRUE(doc.commands().execute(std::make_unique<Canvas::CreateItemCommand>(std::move(wire))));
+
+    Canvas::EdgeCandidate edge;
+    edge.itemId = consumerBlock->id();
+    edge.side = Canvas::PortSide::Left;
+    edge.t = 0.5;
+
+    Canvas::Support::BoundProducerPlacementRequest request;
+    request.consumerItemId = consumerBlock->id();
+    request.consumerPortId = consumerPort;
+    request.producerEdge = edge;
+
+    const auto created = Canvas::Support::createBoundProducerPort(doc, request);
+    ASSERT_TRUE(created.has_value());
+
+    Canvas::CanvasPort producerMeta;
+    ASSERT_TRUE(doc.getPort(created->producerItemId, created->producerPortId, producerMeta));
+    EXPECT_EQ(producerMeta.name, QStringLiteral("C: \"in\""));
+}
+
+TEST(CanvasPortTests, BoundProducerPlacementIsRejectedAcrossTiles)
+{
+    Canvas::CanvasDocument doc;
+
+    auto* consumerBlock = doc.createBlock(QRectF(0.0, 0.0, 80.0, 80.0), false);
+    ASSERT_NE(consumerBlock, nullptr);
+    const Canvas::PortId consumerPort = consumerBlock->addPort(Canvas::PortSide::Bottom,
+                                                                0.5,
+                                                                Canvas::PortRole::Consumer,
+                                                                QStringLiteral("in"));
+    ASSERT_TRUE(consumerPort);
+
+    auto* otherBlock = doc.createBlock(QRectF(200.0, 0.0, 80.0, 80.0), false);
+    ASSERT_NE(otherBlock, nullptr);
+    const size_t beforePortCount = otherBlock->ports().size();
+
+    Canvas::EdgeCandidate edge;
+    edge.itemId = otherBlock->id();
+    edge.side = Canvas::PortSide::Top;
+    edge.t = 0.5;
+
+    Canvas::Support::BoundProducerPlacementRequest request;
+    request.consumerItemId = consumerBlock->id();
+    request.consumerPortId = consumerPort;
+    request.producerEdge = edge;
+
+    const auto created = Canvas::Support::createBoundProducerPort(doc, request);
+    EXPECT_FALSE(created.has_value());
+    EXPECT_EQ(otherBlock->ports().size(), beforePortCount);
 }

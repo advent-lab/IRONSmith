@@ -157,6 +157,8 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 	auto* actSplit = new QAction(tr("Split"), this);
 	auto* actJoin = new QAction(tr("Join"), this);
 	auto* actBroadcast = new QAction(tr("Broadcast"), this);
+	auto* actFifo = new QAction(tr("FIFO"), this);
+	auto* actForwardFifo = new QAction(tr("FWD FIFO"), this);
 
 	actSelect->setCheckable(true);
 	actPan->setCheckable(true);
@@ -164,6 +166,8 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 	actSplit->setCheckable(true);
 	actJoin->setCheckable(true);
 	actBroadcast->setCheckable(true);
+	actFifo->setCheckable(true);
+	actForwardFifo->setCheckable(true);
 
 	actSelect->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/select_hand_pointer_icon.svg"), QSize(20, 20)));
 	actPan->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/pan_icon.svg"), QSize(20, 20)));
@@ -171,6 +175,11 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 	actSplit->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/split_link_icon.svg"), QSize(20, 20)));
 	actJoin->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/merge_link_icon.svg"), QSize(20, 20)));
 	actBroadcast->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/broadcast_link_icon.svg"), QSize(20, 20)));
+	actFifo->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/fifo_icon.svg"), QSize(20, 20)));
+	actForwardFifo->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/forward_fifo_icon.svg"), QSize(20, 20)));
+
+	actFifo->setToolTip(tr("FIFO Link Mode: create ObjectFIFO links"));
+	actForwardFifo->setToolTip(tr("Forward FIFO Mode: create FWD ObjectFIFO links"));
 
 	RibbonPresentation smallPres;
 	smallPres.size = RibbonVisualSize::Small;
@@ -181,15 +190,18 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 	linkPres.size = RibbonVisualSize::Large;
 	linkPres.iconPx = 28;
 
-	auto canvasRoot = RibbonNode::makeRow("canvas_root");
-	canvasRoot->addCommand(Constants::CANVAS_SELECT_ITEMID, actSelect, RibbonControlType::ToggleButton, smallPres);
-	canvasRoot->addCommand(Constants::CANVAS_PAN_ITEMID, actPan, RibbonControlType::ToggleButton, smallPres);
-	canvasRoot->addSeparator("canvas_link_sep");
+	auto canvasRoot = RibbonNode::makeColumn("canvas_root");
+	auto& canvasTopRow = canvasRoot->addRow("canvas_top_row");
+	canvasTopRow.addCommand(Constants::CANVAS_SELECT_ITEMID, actSelect, RibbonControlType::ToggleButton, smallPres);
+	canvasTopRow.addCommand(Constants::CANVAS_PAN_ITEMID, actPan, RibbonControlType::ToggleButton, smallPres);
+	canvasTopRow.addCommand(Constants::CANVAS_LINK_ITEMID, actLink, RibbonControlType::ToggleButton, linkPres);
 
-	canvasRoot->addCommand(Constants::CANVAS_LINK_ITEMID, actLink, RibbonControlType::ToggleButton, linkPres);
-	canvasRoot->addCommand(Constants::CANVAS_LINK_SPLIT_ITEMID, actSplit, RibbonControlType::ToggleButton, smallPres);
-	canvasRoot->addCommand(Constants::CANVAS_LINK_JOIN_ITEMID, actJoin, RibbonControlType::ToggleButton, smallPres);
-	canvasRoot->addCommand(Constants::CANVAS_LINK_BROADCAST_ITEMID, actBroadcast, RibbonControlType::ToggleButton, smallPres);
+	auto& canvasLinkRow = canvasRoot->addRow("canvas_link_row");
+	canvasLinkRow.addCommand(Constants::CANVAS_LINK_SPLIT_ITEMID, actSplit, RibbonControlType::ToggleButton, smallPres);
+	canvasLinkRow.addCommand(Constants::CANVAS_LINK_JOIN_ITEMID, actJoin, RibbonControlType::ToggleButton, smallPres);
+	canvasLinkRow.addCommand(Constants::CANVAS_LINK_BROADCAST_ITEMID, actBroadcast, RibbonControlType::ToggleButton, smallPres);
+	canvasLinkRow.addCommand(Constants::CANVAS_LINK_FIFO_ITEMID, actFifo, RibbonControlType::ToggleButton, smallPres);
+	canvasLinkRow.addCommand(Constants::CANVAS_LINK_FORWARD_FIFO_ITEMID, actForwardFifo, RibbonControlType::ToggleButton, smallPres);
 
 	if (const auto res = uiHost->setRibbonGroupLayout(Constants::RIBBON_TAB_HOME,
 	                                                  Constants::RIBBON_TAB_HOME_CANVAS_GROUP,

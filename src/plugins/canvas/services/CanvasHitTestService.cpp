@@ -22,6 +22,22 @@ CanvasItem* hitTestItem(const CanvasDocument& doc,
         activeCtx = &localCtx;
     }
 
+    // Wire annotations are rendered in the overlay layer, so give them explicit
+    // hit-test priority before regular item stack traversal.
+    for (auto it = doc.items().rbegin(); it != doc.items().rend(); ++it) {
+        auto* wire = dynamic_cast<CanvasWire*>(it->get());
+        if (!wire)
+            continue;
+
+        const CanvasWire::AnnotationDetail detail = wire->annotationDetail(*activeCtx);
+        if (detail == CanvasWire::AnnotationDetail::Hidden)
+            continue;
+
+        const QRectF annotationRect = wire->annotationRect(*activeCtx, detail);
+        if (annotationRect.isValid() && annotationRect.contains(scenePos))
+            return wire;
+    }
+
     for (auto it = doc.items().rbegin(); it != doc.items().rend(); ++it) {
         CanvasItem* item = it->get();
         if (!item)

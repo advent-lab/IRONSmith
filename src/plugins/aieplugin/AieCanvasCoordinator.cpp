@@ -11,6 +11,7 @@
 #include "canvas/CanvasController.hpp"
 #include "canvas/CanvasDocument.hpp"
 #include "canvas/CanvasBlock.hpp"
+#include "canvas/CanvasView.hpp"
 
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QMarginsF>
@@ -27,6 +28,32 @@ namespace Aie {
 namespace {
 
 constexpr int kApplyDebounceMs = 50;
+
+Canvas::WireAnnotationVisibilityMode toCanvasVisibilityMode(AieCanvasCoordinator::WireAnnotationVisibilityMode mode)
+{
+    switch (mode) {
+        case AieCanvasCoordinator::WireAnnotationVisibilityMode::Auto:
+            return Canvas::WireAnnotationVisibilityMode::Auto;
+        case AieCanvasCoordinator::WireAnnotationVisibilityMode::ShowAll:
+            return Canvas::WireAnnotationVisibilityMode::ShowAll;
+        case AieCanvasCoordinator::WireAnnotationVisibilityMode::Hidden:
+            return Canvas::WireAnnotationVisibilityMode::Hidden;
+    }
+    return Canvas::WireAnnotationVisibilityMode::Auto;
+}
+
+Canvas::WireAnnotationDetailMode toCanvasDetailMode(AieCanvasCoordinator::WireAnnotationDetailMode mode)
+{
+    switch (mode) {
+        case AieCanvasCoordinator::WireAnnotationDetailMode::Adaptive:
+            return Canvas::WireAnnotationDetailMode::Adaptive;
+        case AieCanvasCoordinator::WireAnnotationDetailMode::Compact:
+            return Canvas::WireAnnotationDetailMode::Compact;
+        case AieCanvasCoordinator::WireAnnotationDetailMode::Full:
+            return Canvas::WireAnnotationDetailMode::Full;
+    }
+    return Canvas::WireAnnotationDetailMode::Adaptive;
+}
 
 struct SelectionBlockInfo final {
     Canvas::ObjectId id{};
@@ -294,6 +321,7 @@ void AieCanvasCoordinator::setCanvasHost(Canvas::Api::ICanvasHost* host)
     if (m_canvasHost == host)
         return;
     m_canvasHost = host;
+    applyWireAnnotationSettings();
 }
 
 void AieCanvasCoordinator::setGridHost(Canvas::Api::ICanvasGridHost* host)
@@ -322,6 +350,104 @@ void AieCanvasCoordinator::setBaseModel(const CanvasGridModel& model)
 void AieCanvasCoordinator::setBaseStyles(const QHash<QString, Canvas::Api::CanvasBlockStyle>& styles)
 {
     m_baseStyles = styles;
+    requestApply();
+}
+
+void AieCanvasCoordinator::setBlockLabelOverrides(const QHash<QString, QString>& overrides)
+{
+    if (m_blockLabelOverrides == overrides)
+        return;
+
+    m_blockLabelOverrides = overrides;
+    requestApply();
+}
+
+void AieCanvasCoordinator::setBlockLabelOverride(const QString& blockId, const QString& label)
+{
+    const QString cleanedId = blockId.trimmed();
+    if (cleanedId.isEmpty())
+        return;
+
+    const QString cleanedLabel = label.trimmed();
+    if (cleanedLabel.isEmpty()) {
+        clearBlockLabelOverride(cleanedId);
+        return;
+    }
+
+    if (m_blockLabelOverrides.value(cleanedId) == cleanedLabel)
+        return;
+
+    m_blockLabelOverrides.insert(cleanedId, cleanedLabel);
+    requestApply();
+}
+
+void AieCanvasCoordinator::clearBlockLabelOverride(const QString& blockId)
+{
+    const QString cleanedId = blockId.trimmed();
+    if (cleanedId.isEmpty())
+        return;
+
+    if (m_blockLabelOverrides.remove(cleanedId) <= 0)
+        return;
+
+    requestApply();
+}
+
+void AieCanvasCoordinator::clearBlockLabelOverrides()
+{
+    if (m_blockLabelOverrides.isEmpty())
+        return;
+
+    m_blockLabelOverrides.clear();
+    requestApply();
+}
+
+void AieCanvasCoordinator::setBlockStereotypeOverrides(const QHash<QString, QString>& overrides)
+{
+    if (m_blockStereotypeOverrides == overrides)
+        return;
+
+    m_blockStereotypeOverrides = overrides;
+    requestApply();
+}
+
+void AieCanvasCoordinator::setBlockStereotypeOverride(const QString& blockId, const QString& stereotype)
+{
+    const QString cleanedId = blockId.trimmed();
+    if (cleanedId.isEmpty())
+        return;
+
+    const QString cleanedStereotype = stereotype.trimmed();
+    if (cleanedStereotype.isEmpty()) {
+        clearBlockStereotypeOverride(cleanedId);
+        return;
+    }
+
+    if (m_blockStereotypeOverrides.value(cleanedId) == cleanedStereotype)
+        return;
+
+    m_blockStereotypeOverrides.insert(cleanedId, cleanedStereotype);
+    requestApply();
+}
+
+void AieCanvasCoordinator::clearBlockStereotypeOverride(const QString& blockId)
+{
+    const QString cleanedId = blockId.trimmed();
+    if (cleanedId.isEmpty())
+        return;
+
+    if (m_blockStereotypeOverrides.remove(cleanedId) <= 0)
+        return;
+
+    requestApply();
+}
+
+void AieCanvasCoordinator::clearBlockStereotypeOverrides()
+{
+    if (m_blockStereotypeOverrides.isEmpty())
+        return;
+
+    m_blockStereotypeOverrides.clear();
     requestApply();
 }
 
@@ -419,6 +545,49 @@ void AieCanvasCoordinator::setShowAnnotations(bool enabled)
     requestApply();
 }
 
+void AieCanvasCoordinator::setShowStereotypes(bool enabled)
+{
+    if (!setFlag(FlagBit::ShowStereotypes, enabled))
+        return;
+    emit showAnnotationsChanged(showAnnotations());
+    requestApply();
+}
+
+void AieCanvasCoordinator::setShowPortAnnotations(bool enabled)
+{
+    if (!setFlag(FlagBit::ShowPortAnnotations, enabled))
+        return;
+    emit showAnnotationsChanged(showAnnotations());
+    requestApply();
+}
+
+void AieCanvasCoordinator::setWireAnnotationVisibilityMode(WireAnnotationVisibilityMode mode)
+{
+    if (m_wireAnnotationVisibilityMode == mode)
+        return;
+    m_wireAnnotationVisibilityMode = mode;
+    applyWireAnnotationSettings();
+    emit showAnnotationsChanged(showAnnotations());
+}
+
+void AieCanvasCoordinator::setWireAnnotationDetailMode(WireAnnotationDetailMode mode)
+{
+    if (m_wireAnnotationDetailMode == mode)
+        return;
+    m_wireAnnotationDetailMode = mode;
+    applyWireAnnotationSettings();
+    emit showAnnotationsChanged(showAnnotations());
+}
+
+void AieCanvasCoordinator::setWireAnnotationsScaleWithZoom(bool enabled)
+{
+    if (m_wireAnnotationsScaleWithZoom == enabled)
+        return;
+    m_wireAnnotationsScaleWithZoom = enabled;
+    applyWireAnnotationSettings();
+    emit showAnnotationsChanged(showAnnotations());
+}
+
 void AieCanvasCoordinator::setKeepoutMargin(double margin)
 {
     if (qFuzzyCompare(m_layout.keepoutMargin, margin))
@@ -484,8 +653,19 @@ void AieCanvasCoordinator::apply()
     for (auto& block : blocks) {
         const bool basePortLabels = block.showPortLabels;
         block.showPorts = showPorts();
-        block.label = showLabels() ? block.label : QString();
-        block.showPortLabels = showAnnotations() && basePortLabels;
+        QString effectiveLabel = block.label;
+        const QString overrideLabel = m_blockLabelOverrides.value(block.id).trimmed();
+        if (!overrideLabel.isEmpty())
+            effectiveLabel = overrideLabel;
+
+        QString effectiveStereotype = block.stereotype;
+        const QString overrideStereotype = m_blockStereotypeOverrides.value(block.id).trimmed();
+        if (!overrideStereotype.isEmpty())
+            effectiveStereotype = overrideStereotype;
+
+        block.label = showLabels() ? effectiveLabel : QString();
+        block.stereotype = (showAnnotations() && showStereotypes()) ? effectiveStereotype : QString();
+        block.showPortLabels = showAnnotations() && showPortAnnotations() && basePortLabels;
         block.positionOffset = m_blockOffsets.value(block.id);
         if (m_layout.keepoutMargin >= 0.0)
             block.keepoutMargin = m_layout.keepoutMargin;
@@ -624,6 +804,18 @@ void AieCanvasCoordinator::requestApply()
 {
     setFlag(FlagBit::Dirty, true);
     m_applyDebounce.trigger();
+}
+
+void AieCanvasCoordinator::applyWireAnnotationSettings()
+{
+    auto* host = m_canvasHost.data();
+    auto* view = host ? qobject_cast<Canvas::CanvasView*>(host->viewWidget()) : nullptr;
+    if (!view)
+        return;
+
+    view->setWireAnnotationVisibilityMode(toCanvasVisibilityMode(m_wireAnnotationVisibilityMode));
+    view->setWireAnnotationDetailMode(toCanvasDetailMode(m_wireAnnotationDetailMode));
+    view->setWireAnnotationsScaleWithZoom(m_wireAnnotationsScaleWithZoom);
 }
 
 void AieCanvasCoordinator::applyNow()

@@ -404,17 +404,6 @@ void CanvasDragController::endEndpointDrag(const QPointF& scenePos)
         }
     }
 
-    const bool samePort = attachedRef.has_value()
-        && attachedRef->itemId == m_dragEndpointPort.itemId
-        && attachedRef->portId == m_dragEndpointPort.portId;
-    if (!samePort && m_dragEndpointPort.itemId &&
-        Support::countPortAttachments(*m_doc, m_dragEndpointPort.itemId, m_dragEndpointPort.portId, wire->id()) == 0) {
-        Support::removeOppositeProducerPort(*m_doc, m_dragEndpointPort.itemId, m_dragEndpointPort.portId);
-    }
-
-    if (attachedRef.has_value())
-        Support::ensureOppositeProducerPort(*m_doc, attachedRef->itemId, attachedRef->portId);
-
     wire->clearRouteOverride();
     m_doc->notifyChanged();
     m_view->clearHoveredEdge();

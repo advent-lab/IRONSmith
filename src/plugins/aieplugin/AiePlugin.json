@@ -5,5 +5,5 @@
   "Vendor": "IRONSmith",
   "Category": "Core",
   "Description": "AIE device topology and modeling utilities.",
-  "Dependencies": ["Core", "Canvas", "ProjectExplorer"]
+  "Dependencies": ["Core", "Canvas", "ProjectExplorer", "CodeEditor"]
 }

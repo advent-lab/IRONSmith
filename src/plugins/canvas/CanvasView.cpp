@@ -147,6 +147,40 @@ void CanvasView::clearHoveredPort()
         m_scene->clearHoveredPort();
 }
 
+void CanvasView::setHoveredWire(ObjectId itemId)
+{
+    if (m_scene)
+        m_scene->setHoveredWire(itemId);
+}
+
+void CanvasView::clearHoveredWire()
+{
+    if (m_scene)
+        m_scene->clearHoveredWire();
+}
+
+bool CanvasView::hasHoveredWire() const noexcept
+{
+    return m_scene ? m_scene->hasHoveredWire() : false;
+}
+
+ObjectId CanvasView::hoveredWire() const noexcept
+{
+    return m_scene ? m_scene->hoveredWire() : ObjectId{};
+}
+
+void CanvasView::setHoveredStereotype(ObjectId itemId)
+{
+    if (m_scene)
+        m_scene->setHoveredStereotype(itemId);
+}
+
+void CanvasView::clearHoveredStereotype()
+{
+    if (m_scene)
+        m_scene->clearHoveredStereotype();
+}
+
 void CanvasView::setHoveredEdge(ObjectId itemId, PortSide side, const QPointF& anchorScene)
 {
     if (m_scene)
@@ -169,6 +203,50 @@ void CanvasView::clearMarqueeRect()
 {
     if (m_scene)
         m_scene->clearMarqueeRect();
+}
+
+void CanvasView::setWireAnnotationVisibilityMode(WireAnnotationVisibilityMode mode)
+{
+    if (m_scene)
+        m_scene->setWireAnnotationVisibilityMode(mode);
+}
+
+WireAnnotationVisibilityMode CanvasView::wireAnnotationVisibilityMode() const noexcept
+{
+    return m_scene ? m_scene->wireAnnotationVisibilityMode() : WireAnnotationVisibilityMode::Auto;
+}
+
+void CanvasView::setWireAnnotationDetailMode(WireAnnotationDetailMode mode)
+{
+    if (m_scene)
+        m_scene->setWireAnnotationDetailMode(mode);
+}
+
+WireAnnotationDetailMode CanvasView::wireAnnotationDetailMode() const noexcept
+{
+    return m_scene ? m_scene->wireAnnotationDetailMode() : WireAnnotationDetailMode::Adaptive;
+}
+
+void CanvasView::setWireAnnotationsScaleWithZoom(bool enabled)
+{
+    if (m_scene)
+        m_scene->setWireAnnotationsScaleWithZoom(enabled);
+}
+
+bool CanvasView::wireAnnotationsScaleWithZoom() const noexcept
+{
+    return m_scene ? m_scene->wireAnnotationsScaleWithZoom() : true;
+}
+
+void CanvasView::setShowAllWireAnnotations(bool enabled)
+{
+    if (m_scene)
+        m_scene->setShowAllWireAnnotations(enabled);
+}
+
+bool CanvasView::showAllWireAnnotations() const noexcept
+{
+    return m_scene ? m_scene->showAllWireAnnotations() : false;
 }
 
 void CanvasView::setEmptyStateVisible(bool visible)

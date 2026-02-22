@@ -24,6 +24,11 @@ const QString kCellSizeKey = u"cellSize"_s;
 const QString kShowPortsKey = u"showPorts"_s;
 const QString kShowLabelsKey = u"showLabels"_s;
 const QString kShowAnnotationsKey = u"showAnnotations"_s;
+const QString kShowStereotypesKey = u"showStereotypes"_s;
+const QString kShowPortAnnotationsKey = u"showPortAnnotations"_s;
+const QString kWireAnnotationsVisibilityKey = u"wireAnnotationsVisibility"_s;
+const QString kWireAnnotationsDetailKey = u"wireAnnotationsDetail"_s;
+const QString kWireAnnotationsScaleWithZoomKey = u"wireAnnotationsScaleWithZoom"_s;
 const QString kKeepoutKey = u"keepoutMargin"_s;
 const QString kUseCustomColorsKey = u"useCustomColors"_s;
 const QString kFillKey = u"fillColor"_s;
@@ -134,6 +139,20 @@ void AiePanelState::apply(const QJsonObject& state)
         m_coordinator->setShowLabels(state.value(kShowLabelsKey).toBool(m_coordinator->showLabels()));
     if (state.contains(kShowAnnotationsKey))
         m_coordinator->setShowAnnotations(state.value(kShowAnnotationsKey).toBool(m_coordinator->showAnnotations()));
+    if (state.contains(kShowStereotypesKey))
+        m_coordinator->setShowStereotypes(state.value(kShowStereotypesKey).toBool(m_coordinator->showStereotypes()));
+    if (state.contains(kShowPortAnnotationsKey))
+        m_coordinator->setShowPortAnnotations(state.value(kShowPortAnnotationsKey).toBool(m_coordinator->showPortAnnotations()));
+    if (state.contains(kWireAnnotationsVisibilityKey)) {
+        const int rawMode = state.value(kWireAnnotationsVisibilityKey).toInt(static_cast<int>(m_coordinator->wireAnnotationVisibilityMode()));
+        m_coordinator->setWireAnnotationVisibilityMode(static_cast<AieCanvasCoordinator::WireAnnotationVisibilityMode>(rawMode));
+    }
+    if (state.contains(kWireAnnotationsDetailKey)) {
+        const int rawMode = state.value(kWireAnnotationsDetailKey).toInt(static_cast<int>(m_coordinator->wireAnnotationDetailMode()));
+        m_coordinator->setWireAnnotationDetailMode(static_cast<AieCanvasCoordinator::WireAnnotationDetailMode>(rawMode));
+    }
+    if (state.contains(kWireAnnotationsScaleWithZoomKey))
+        m_coordinator->setWireAnnotationsScaleWithZoom(state.value(kWireAnnotationsScaleWithZoomKey).toBool(m_coordinator->wireAnnotationsScaleWithZoom()));
     if (state.contains(kKeepoutKey))
         m_coordinator->setKeepoutMargin(state.value(kKeepoutKey).toDouble(m_coordinator->keepoutMargin()));
     if (state.contains(kUseCustomColorsKey))
@@ -163,6 +182,11 @@ QJsonObject AiePanelState::snapshot() const
     obj.insert(kShowPortsKey, m_coordinator->showPorts());
     obj.insert(kShowLabelsKey, m_coordinator->showLabels());
     obj.insert(kShowAnnotationsKey, m_coordinator->showAnnotations());
+    obj.insert(kShowStereotypesKey, m_coordinator->showStereotypes());
+    obj.insert(kShowPortAnnotationsKey, m_coordinator->showPortAnnotations());
+    obj.insert(kWireAnnotationsVisibilityKey, static_cast<int>(m_coordinator->wireAnnotationVisibilityMode()));
+    obj.insert(kWireAnnotationsDetailKey, static_cast<int>(m_coordinator->wireAnnotationDetailMode()));
+    obj.insert(kWireAnnotationsScaleWithZoomKey, m_coordinator->wireAnnotationsScaleWithZoom());
     obj.insert(kKeepoutKey, m_coordinator->keepoutMargin());
     obj.insert(kUseCustomColorsKey, m_coordinator->useCustomColors());
     obj.insert(kFillKey, colorToString(m_coordinator->fillColor()));

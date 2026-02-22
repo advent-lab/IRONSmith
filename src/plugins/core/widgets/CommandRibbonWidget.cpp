@@ -113,6 +113,13 @@ private:
             text += " \u25BE";
         m_caption->setText(text);
 
+        const QString tip = m_action->toolTip().trimmed().isEmpty()
+            ? m_action->text()
+            : m_action->toolTip();
+        setToolTip(tip);
+        m_icon->setToolTip(tip);
+        m_caption->setToolTip(tip);
+
         if (!m_action->icon().isNull()) {
             const QSize logical = m_iconSize.isValid() ? m_iconSize : QSize(24, 24);
             const qreal dpr = m_icon->devicePixelRatioF();

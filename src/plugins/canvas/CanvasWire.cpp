@@ -3,13 +3,20 @@
 
 #include "canvas/CanvasWire.hpp"
 
+#include "canvas/CanvasConstants.hpp"
 #include "canvas/CanvasStyle.hpp"
 #include "canvas/internal/CanvasWireRouting.hpp"
 #include "canvas/utils/CanvasGeometry.hpp"
 
+#include <QtCore/QHashFunctions>
 #include <QtCore/QLineF>
+#include <QtGui/QFont>
+#include <QtGui/QFontMetricsF>
 #include <QtGui/QPainter>
+#include <QtWidgets/QApplication>
 
+#include <algorithm>
+#include <cmath>
 #include <utility>
 #include <vector>
 
@@ -108,6 +115,180 @@ void appendCoord(std::vector<FabricCoord>& path, const FabricCoord& coord)
     path.push_back(coord);
 }
 
+QString shortStrongId(const QString& idText)
+{
+    const QString normalized = idText.trimmed();
+    if (normalized.isEmpty())
+        return QStringLiteral("?");
+
+    return normalized.left(6).toUpper();
+}
+
+QString normalizeObjectFifoType(QString valueType)
+{
+    valueType = valueType.trimmed().toLower();
+    if (valueType == QStringLiteral("i8") ||
+        valueType == QStringLiteral("i16") ||
+        valueType == QStringLiteral("i32")) {
+        return valueType;
+    }
+    return QStringLiteral("i32");
+}
+
+QString normalizedObjectFifoName(QString name)
+{
+    name = name.trimmed();
+    if (name.isEmpty())
+        return QStringLiteral("in");
+    return name;
+}
+
+int normalizedObjectFifoDepth(int depth)
+{
+    return depth > 0 ? depth : 2;
+}
+
+QString objectFifoAnnotationText(const CanvasWire::ObjectFifoConfig& config, bool compact)
+{
+    const QString name = normalizedObjectFifoName(config.name);
+    const int depth = normalizedObjectFifoDepth(config.depth);
+    const QString valueType = normalizeObjectFifoType(config.type.valueType);
+    const QString opPrefix =
+        (config.operation == CanvasWire::ObjectFifoOperation::Forward)
+            ? QStringLiteral("FWD: ")
+            : QString();
+
+    if (compact)
+        return opPrefix + QStringLiteral("FIFO<\"%1\", D:%2>").arg(name).arg(depth);
+
+    QString text = QStringLiteral("FIFO<\"%1\", D:%2, T:%3>").arg(name).arg(depth).arg(valueType);
+    const QString dimensions = config.type.dimensions.trimmed();
+    if (!dimensions.isEmpty()) {
+        text.chop(1);
+        text += QStringLiteral(", Dim:%1>").arg(dimensions);
+    }
+    return opPrefix + text;
+}
+
+struct AnnotationAnchor final {
+    QPointF point;
+    QPointF tangent;
+    double segmentLength = 0.0;
+};
+
+AnnotationAnchor annotationAnchorForPath(const std::vector<QPointF>& pathScene,
+                                         const CanvasWire::Endpoint& a,
+                                         const CanvasWire::Endpoint& b)
+{
+    if (pathScene.size() >= 2) {
+        double bestLen2 = -1.0;
+        QPointF bestMidpoint = pathScene.front();
+        QPointF bestDir(1.0, 0.0);
+        double bestLength = 0.0;
+        for (size_t i = 1; i < pathScene.size(); ++i) {
+            const QPointF first = pathScene[i - 1];
+            const QPointF second = pathScene[i];
+            const QPointF delta = second - first;
+            const double len2 = delta.x() * delta.x() + delta.y() * delta.y();
+            if (len2 <= bestLen2)
+                continue;
+
+            bestLen2 = len2;
+            bestMidpoint = QPointF((first.x() + second.x()) * 0.5,
+                                   (first.y() + second.y()) * 0.5);
+            const double len = std::sqrt(len2);
+            if (len > 1e-6)
+                bestDir = QPointF(delta.x() / len, delta.y() / len);
+            bestLength = len;
+        }
+        return {bestMidpoint, bestDir, bestLength};
+    }
+
+    if (pathScene.size() == 1)
+        return {pathScene.front(), QPointF(1.0, 0.0), 0.0};
+
+    const QPointF delta = b.freeScene - a.freeScene;
+    const double len2 = delta.x() * delta.x() + delta.y() * delta.y();
+    QPointF dir(1.0, 0.0);
+    if (len2 > 1e-6) {
+        const double len = std::sqrt(len2);
+        dir = QPointF(delta.x() / len, delta.y() / len);
+    }
+
+    return {QPointF((a.freeScene.x() + b.freeScene.x()) * 0.5,
+                    (a.freeScene.y() + b.freeScene.y()) * 0.5),
+            dir,
+            std::sqrt(len2)};
+}
+
+WireAnnotationVisibilityMode effectiveWireAnnotationVisibility(const CanvasRenderContext& ctx)
+{
+    if (ctx.showAllWireAnnotations)
+        return WireAnnotationVisibilityMode::ShowAll;
+    return ctx.wireAnnotationVisibilityMode;
+}
+
+double annotationScaleFactor(const CanvasRenderContext& ctx)
+{
+    if (ctx.wireAnnotationsScaleWithZoom)
+        return 1.0;
+    return 1.0 / std::clamp(ctx.zoom, 0.25, 8.0);
+}
+
+QRectF annotationRectForPath(const QString& text,
+                             const std::vector<QPointF>& pathScene,
+                             const CanvasWire::Endpoint& a,
+                             const CanvasWire::Endpoint& b,
+                             ObjectId wireId,
+                             const CanvasRenderContext& ctx)
+{
+    const QString normalized = text.trimmed();
+    if (normalized.isEmpty())
+        return {};
+
+    const double scale = annotationScaleFactor(ctx);
+
+    QFont font = QApplication::font();
+    font.setPointSizeF(Constants::kWireAnnotationPointSize * scale);
+    font.setBold(false);
+
+    QFontMetricsF metrics(font);
+    const QSizeF textSize = metrics.size(Qt::TextSingleLine, normalized);
+    const QSizeF boxSize(textSize.width() + (Constants::kWireAnnotationPadX * 2.0 * scale),
+                         textSize.height() + (Constants::kWireAnnotationPadY * 2.0 * scale));
+    const AnnotationAnchor anchor = annotationAnchorForPath(pathScene, a, b);
+    const QPointF normal(-anchor.tangent.y(), anchor.tangent.x());
+
+    const WireAnnotationVisibilityMode visibility = effectiveWireAnnotationVisibility(ctx);
+    int normalLane = 0;
+    int tangentLane = 0;
+    if (visibility == WireAnnotationVisibilityMode::ShowAll) {
+        const size_t hash = qHash(wireId);
+        normalLane = static_cast<int>(hash % 3) - 1;
+        tangentLane = static_cast<int>((hash / 3) % 3) - 1;
+    }
+
+    const double segmentSpan = std::max(0.0, anchor.segmentLength);
+    const double normalBase = std::max(6.0 * scale, Constants::kWireAnnotationBaseNormalOffset * 0.45 * scale);
+    const double normalStep = Constants::kWireAnnotationLaneOffset * 0.45 * scale;
+    const double tangentStep = Constants::kWireAnnotationTangentOffset * 0.35 * scale;
+    const double maxNormalOffset = std::max(10.0 * scale, segmentSpan * 0.25);
+    const double maxTangentOffset = std::max(6.0 * scale, segmentSpan * 0.18);
+    const double normalOffset = std::clamp(normalBase + (static_cast<double>(normalLane) * normalStep),
+                                           -maxNormalOffset,
+                                           maxNormalOffset);
+    const double tangentOffset = std::clamp(static_cast<double>(tangentLane) * tangentStep,
+                                            -maxTangentOffset,
+                                            maxTangentOffset);
+
+    const QPointF center = anchor.point
+                           + (normal * normalOffset)
+                           + (anchor.tangent * tangentOffset);
+    const double x = center.x() - boxSize.width() * 0.5;
+    const double y = center.y() - boxSize.height() * 0.5;
+    return QRectF(x, y, boxSize.width(), boxSize.height());
+}
+
 } // namespace
 
 
@@ -143,6 +324,7 @@ std::unique_ptr<CanvasItem> CanvasWire::clone() const
     w->m_arrowPolicy = m_arrowPolicy;
     w->m_hasColorOverride = m_hasColorOverride;
     w->m_colorOverride = m_colorOverride;
+    w->m_objectFifo = m_objectFifo;
     return w;
 }
 
@@ -153,6 +335,11 @@ bool CanvasWire::hitTest(const QPointF& scenePos) const
 
 bool CanvasWire::hitTest(const QPointF& scenePos, const CanvasRenderContext& ctx) const
 {
+    const AnnotationDetail detail = annotationDetail(ctx);
+    const QRectF annotationBounds = annotationRect(ctx, detail);
+    if (annotationBounds.isValid() && annotationBounds.contains(scenePos))
+        return true;
+
     const std::vector<QPointF> route = resolvedPathScene(ctx);
 
     if (route.size() >= 2) {
@@ -193,6 +380,20 @@ void CanvasWire::clearColorOverride()
 {
     m_hasColorOverride = false;
     m_colorOverride = QColor();
+}
+
+void CanvasWire::setObjectFifo(ObjectFifoConfig config)
+{
+    config.name = normalizedObjectFifoName(config.name);
+    config.depth = normalizedObjectFifoDepth(config.depth);
+    config.type.valueType = normalizeObjectFifoType(config.type.valueType);
+    config.type.dimensions = config.type.dimensions.trimmed();
+    m_objectFifo = std::move(config);
+}
+
+void CanvasWire::clearObjectFifo()
+{
+    m_objectFifo.reset();
 }
 
 bool CanvasWire::attachesTo(ObjectId itemId) const
@@ -263,6 +464,82 @@ std::vector<FabricCoord> CanvasWire::resolvedPathCoords(const CanvasRenderContex
     for (const auto& pt : pathScene)
         out.push_back(Support::toFabricCoord(pt, step));
     return out;
+}
+
+bool CanvasWire::shouldShowAnnotation(const CanvasRenderContext& ctx) const
+{
+    const WireAnnotationVisibilityMode visibility = effectiveWireAnnotationVisibility(ctx);
+    if (visibility == WireAnnotationVisibilityMode::Hidden)
+        return false;
+    if (visibility == WireAnnotationVisibilityMode::ShowAll)
+        return true;
+
+    const bool emphasized = ctx.selected(id()) || ctx.hovered(id());
+    return emphasized;
+}
+
+CanvasWire::AnnotationDetail CanvasWire::annotationDetail(const CanvasRenderContext& ctx) const
+{
+    if (!shouldShowAnnotation(ctx))
+        return AnnotationDetail::Hidden;
+
+    switch (ctx.wireAnnotationDetailMode) {
+        case WireAnnotationDetailMode::Compact:
+            return AnnotationDetail::Compact;
+        case WireAnnotationDetailMode::Full:
+            return AnnotationDetail::Full;
+        case WireAnnotationDetailMode::Adaptive:
+            break;
+    }
+
+    const bool emphasized = ctx.selected(id()) || ctx.hovered(id());
+    const WireAnnotationVisibilityMode visibility = effectiveWireAnnotationVisibility(ctx);
+
+    if (ctx.zoom < Constants::kWireAnnotationHideZoom) {
+        if (emphasized)
+            return AnnotationDetail::Compact;
+        if (visibility == WireAnnotationVisibilityMode::ShowAll)
+            return AnnotationDetail::Compact;
+        return AnnotationDetail::Hidden;
+    }
+
+    if (ctx.zoom < Constants::kWireAnnotationCompactZoom)
+        return AnnotationDetail::Compact;
+
+    return AnnotationDetail::Full;
+}
+
+QString CanvasWire::annotationText(AnnotationDetail detail, const CanvasRenderContext& ctx) const
+{
+    if (detail == AnnotationDetail::Hidden)
+        return {};
+
+    if (m_objectFifo.has_value())
+        return objectFifoAnnotationText(*m_objectFifo, detail == AnnotationDetail::Compact);
+
+    QString consumerHandleLabel;
+    const auto resolveHandleLabel = [&](const Endpoint& endpoint) {
+        if (!endpoint.attached.has_value())
+            return false;
+        const auto& ref = endpoint.attached.value();
+        return ctx.consumerHandleLabelForEndpoint(ref.itemId, ref.portId, consumerHandleLabel);
+    };
+    if (resolveHandleLabel(m_a) || resolveHandleLabel(m_b))
+        return consumerHandleLabel;
+
+    const QString idLabel = shortStrongId(id().toString());
+    if (detail == AnnotationDetail::Compact)
+        return QStringLiteral("W%1").arg(idLabel.left(4));
+
+    return QStringLiteral("WIRE %1").arg(idLabel);
+}
+
+QRectF CanvasWire::annotationRect(const CanvasRenderContext& ctx, AnnotationDetail detail) const
+{
+    if (detail == AnnotationDetail::Hidden)
+        return {};
+
+    return annotationRectForPath(annotationText(detail, ctx), resolvedPathScene(ctx), m_a, m_b, id(), ctx);
 }
 
 } // namespace Canvas

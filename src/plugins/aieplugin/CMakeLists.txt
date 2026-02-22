@@ -26,12 +26,34 @@ ironsmith_add_plugin(AiePlugin
             api/IAieHost.hpp
             state/AiePanelState.hpp
             state/AiePanelState.cpp
+            state/AieSidebarState.hpp
+            state/AieSidebarState.cpp
             state/AieWorkspaceState.hpp
             state/AieWorkspaceState.cpp
+            state/AieKernelsPanelState.hpp
+            state/AieKernelsPanelState.cpp
             state/AieLayoutSettings.hpp
             state/AieLayoutSettings.cpp
+            kernels/KernelCatalog.hpp
+            kernels/KernelCatalog.cpp
+            kernels/KernelRegistryService.hpp
+            kernels/KernelRegistryService.cpp
+            kernels/KernelAssignmentController.hpp
+            kernels/KernelAssignmentController.cpp
+            kernels/KernelToolboxController.hpp
+            kernels/KernelToolboxController.cpp
             panels/AieToolPanel.hpp
             panels/AieToolPanel.cpp
+            panels/AieKernelsPanel.hpp
+            panels/AieKernelsPanel.cpp
+            panels/AiePropertiesPanel.hpp
+            panels/AiePropertiesPanel.cpp
+            panels/KernelCreateDialog.hpp
+            panels/KernelCreateDialog.cpp
+            panels/KernelPreviewDialog.hpp
+            panels/KernelPreviewDialog.cpp
+            panels/KernelPreviewUtils.hpp
+            panels/KernelPreviewUtils.cpp
             panels/AieNewDesignDialog.hpp
             panels/AieNewDesignDialog.cpp
             design/DesignModel.hpp
@@ -59,6 +81,11 @@ ironsmith_add_plugin(AiePlugin
             IRONSmith::CorePlugin
             IRONSmith::CanvasPlugin
             IRONSmith::ProjectExplorerPlugin
+            IRONSmith::CodeEditorPlugin
+)
+
+target_compile_definitions(AiePlugin PRIVATE
+        IRONSMITH_BUILTIN_KERNELS_DIR="${PROJECT_SOURCE_DIR}/resources/kernels"
 )
 
 if (BUILD_WITH_TESTS)

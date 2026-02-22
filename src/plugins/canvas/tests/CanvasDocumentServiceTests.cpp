@@ -86,10 +86,19 @@ TEST(CanvasDocumentServiceTests, CreateSaveCloseAndReopenRoundTrip)
     auto* block = host.document()->createBlock(QRectF(100.0, 100.0, 40.0, 40.0), true);
     ASSERT_NE(block, nullptr);
     block->setSpecId(QStringLiteral("tile-0"));
+    const Canvas::ObjectId blockId = block->id();
+
+    const Canvas::PortId sinkPort = block->addPort(Canvas::PortSide::Left,
+                                                   0.5,
+                                                   Canvas::PortRole::Consumer,
+                                                   QStringLiteral("IN"));
+    ASSERT_TRUE(sinkPort);
 
     Canvas::PortRef ref;
     ref.itemId = block->id();
     ref.portId = block->addPort(Canvas::PortSide::Right, 0.5, Canvas::PortRole::Producer, QStringLiteral("OUT"));
+    ASSERT_TRUE(ref.portId);
+    ASSERT_TRUE(block->updatePortBinding(ref.portId, block->id(), sinkPort));
 
     Canvas::CanvasWire::Endpoint a;
     a.attached = ref;
@@ -100,6 +109,12 @@ TEST(CanvasDocumentServiceTests, CreateSaveCloseAndReopenRoundTrip)
 
     auto wire = std::make_unique<Canvas::CanvasWire>(a, b);
     wire->setId(host.document()->allocateId());
+    Canvas::CanvasWire::ObjectFifoConfig fifo;
+    fifo.name = QStringLiteral("in");
+    fifo.depth = 2;
+    fifo.operation = Canvas::CanvasWire::ObjectFifoOperation::Forward;
+    fifo.type.valueType = QStringLiteral("i32");
+    wire->setObjectFifo(fifo);
     ASSERT_TRUE(host.document()->insertItem(host.document()->items().size(), std::move(wire)));
 
     const Utils::Result saveResult = service.saveDocument(handle);
@@ -119,4 +134,32 @@ TEST(CanvasDocumentServiceTests, CreateSaveCloseAndReopenRoundTrip)
     ASSERT_TRUE(openResult.ok) << openResult.errors.join("\n").toStdString();
     EXPECT_TRUE(reopened.isValid());
     EXPECT_EQ(host.document()->items().size(), 2u);
+
+    bool foundObjectFifoWire = false;
+    for (const auto& item : host.document()->items()) {
+        const auto* reopenedWire = dynamic_cast<const Canvas::CanvasWire*>(item.get());
+        if (!reopenedWire || !reopenedWire->hasObjectFifo())
+            continue;
+
+        const auto& objectFifo = reopenedWire->objectFifo().value();
+        EXPECT_EQ(objectFifo.name, QStringLiteral("in"));
+        EXPECT_EQ(objectFifo.depth, 2);
+        EXPECT_EQ(objectFifo.operation, Canvas::CanvasWire::ObjectFifoOperation::Forward);
+        EXPECT_EQ(objectFifo.type.valueType, QStringLiteral("i32"));
+        foundObjectFifoWire = true;
+    }
+    EXPECT_TRUE(foundObjectFifoWire);
+
+    const auto* reopenedBlock = dynamic_cast<const Canvas::CanvasBlock*>(host.document()->findItem(blockId));
+    ASSERT_NE(reopenedBlock, nullptr);
+
+    bool foundBoundProducer = false;
+    for (const auto& port : reopenedBlock->ports()) {
+        if (port.role != Canvas::PortRole::Producer || !port.hasBinding)
+            continue;
+        EXPECT_EQ(port.bindingItemId, reopenedBlock->id());
+        EXPECT_EQ(port.bindingPortId, sinkPort);
+        foundBoundProducer = true;
+    }
+    EXPECT_TRUE(foundBoundProducer);
 }

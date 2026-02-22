@@ -72,6 +72,16 @@ public:
 	                                    QPointF& outAnchorScene,
 	                                    QPointF& outBorderScene,
 	                                    QPointF& outFabricScene);
+    bool resolveObjectFifoNameForEndpoint(ObjectId itemId, PortId portId, QString& outName) const;
+    static bool resolveObjectFifoNameForEndpointThunk(void* user,
+                                                      ObjectId itemId,
+                                                      PortId portId,
+                                                      QString& outName);
+    bool resolveConsumerHandleLabelForEndpoint(ObjectId itemId, PortId portId, QString& outLabel) const;
+    static bool resolveConsumerHandleLabelForEndpointThunk(void* user,
+                                                           ObjectId itemId,
+                                                           PortId portId,
+                                                           QString& outLabel);
 
 	QString statusText() const;
 	void setStatusText(QString text);

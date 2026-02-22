@@ -74,6 +74,12 @@ TEST(DesignStateJsonTests, RoundTripSerializeParse)
     link.to.port.role = Canvas::PortRole::Consumer;
     link.to.port.t = 0.75;
     link.routeOverride = { Canvas::FabricCoord{1, 2}, Canvas::FabricCoord{1, 3} };
+    link.objectFifo.name = QStringLiteral("in");
+    link.objectFifo.depth = 3;
+    link.objectFifo.operation = Aie::Internal::DesignLink::ObjectFifo::Operation::Forward;
+    link.objectFifo.type.valueType = QStringLiteral("i32");
+    link.objectFifo.type.dimensions = QStringLiteral("(M, N)");
+    link.hasObjectFifo = true;
     state.links.push_back(link);
 
     QJsonObject metadata;
@@ -127,6 +133,12 @@ TEST(DesignStateJsonTests, RoundTripSerializeParse)
     ASSERT_EQ(parsedLink->routeOverride.size(), 2);
     EXPECT_EQ(parsedLink->routeOverride[0].x, 1);
     EXPECT_EQ(parsedLink->routeOverride[0].y, 2);
+    EXPECT_TRUE(parsedLink->hasObjectFifo);
+    EXPECT_EQ(parsedLink->objectFifo.name, QStringLiteral("in"));
+    EXPECT_EQ(parsedLink->objectFifo.depth, 3);
+    EXPECT_EQ(parsedLink->objectFifo.operation, Aie::Internal::DesignLink::ObjectFifo::Operation::Forward);
+    EXPECT_EQ(parsedLink->objectFifo.type.valueType, QStringLiteral("i32"));
+    EXPECT_EQ(parsedLink->objectFifo.type.dimensions, QStringLiteral("(M, N)"));
 
     EXPECT_EQ(parsed.metadata.value(QStringLiteral("notes")).toString(), QStringLiteral("test"));
 }

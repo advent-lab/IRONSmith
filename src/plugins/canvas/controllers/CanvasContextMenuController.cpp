@@ -15,7 +15,7 @@
 #include "canvas/controllers/CanvasInteractionHelpers.hpp"
 #include "canvas/controllers/CanvasSelectionController.hpp"
 #include "canvas/services/CanvasHitTestService.hpp"
-#include "canvas/utils/CanvasAutoPorts.hpp"
+#include "canvas/utils/CanvasPortBindings.hpp"
 #include "canvas/utils/CanvasGeometry.hpp"
 #include "canvas/utils/CanvasPortUsage.hpp"
 
@@ -38,6 +38,7 @@ const QString kActionRedo = QStringLiteral("canvas.context.redo");
 const QString kActionResetView = QStringLiteral("canvas.context.view.reset");
 const QString kActionFrameAll = QStringLiteral("canvas.context.view.frameAll");
 const QString kActionFrameSelection = QStringLiteral("canvas.context.view.frameSelection");
+const QString kActionToggleWireAnnotations = QStringLiteral("canvas.context.view.toggleWireAnnotations");
 const QString kActionClearSelection = QStringLiteral("canvas.context.selection.clear");
 const QString kActionDeleteSelection = QStringLiteral("canvas.context.selection.delete");
 
@@ -55,8 +56,7 @@ const QString kActionDeleteWire = QStringLiteral("canvas.context.wire.delete");
 const QString kActionClearWireRoute = QStringLiteral("canvas.context.wire.clearRoute");
 
 const QString kActionDeletePort = QStringLiteral("canvas.context.port.delete");
-const QString kActionEnsureOppositeProducer = QStringLiteral("canvas.context.port.ensureOppositeProducer");
-const QString kActionRemoveOppositeProducer = QStringLiteral("canvas.context.port.removeOppositeProducer");
+const QString kActionCreateBoundProducer = QStringLiteral("canvas.context.port.createBoundProducer");
 
 const QString kActionHubKindSplit = QStringLiteral("canvas.context.hub.kind.split");
 const QString kActionHubKindJoin = QStringLiteral("canvas.context.hub.kind.join");
@@ -121,6 +121,43 @@ void CanvasContextMenuController::showContextMenu(const QPointF& scenePos,
     m_menu->setActions(m_actions);
     m_menu->exec(globalPos);
     m_activeTarget.reset();
+}
+
+bool CanvasContextMenuController::tryPlacePendingBoundProducer(const QPointF& scenePos)
+{
+    if (!m_pendingBoundProducerPlacement.has_value() || !m_doc || !m_view)
+        return false;
+
+    const auto edge = Detail::edgeCandidateAt(m_doc, m_view, scenePos);
+    if (!edge.has_value())
+        return false;
+
+    Support::BoundProducerPlacementRequest request;
+    request.consumerItemId = m_pendingBoundProducerPlacement->consumerItemId;
+    request.consumerPortId = m_pendingBoundProducerPlacement->consumerPortId;
+    request.producerEdge = *edge;
+
+    const auto created = Support::createBoundProducerPort(*m_doc, request);
+    if (!created.has_value()) {
+        CanvasPort consumerMeta;
+        if (!m_doc->getPort(request.consumerItemId, request.consumerPortId, consumerMeta))
+            m_pendingBoundProducerPlacement.reset();
+        return false;
+    }
+
+    if (m_selection)
+        m_selection->selectPort(PortRef{created->producerItemId, created->producerPortId});
+    return true;
+}
+
+bool CanvasContextMenuController::hasPendingBoundProducerPlacement() const noexcept
+{
+    return m_pendingBoundProducerPlacement.has_value();
+}
+
+void CanvasContextMenuController::clearPendingBoundProducerPlacement()
+{
+    m_pendingBoundProducerPlacement.reset();
 }
 
 void CanvasContextMenuController::appendSeparator()
@@ -208,15 +245,12 @@ void CanvasContextMenuController::appendPortActions(ObjectId itemId, PortId port
     const bool canDelete = block && port.has_value();
     m_actions.push_back(actionItem(kActionDeletePort, QStringLiteral("Delete Port"), canDelete));
 
-    const bool pairedApplicable = block && port.has_value() &&
-                                  block->autoOppositeProducerPort() &&
-                                  port->role != PortRole::Producer;
-    m_actions.push_back(actionItem(kActionEnsureOppositeProducer,
-                                   QStringLiteral("Ensure Opposite Producer Port"),
-                                   pairedApplicable));
-    m_actions.push_back(actionItem(kActionRemoveOppositeProducer,
-                                   QStringLiteral("Remove Opposite Producer Port"),
-                                   pairedApplicable));
+    const bool canCreateBoundProducer = block &&
+                                        port.has_value() &&
+                                        port->role != PortRole::Producer;
+    m_actions.push_back(actionItem(kActionCreateBoundProducer,
+                                   QStringLiteral("Create Bound Producer (Click Edge)"),
+                                   canCreateBoundProducer));
 }
 
 void CanvasContextMenuController::populateMenu(const MenuTarget& target)
@@ -246,6 +280,12 @@ void CanvasContextMenuController::populateMenu(const MenuTarget& target)
             appendPortActions(target.itemId, target.portId);
             break;
     }
+
+    appendSeparator();
+    m_actions.push_back(checkItem(kActionToggleWireAnnotations,
+                                  QStringLiteral("Show All Wire Annotations"),
+                                  m_view && m_view->showAllWireAnnotations(),
+                                  m_view != nullptr));
 }
 
 CanvasContextMenuController::MenuTarget CanvasContextMenuController::resolveTarget(const QPointF& scenePos,
@@ -587,6 +627,11 @@ void CanvasContextMenuController::handleMenuAction(const QString& actionId)
         executeFrameSelection();
         return;
     }
+    if (actionId == kActionToggleWireAnnotations) {
+        if (m_view)
+            m_view->setShowAllWireAnnotations(!m_view->showAllWireAnnotations());
+        return;
+    }
     if (actionId == kActionClearSelection) {
         if (m_selection) {
             m_selection->clearSelection();
@@ -631,13 +676,8 @@ void CanvasContextMenuController::handleMenuAction(const QString& actionId)
         executeDeletePort(target.itemId, target.portId);
         return;
     }
-    if (actionId == kActionEnsureOppositeProducer) {
-        Support::ensureOppositeProducerPort(*m_doc, target.itemId, target.portId);
-        return;
-    }
-    if (actionId == kActionRemoveOppositeProducer) {
-        if (Support::removeOppositeProducerPort(*m_doc, target.itemId, target.portId).has_value())
-            m_doc->notifyChanged();
+    if (actionId == kActionCreateBoundProducer) {
+        m_pendingBoundProducerPlacement = PendingBoundProducerPlacement{target.itemId, target.portId};
         return;
     }
     if (actionId == kActionAddPort) {

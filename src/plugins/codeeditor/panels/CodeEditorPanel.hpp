@@ -86,7 +86,7 @@ private:
     QTabWidget* m_tabs = nullptr;
 
     QHash<QString, CodeEditor::Api::CodeEditorSessionHandle> m_handlesBySessionId;
-    bool m_syncingUi = false;
+    int m_syncingUiDepth = 0;
 };
 
 } // namespace CodeEditor::Internal

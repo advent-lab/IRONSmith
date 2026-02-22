@@ -43,3 +43,26 @@ message(STATUS "  Python3 Version: ${Python3_VERSION}")
 message(STATUS "  Python3 Include: ${Python3_INCLUDE_DIRS}")
 message(STATUS "  Python3 Libraries: ${Python3_LIBRARIES}")
 message(STATUS "  nlohmann_json: Found")
+
+# Example executable for exercising the HLIR C++ bridge from C++
+set(IRONSMITH_BUILD_HLIR_CPP_BRIDGE_EXAMPLE ON CACHE BOOL
+    "Build the hlir_cpp_bridge_example executable."
+)
+
+if (IRONSMITH_BUILD_HLIR_CPP_BRIDGE_EXAMPLE)
+    add_executable(hlir_cpp_bridge_example
+        example_usage.cpp
+    )
+
+    target_link_libraries(hlir_cpp_bridge_example
+        PRIVATE
+            IRONSmith::HlirCppBridge
+            Python3::Python
+            nlohmann_json::nlohmann_json
+    )
+
+    set_target_properties(hlir_cpp_bridge_example PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        CXX_EXTENSIONS OFF
+    )
+endif()

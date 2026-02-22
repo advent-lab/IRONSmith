@@ -1,0 +1,17 @@
+{
+  "id": "eltwise_add_i8",
+  "name": "Eltwise Add (INT8)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void eltwise_add_i8(const signed char* lhs, const signed char* rhs, signed char* out, int size);",
+  "description": "Reference INT8 element-wise add kernel used as a built-in catalog fixture.",
+  "entry": "eltwise_add_i8.cpp",
+  "files": [
+    "eltwise_add_i8.cpp"
+  ],
+  "tags": [
+    "eltwise",
+    "int8",
+    "vector"
+  ]
+}

@@ -8,6 +8,8 @@
 #include <QtCore/QString>
 
 namespace CodeEditor::Constants {
+constexpr inline char kSidebarToolId[] = "IRONSmith.CodeEditor";
+
 constexpr inline quint64 kSessionOpenMaxBytes = 32 * 1024 * 1024;
 constexpr inline quint64 kQuickViewMaxBytes = 2 * 1024 * 1024;
 

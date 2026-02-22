@@ -32,6 +32,21 @@ struct CANVAS_EXPORT CanvasStyle final
                                double zoom,
                                const QString& text,
                                const QColor& color);
+    static void drawBlockStereotype(QPainter& p,
+                                    const QRectF& boundsScene,
+                                    double zoom,
+                                    const QString& text);
+    static void drawBlockStereotype(QPainter& p,
+                                    const QRectF& boundsScene,
+                                    double zoom,
+                                    const QString& text,
+                                    const QColor& color);
+    static void drawBlockStereotype(QPainter& p,
+                                    const QRectF& boundsScene,
+                                    double zoom,
+                                    const QString& text,
+                                    const QColor& color,
+                                    bool underline);
     static void drawPort(QPainter& p, const QPointF& anchorScene, PortSide side, PortRole role, double zoom, bool hovered);
     static void drawPortLabel(QPainter& p,
                               const QPointF& anchorScene,
@@ -39,6 +54,13 @@ struct CANVAS_EXPORT CanvasStyle final
                               double zoom,
                               const QString& text,
                               const QColor& color);
+    static void drawWireAnnotation(QPainter& p,
+                                   const QRectF& annotationRect,
+                                   double zoom,
+                                   const QString& text,
+                                   bool selected,
+                                   bool forwardObjectFifo,
+                                   bool scaleWithZoom = true);
 
     static void drawWirePath(QPainter& p,
                              const QPointF& aAnchor, const QPointF& aBorder, const QPointF& aFabric,

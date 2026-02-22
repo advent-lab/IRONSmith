@@ -11,6 +11,7 @@
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
 #include <QtCore/QSet>
+#include <QtCore/QTimer>
 #include <QtGui/QIcon>
 #include <QtGui/QKeySequence>
 #include <QtGui/QShortcut>
@@ -34,6 +35,24 @@ const QString kActionSaveAllFiles = QStringLiteral("codeEditor.saveAllFiles");
 const QString kActionCloseFile = QStringLiteral("codeEditor.closeFile");
 
 const char kSessionIdProperty[] = "codeEditorSessionId";
+
+class UiSyncScope final
+{
+public:
+    explicit UiSyncScope(int& depth)
+        : m_depth(depth)
+    {
+        ++m_depth;
+    }
+
+    ~UiSyncScope()
+    {
+        --m_depth;
+    }
+
+private:
+    int& m_depth;
+};
 
 } // namespace
 
@@ -164,7 +183,7 @@ void CodeEditorPanel::handleTabCloseRequested(int index)
 
 void CodeEditorPanel::handleCurrentTabChanged(int index)
 {
-    if (m_syncingUi || !m_service)
+    if (m_syncingUiDepth > 0 || !m_service)
         return;
 
     const auto handle = handleForTab(index);
@@ -200,9 +219,15 @@ void CodeEditorPanel::handleActiveFileChanged(const CodeEditor::Api::CodeEditorS
 
     const int index = tabIndexForSession(handle.id);
     if (index >= 0) {
-        m_syncingUi = true;
+        UiSyncScope syncScope(m_syncingUiDepth);
         m_tabs->setCurrentIndex(index);
-        m_syncingUi = false;
+
+        if (QWidget* editor = m_tabs->widget(index)) {
+            QTimer::singleShot(0, editor, [editor]() {
+                if (editor->isVisible())
+                    editor->setFocus(Qt::OtherFocusReason);
+            });
+        }
     }
 
     updateFrameSubtitle(handle);
@@ -378,6 +403,8 @@ void CodeEditorPanel::resetActiveEditorZoom()
 
 void CodeEditorPanel::refreshFromService()
 {
+    UiSyncScope syncScope(m_syncingUiDepth);
+
     if (!m_service) {
         updateEmptyState();
         return;
@@ -427,6 +454,7 @@ void CodeEditorPanel::ensureTabForHandle(const CodeEditor::Api::CodeEditorSessio
         editorWidget->setParent(nullptr);
 
     editorWidget->setProperty(kSessionIdProperty, handle.id);
+    UiSyncScope syncScope(m_syncingUiDepth);
     index = m_tabs->addTab(editorWidget, displayNameForHandle(handle));
     m_tabs->setTabToolTip(index, handle.filePath);
 }
@@ -438,6 +466,7 @@ void CodeEditorPanel::removeTabForSession(const QString& sessionId)
         return;
 
     QWidget* editorWidget = m_tabs->widget(index);
+    UiSyncScope syncScope(m_syncingUiDepth);
     m_tabs->removeTab(index);
     if (editorWidget)
         editorWidget->setParent(nullptr);

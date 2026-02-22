@@ -11,8 +11,10 @@
 
 QT_BEGIN_NAMESPACE
 class QEvent;
+class QLabel;
 class QPlainTextEdit;
 class QWheelEvent;
+class QResizeEvent;
 QT_END_NAMESPACE
 
 #if CODEEDITOR_HAVE_QSCI
@@ -47,11 +49,16 @@ signals:
     void textEdited();
     void zoomLevelChanged(int level);
 
+protected:
+    void resizeEvent(QResizeEvent* event) override;
+
 private:
     bool eventFilter(QObject* watched, QEvent* event) override;
     void handleNativeTextChanged();
     void applyZoomDelta(int steps);
     void handleWheelScroll(QWheelEvent* wheelEvent);
+    void updateReaderModeBadgeGeometry();
+    void syncReaderModeBadgeVisibility();
 
 #if CODEEDITOR_HAVE_QSCI
     void configureScintilla();
@@ -62,6 +69,7 @@ private:
 #endif
 
     Style::CodeEditorStyleManager m_styleManager;
+    QLabel* m_readerModeBadge = nullptr;
     bool m_blockTextSignal = false;
     QString m_languageId;
     int m_zoomLevel = 0;

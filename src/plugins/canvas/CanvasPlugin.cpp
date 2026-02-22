@@ -8,6 +8,7 @@
 
 #include <QStringList>
 #include <QLoggingCategory>
+#include <array>
 #include <QtCore/QSignalBlocker>
 #include <QtCore/QtGlobal>
 #include <QtGui/QActionGroup>
@@ -66,6 +67,8 @@ private:
         QPointer<QAction> linkSplit;
         QPointer<QAction> linkJoin;
         QPointer<QAction> linkBroadcast;
+        QPointer<QAction> linkFifo;
+        QPointer<QAction> linkForwardFifo;
 
         QPointer<QAction> autoRoute;
         QPointer<QAction> clearOverrides;
@@ -169,6 +172,9 @@ void CanvasPlugin::connectRibbonActions(Core::IUiHost* uiHost)
     m_actions.linkSplit = fetch(Core::Constants::RIBBON_TAB_HOME_CANVAS_GROUP, Core::Constants::CANVAS_LINK_SPLIT_ITEMID);
     m_actions.linkJoin = fetch(Core::Constants::RIBBON_TAB_HOME_CANVAS_GROUP, Core::Constants::CANVAS_LINK_JOIN_ITEMID);
     m_actions.linkBroadcast = fetch(Core::Constants::RIBBON_TAB_HOME_CANVAS_GROUP, Core::Constants::CANVAS_LINK_BROADCAST_ITEMID);
+    m_actions.linkFifo = fetch(Core::Constants::RIBBON_TAB_HOME_CANVAS_GROUP, Core::Constants::CANVAS_LINK_FIFO_ITEMID);
+    m_actions.linkForwardFifo = fetch(Core::Constants::RIBBON_TAB_HOME_CANVAS_GROUP,
+                                      Core::Constants::CANVAS_LINK_FORWARD_FIFO_ITEMID);
 
     m_actions.autoRoute = fetch(Core::Constants::RIBBON_TAB_HOME_WIRES_GROUP, Core::Constants::CANVAS_WIRE_AUTO_ROUTE_ITEMID);
     m_actions.clearOverrides = fetch(Core::Constants::RIBBON_TAB_HOME_WIRES_GROUP, Core::Constants::CANVAS_WIRE_CLEAR_OVERRIDES_ITEMID);
@@ -186,7 +192,9 @@ void CanvasPlugin::connectRibbonActions(Core::IUiHost* uiHost)
                       m_actions.link.data(),
                       m_actions.linkSplit.data(),
                       m_actions.linkJoin.data(),
-                      m_actions.linkBroadcast.data()}) {
+                      m_actions.linkBroadcast.data(),
+                      m_actions.linkFifo.data(),
+                      m_actions.linkForwardFifo.data()}) {
         if (act) {
             act->setCheckable(true);
             modeGroup->addAction(act);
@@ -203,27 +211,19 @@ void CanvasPlugin::connectRibbonActions(Core::IUiHost* uiHost)
             controller->setMode(CanvasController::Mode::Panning);
         });
     }
-    if (m_actions.link) {
-        connect(m_actions.link, &QAction::triggered, this, [controller]() {
-            controller->setLinkingMode(CanvasController::LinkingMode::Normal);
-            controller->setMode(CanvasController::Mode::Linking);
-        });
-    }
-    if (m_actions.linkSplit) {
-        connect(m_actions.linkSplit, &QAction::triggered, this, [controller]() {
-            controller->setLinkingMode(CanvasController::LinkingMode::Split);
-            controller->setMode(CanvasController::Mode::Linking);
-        });
-    }
-    if (m_actions.linkJoin) {
-        connect(m_actions.linkJoin, &QAction::triggered, this, [controller]() {
-            controller->setLinkingMode(CanvasController::LinkingMode::Join);
-            controller->setMode(CanvasController::Mode::Linking);
-        });
-    }
-    if (m_actions.linkBroadcast) {
-        connect(m_actions.linkBroadcast, &QAction::triggered, this, [controller]() {
-            controller->setLinkingMode(CanvasController::LinkingMode::Broadcast);
+    const std::array<std::pair<QAction*, CanvasController::LinkingMode>, 6> linkActions{{
+        {m_actions.link.data(), CanvasController::LinkingMode::Normal},
+        {m_actions.linkSplit.data(), CanvasController::LinkingMode::Split},
+        {m_actions.linkJoin.data(), CanvasController::LinkingMode::Join},
+        {m_actions.linkBroadcast.data(), CanvasController::LinkingMode::Broadcast},
+        {m_actions.linkFifo.data(), CanvasController::LinkingMode::Fifo},
+        {m_actions.linkForwardFifo.data(), CanvasController::LinkingMode::ForwardFifo}
+    }};
+    for (const auto& [action, linkMode] : linkActions) {
+        if (!action)
+            continue;
+        connect(action, &QAction::triggered, this, [controller, linkMode]() {
+            controller->setLinkingMode(linkMode);
             controller->setMode(CanvasController::Mode::Linking);
         });
     }
@@ -294,21 +294,19 @@ void CanvasPlugin::syncRibbonState(CanvasController* controller)
     }
 
     const bool linking = (mode == CanvasController::Mode::Linking);
-    if (m_actions.link) {
-        QSignalBlocker block(m_actions.link);
-        m_actions.link->setChecked(linking && linkMode == CanvasController::LinkingMode::Normal);
-    }
-    if (m_actions.linkSplit) {
-        QSignalBlocker block(m_actions.linkSplit);
-        m_actions.linkSplit->setChecked(linking && linkMode == CanvasController::LinkingMode::Split);
-    }
-    if (m_actions.linkJoin) {
-        QSignalBlocker block(m_actions.linkJoin);
-        m_actions.linkJoin->setChecked(linking && linkMode == CanvasController::LinkingMode::Join);
-    }
-    if (m_actions.linkBroadcast) {
-        QSignalBlocker block(m_actions.linkBroadcast);
-        m_actions.linkBroadcast->setChecked(linking && linkMode == CanvasController::LinkingMode::Broadcast);
+    const std::array<std::pair<QAction*, CanvasController::LinkingMode>, 6> linkActions{{
+        {m_actions.link.data(), CanvasController::LinkingMode::Normal},
+        {m_actions.linkSplit.data(), CanvasController::LinkingMode::Split},
+        {m_actions.linkJoin.data(), CanvasController::LinkingMode::Join},
+        {m_actions.linkBroadcast.data(), CanvasController::LinkingMode::Broadcast},
+        {m_actions.linkFifo.data(), CanvasController::LinkingMode::Fifo},
+        {m_actions.linkForwardFifo.data(), CanvasController::LinkingMode::ForwardFifo}
+    }};
+    for (const auto& [action, candidateMode] : linkActions) {
+        if (!action)
+            continue;
+        QSignalBlocker block(action);
+        action->setChecked(linking && linkMode == candidateMode);
     }
 }
 
@@ -325,6 +323,8 @@ void CanvasPlugin::setCanvasActionsEnabled(bool enabled)
     setEnabled(m_actions.linkSplit);
     setEnabled(m_actions.linkJoin);
     setEnabled(m_actions.linkBroadcast);
+    setEnabled(m_actions.linkFifo);
+    setEnabled(m_actions.linkForwardFifo);
     setEnabled(m_actions.autoRoute);
     setEnabled(m_actions.clearOverrides);
     setEnabled(m_actions.wireArrows);

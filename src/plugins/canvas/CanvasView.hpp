@@ -4,6 +4,7 @@
 #pragma once
 
 #include "canvas/CanvasGlobal.hpp"
+#include "canvas/CanvasRenderContext.hpp"
 #include "canvas/CanvasTypes.hpp"
 #include "canvas/CanvasPorts.hpp"
 
@@ -68,10 +69,24 @@ public:
 
 	void setHoveredPort(ObjectId itemId, PortId portId);
 	void clearHoveredPort();
+    void setHoveredWire(ObjectId itemId);
+    void clearHoveredWire();
+    bool hasHoveredWire() const noexcept;
+    ObjectId hoveredWire() const noexcept;
+    void setHoveredStereotype(ObjectId itemId);
+    void clearHoveredStereotype();
 	void setHoveredEdge(ObjectId itemId, PortSide side, const QPointF& anchorScene);
 	void clearHoveredEdge();
 	void setMarqueeRect(const QRectF& sceneRect);
 	void clearMarqueeRect();
+    void setWireAnnotationVisibilityMode(WireAnnotationVisibilityMode mode);
+    WireAnnotationVisibilityMode wireAnnotationVisibilityMode() const noexcept;
+    void setWireAnnotationDetailMode(WireAnnotationDetailMode mode);
+    WireAnnotationDetailMode wireAnnotationDetailMode() const noexcept;
+    void setWireAnnotationsScaleWithZoom(bool enabled);
+    bool wireAnnotationsScaleWithZoom() const noexcept;
+    void setShowAllWireAnnotations(bool enabled);
+    bool showAllWireAnnotations() const noexcept;
 
     void setEmptyStateVisible(bool visible);
     bool emptyStateVisible() const noexcept { return m_emptyStateVisible; }

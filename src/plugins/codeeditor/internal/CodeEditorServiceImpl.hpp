@@ -64,6 +64,7 @@ private:
 	};
 
 	Utils::Result setActiveFileById(const QString& id);
+    void revealCodeSidebar();
 	static QString normalizeAbsolutePath(const QString& path);
 
 	void updateDirtyState(SessionState& state, bool dirty);

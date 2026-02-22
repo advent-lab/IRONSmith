@@ -8,8 +8,10 @@
 #include <QtCore/QEvent>
 #include <QtGui/QColor>
 #include <QtGui/QFontDatabase>
+#include <QtGui/QResizeEvent>
 #include <QtGui/QWheelEvent>
 #include <QtWidgets/QFrame>
+#include <QtWidgets/QLabel>
 #include <QtWidgets/QScrollBar>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QPlainTextEdit>
@@ -31,6 +33,7 @@ namespace {
 constexpr qreal kWheelPixelsPerStep = 8.0;
 constexpr int kMinZoomLevel = -8;
 constexpr int kMaxZoomLevel = 24;
+constexpr int kReaderModeBadgeInset = 10;
 
 int consumeWholePixels(qreal& pending)
 {
@@ -83,6 +86,14 @@ CodeEditorTextView::CodeEditorTextView(QWidget* parent)
     connect(m_plain, &QPlainTextEdit::textChanged,
             this, &CodeEditorTextView::handleNativeTextChanged);
 #endif
+
+    m_readerModeBadge = new QLabel(QStringLiteral("Reader Mode"), this);
+    m_readerModeBadge->setObjectName(QStringLiteral("CodeEditorReaderModeBadge"));
+    m_readerModeBadge->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    m_readerModeBadge->setVisible(false);
+    m_readerModeBadge->raise();
+    updateReaderModeBadgeGeometry();
+    syncReaderModeBadgeVisibility();
 }
 
 void CodeEditorTextView::setReadOnlyMode(bool readOnly)
@@ -94,6 +105,7 @@ void CodeEditorTextView::setReadOnlyMode(bool readOnly)
     if (m_plain)
         m_plain->setReadOnly(readOnly);
 #endif
+    syncReaderModeBadgeVisibility();
 }
 
 bool CodeEditorTextView::readOnlyMode() const
@@ -212,6 +224,12 @@ void CodeEditorTextView::handleNativeTextChanged()
     emit textEdited();
 }
 
+void CodeEditorTextView::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    updateReaderModeBadgeGeometry();
+}
+
 bool CodeEditorTextView::eventFilter(QObject* watched, QEvent* event)
 {
     if (event->type() != QEvent::Wheel)
@@ -297,6 +315,32 @@ void CodeEditorTextView::applyZoomDelta(int steps)
         return;
 
     setZoomLevel(m_zoomLevel + steps);
+}
+
+void CodeEditorTextView::updateReaderModeBadgeGeometry()
+{
+    if (!m_readerModeBadge)
+        return;
+
+    m_readerModeBadge->adjustSize();
+    const QSize badgeSize = m_readerModeBadge->sizeHint();
+    const int x = std::max(kReaderModeBadgeInset,
+                           width() - badgeSize.width() - kReaderModeBadgeInset);
+    const int y = kReaderModeBadgeInset;
+    m_readerModeBadge->setGeometry(x, y, badgeSize.width(), badgeSize.height());
+}
+
+void CodeEditorTextView::syncReaderModeBadgeVisibility()
+{
+    if (!m_readerModeBadge)
+        return;
+
+    const bool shouldShow = readOnlyMode();
+    m_readerModeBadge->setVisible(shouldShow);
+    if (shouldShow) {
+        updateReaderModeBadgeGeometry();
+        m_readerModeBadge->raise();
+    }
 }
 
 #if CODEEDITOR_HAVE_QSCI

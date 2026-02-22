@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include "codeeditor/CodeEditorGlobal.hpp"
+#include "codeeditor/Constants.hpp"
 #include "codeeditor/api/CodeEditorTypes.hpp"
 #include "codeeditor/internal/CodeEditorServiceImpl.hpp"
 #include "codeeditor/panels/CodeEditorPanel.hpp"
@@ -38,7 +39,7 @@ constexpr Qt::CaseSensitivity kPathCase = Qt::CaseInsensitive;
 constexpr Qt::CaseSensitivity kPathCase = Qt::CaseSensitive;
 #endif
 
-const QString kSidebarToolId = QStringLiteral("IRONSmith.CodeEditor");
+const QString kSidebarToolId = QString::fromLatin1(Constants::kSidebarToolId);
 const QString kProjectOpenActionId = QStringLiteral("IRONSmith.CodeEditor.OpenInCode");
 constexpr int kStateSaveDelayMs = 250;
 

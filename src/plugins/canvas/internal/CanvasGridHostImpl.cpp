@@ -119,6 +119,11 @@ bool applyBlockSpec(Canvas::CanvasBlock* block,
         changed = true;
     }
 
+    if (block->stereotype() != spec.stereotype) {
+        block->setStereotype(spec.stereotype);
+        changed = true;
+    }
+
     if (block->showPorts() != spec.showPorts) {
         block->setShowPorts(spec.showPorts);
         changed = true;

@@ -6,6 +6,7 @@
 #include "canvas/CanvasConstants.hpp"
 
 #include "canvas/CanvasBlock.hpp"
+#include "canvas/CanvasPorts.hpp"
 #include "canvas/CanvasWire.hpp"
 #include "canvas/utils/CanvasGeometry.hpp"
 #include "canvas/utils/CanvasPortHitTest.hpp"
@@ -20,6 +21,26 @@
 #include <utility>
 
 namespace Canvas {
+
+namespace {
+
+QString normalizedHandleValueType(QString valueType)
+{
+    valueType = valueType.trimmed().toLower();
+    if (valueType == QStringLiteral("i8") ||
+        valueType == QStringLiteral("i16") ||
+        valueType == QStringLiteral("i32")) {
+        return valueType;
+    }
+    return QStringLiteral("i32");
+}
+
+int normalizedHandleDepth(int depth)
+{
+    return depth > 0 ? depth : 2;
+}
+
+} // namespace
 
 CanvasBlock* CanvasDocument::createBlock(const QRectF& boundsScene, bool movable)
 {
@@ -249,6 +270,97 @@ bool CanvasDocument::computePortTerminalThunk(void* user, ObjectId itemId, PortI
 {
     auto* doc = static_cast<const CanvasDocument*>(user);
     return doc ? doc->computePortTerminal(itemId, portId, outAnchorScene, outBorderScene, outFabricScene) : false;
+}
+
+bool CanvasDocument::resolveObjectFifoNameForEndpoint(ObjectId itemId, PortId portId, QString& outName) const
+{
+    if (itemId.isNull() || portId.isNull())
+        return false;
+
+    for (const auto& it : m_items) {
+        const auto* wire = dynamic_cast<const CanvasWire*>(it.get());
+        if (!wire || !wire->hasObjectFifo())
+            continue;
+
+        const auto endpointMatches = [&](const CanvasWire::Endpoint& endpoint) {
+            return endpoint.attached.has_value() &&
+                   endpoint.attached->itemId == itemId &&
+                   endpoint.attached->portId == portId;
+        };
+        if (!endpointMatches(wire->a()) && !endpointMatches(wire->b()))
+            continue;
+
+        const QString fifoName = wire->objectFifo()->name.trimmed();
+        if (fifoName.isEmpty())
+            continue;
+        outName = fifoName;
+        return true;
+    }
+
+    return false;
+}
+
+bool CanvasDocument::resolveObjectFifoNameForEndpointThunk(void* user,
+                                                           ObjectId itemId,
+                                                           PortId portId,
+                                                           QString& outName)
+{
+    auto* doc = static_cast<const CanvasDocument*>(user);
+    return doc ? doc->resolveObjectFifoNameForEndpoint(itemId, portId, outName) : false;
+}
+
+bool CanvasDocument::resolveConsumerHandleLabelForEndpoint(ObjectId itemId,
+                                                           PortId portId,
+                                                           QString& outLabel) const
+{
+    if (itemId.isNull() || portId.isNull())
+        return false;
+
+    CanvasPort producerMeta;
+    if (!getPort(itemId, portId, producerMeta))
+        return false;
+    if (producerMeta.role != PortRole::Producer || !producerMeta.hasBinding)
+        return false;
+
+    CanvasPort consumerMeta;
+    if (!getPort(producerMeta.bindingItemId, producerMeta.bindingPortId, consumerMeta))
+        return false;
+    if (consumerMeta.role == PortRole::Producer)
+        return false;
+
+    QString valueType = QStringLiteral("i32");
+    int depth = 2;
+
+    for (const auto& it : m_items) {
+        const auto* wire = dynamic_cast<const CanvasWire*>(it.get());
+        if (!wire || !wire->hasObjectFifo())
+            continue;
+
+        const auto endpointMatches = [&](const CanvasWire::Endpoint& endpoint) {
+            return endpoint.attached.has_value() &&
+                   endpoint.attached->itemId == producerMeta.bindingItemId &&
+                   endpoint.attached->portId == producerMeta.bindingPortId;
+        };
+        if (!endpointMatches(wire->a()) && !endpointMatches(wire->b()))
+            continue;
+
+        const auto& objectFifo = wire->objectFifo().value();
+        valueType = normalizedHandleValueType(objectFifo.type.valueType);
+        depth = normalizedHandleDepth(objectFifo.depth);
+        break;
+    }
+
+    outLabel = QStringLiteral("C: HANDLE<%1,%2>").arg(valueType).arg(depth);
+    return true;
+}
+
+bool CanvasDocument::resolveConsumerHandleLabelForEndpointThunk(void* user,
+                                                                ObjectId itemId,
+                                                                PortId portId,
+                                                                QString& outLabel)
+{
+    auto* doc = static_cast<const CanvasDocument*>(user);
+    return doc ? doc->resolveConsumerHandleLabelForEndpoint(itemId, portId, outLabel) : false;
 }
 
 bool CanvasDocument::isFabricPointBlockedThunk(const FabricCoord& coord, void* user)

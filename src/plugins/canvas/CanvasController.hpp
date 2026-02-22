@@ -38,7 +38,7 @@ public:
 	enum class Mode { Normal, Panning, Linking };
 	Q_ENUM(Mode)
 
-	enum class LinkingMode { Normal, Split, Join, Broadcast };
+	enum class LinkingMode { Normal, Split, Join, Broadcast, Fifo, ForwardFifo };
 	Q_ENUM(LinkingMode)
 
 	CanvasController(CanvasDocument* doc, CanvasView* view, CanvasSelectionModel* selection, QObject* parent = nullptr);
@@ -48,6 +48,7 @@ public:
 	LinkingMode linkingMode() const noexcept;
 	bool isLinkingInProgress() const noexcept;
 	bool isEndpointDragActive() const noexcept;
+    bool isBoundProducerPlacementActive() const noexcept;
 	ObjectId linkStartItem() const noexcept;
 	PortId linkStartPort() const noexcept;
 	QPointF linkPreviewScene() const noexcept;
@@ -66,14 +67,18 @@ public slots:
 signals:
 	void modeChanged(CanvasController::Mode mode);
 	void linkingModeChanged(CanvasController::LinkingMode mode);
+    void boundProducerPlacementChanged(bool active);
 
 private:
 	QPointF sceneToView(const QPointF& scenePos) const;
 	void beginPanning(const QPointF& viewPos);
 	void updatePanning(const QPointF& viewPos);
 	void endPanning();
+    void updateHoveredWire(const QPointF& scenePos);
+    void clearHoveredWire();
 
 	void clearTransientDragState();
+    void syncBoundProducerPlacementUiState();
 
 	CanvasDocument* m_doc = nullptr;
 	CanvasView* m_view = nullptr;
@@ -87,6 +92,7 @@ private:
 	QPointF m_panStart;
 	Mode m_mode = Mode::Normal;
 	Mode m_modeBeforePan = Mode::Normal;
+    bool m_boundProducerPlacementActive = false;
 };
 
 } // namespace Canvas
