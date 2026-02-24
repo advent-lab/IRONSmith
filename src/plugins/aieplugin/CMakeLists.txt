@@ -81,13 +81,13 @@ ironsmith_add_plugin(AiePlugin
             IRONSmith::CorePlugin
             IRONSmith::CanvasPlugin
             IRONSmith::ProjectExplorerPlugin
+            IRONSmith::CodeEditorPlugin
 
         PRIVATE_DEFINES
             AIEPLUGIN_LIBRARY
 
         PUBLIC_DEFINES
             AIEPLUGIN_BUILD_SHARED=1
-            IRONSmith::CodeEditorPlugin
 )
 
 target_compile_definitions(AiePlugin PRIVATE

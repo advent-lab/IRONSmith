@@ -19,7 +19,7 @@ class IUiHost;
 
 namespace CodeEditor::Internal {
 
-class CodeEditorServiceImpl final : public CodeEditor::Api::ICodeEditorService {
+class CODEEDITOR_EXPORT CodeEditorServiceImpl final : public CodeEditor::Api::ICodeEditorService {
 	Q_OBJECT
 
 public:

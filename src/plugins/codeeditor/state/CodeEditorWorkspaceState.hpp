@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "codeeditor/CodeEditorGlobal.hpp"
+
 #include <utils/EnvironmentQtPolicy.hpp>
 
 #include <QtCore/QString>
@@ -10,7 +12,7 @@
 
 namespace CodeEditor::Internal {
 
-class CodeEditorWorkspaceState final
+class CODEEDITOR_EXPORT CodeEditorWorkspaceState final
 {
 public:
     struct Snapshot final {

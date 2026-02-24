@@ -51,10 +51,5 @@ message(STATUS "  Python3 Include: ${Python3_INCLUDE_DIRS}")
 message(STATUS "  Python3 Libraries: ${Python3_LIBRARIES}")
 message(STATUS "  nlohmann_json: Found")
 
-if (BUILD_WITH_TESTS)
-    add_subdirectory(tests)
-endif ()
-
-
 # Bridge tests are compiled into the ironsmith executable (see src/app/CMakeLists.txt)
 # and run via: ironsmith.exe --test-bridges

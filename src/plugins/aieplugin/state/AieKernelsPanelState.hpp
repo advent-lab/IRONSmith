@@ -3,13 +3,15 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
+
 #include <utils/EnvironmentQtPolicy.hpp>
 
 #include <QtCore/QString>
 
 namespace Aie::Internal {
 
-class AieKernelsPanelState final
+class AIEPLUGIN_EXPORT AieKernelsPanelState final
 {
 public:
     struct Snapshot final {

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "canvas/api/ICanvasGridHost.hpp"
+#include "canvas/CanvasGlobal.hpp"
 #include "utils/async/DebouncedInvoker.hpp"
 
 #include <QtCore/QHash>
@@ -26,7 +27,7 @@ namespace Canvas::Internal {
 
 class CanvasBlockHandleImpl;
 
-class CanvasGridHostImpl final : public Canvas::Api::ICanvasGridHost
+class CANVAS_EXPORT CanvasGridHostImpl final : public Canvas::Api::ICanvasGridHost
 {
     Q_OBJECT
 

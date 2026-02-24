@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
 #include "aieplugin/kernels/KernelCatalog.hpp"
 
 #include <utils/Result.hpp>
@@ -13,7 +14,7 @@
 
 namespace Aie::Internal {
 
-class KernelRegistryService final : public QObject
+class AIEPLUGIN_EXPORT KernelRegistryService final : public QObject
 {
     Q_OBJECT
 

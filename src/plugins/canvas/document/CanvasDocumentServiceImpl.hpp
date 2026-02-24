@@ -4,6 +4,7 @@
 #pragma once
 
 #include "canvas/api/ICanvasDocumentService.hpp"
+#include "canvas/CanvasGlobal.hpp"
 
 #include <utils/Result.hpp>
 #include <utils/async/DebouncedInvoker.hpp>
@@ -21,7 +22,7 @@ class ICanvasHost;
 
 namespace Canvas::Internal {
 
-class CanvasDocumentServiceImpl final : public Canvas::Api::ICanvasDocumentService
+class CANVAS_EXPORT CanvasDocumentServiceImpl final : public Canvas::Api::ICanvasDocumentService
 {
     Q_OBJECT
 
