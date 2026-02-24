@@ -2004,6 +2004,117 @@ static bool testMatrixVectorMulExample() {
     }
 }
 
+// Dual-path forward example
+//
+// Data flow:
+//   shim(0,0) --fill--> in1 \
+//                             Worker1(0,3) --> out1 \
+//   shim(0,0) --fill--> in2 /              out2 /   Worker2(0,2) --> out3 -[fwd mem(0,1)]--> out5 --> drain --> shim(0,0)
+//                                                                --> out4 -[fwd mem(0,1)]--> out6 --> drain --> shim(0,0)
+//
+// Both workers share the same core function: acquire (fifo_a, fifo_b) as inputs and
+// (fifo_c, fifo_d) as outputs, call the copy kernel, then release all four.
+static bool testDualPathForwardExample() {
+    try {
+        hlir::HlirBridge bridge("dual_path_forward_test");
+
+        // Constant and type — N=64 int32 elements per buffer
+        auto constN = bridge.addConstant("N", "64", "int");
+        auto dataTy = bridge.addTensorType("data_ty", {"N"}, "int32");
+
+        // Tiles
+        auto shim0    = bridge.addTile("shim0",    hlir::TileKind::SHIM,    0, 0);
+        auto mem0     = bridge.addTile("mem0",     hlir::TileKind::MEM,     0, 1);
+        auto tile_0_2 = bridge.addTile("tile_0_2", hlir::TileKind::COMPUTE, 0, 2);
+        auto tile_0_3 = bridge.addTile("tile_0_3", hlir::TileKind::COMPUTE, 0, 3);
+
+        // Input FIFOs — filled by shim (0,0)
+        auto in1 = bridge.addFifo("in1", *dataTy, 2);
+        auto in2 = bridge.addFifo("in2", *dataTy, 2);
+
+        // Intermediate FIFOs — connect Worker 1 (producer) to Worker 2 (consumer)
+        auto out1 = bridge.addFifo("out1", *dataTy, 2);
+        auto out2 = bridge.addFifo("out2", *dataTy, 2);
+
+        // Output FIFOs — produced by Worker 2, source for mem-tile forward operations
+        auto out3 = bridge.addFifo("out3", *dataTy, 2);
+        auto out4 = bridge.addFifo("out4", *dataTy, 2);
+
+        // Forward FIFOs — out3→out5 and out4→out6 placed on mem tile (0,1)
+        std::map<std::string, std::string> fwdMeta = {{"placement", "mem0"}};
+        auto out5 = bridge.addFifoForward("out5", *out3, hlir::ComponentId(), fwdMeta);
+        auto out6 = bridge.addFifoForward("out6", *out4, hlir::ComponentId(), fwdMeta);
+
+        // External kernel — copies two input buffers into two output buffers
+        auto copy2_kernel = bridge.addExternalKernel(
+            "copy2_kernel", "copy_two_fifos", "copy2.cc",
+            {*dataTy, *dataTy, *dataTy, *dataTy});
+
+        // Core function — shared by both workers
+        //   fifo_a, fifo_b: acquired as inputs  (elem_a, elem_b)
+        //   fifo_c, fifo_d: acquired as outputs (elem_c, elem_d)
+        auto corefunc_copy2 = bridge.addCoreFunction(
+            "corefunc_copy2",
+            {"kernel", "fifo_a", "fifo_b", "fifo_c", "fifo_d"},
+            {{"fifo_a", 1, "elem_a"}, {"fifo_b", 1, "elem_b"},
+             {"fifo_c", 1, "elem_c"}, {"fifo_d", 1, "elem_d"}},
+            {"kernel", {"elem_a", "elem_b", "elem_c", "elem_d"}},
+            {{"fifo_a", 1}, {"fifo_b", 1}, {"fifo_c", 1}, {"fifo_d", 1}});
+
+        // Worker 1 at (0,3): consumes in1, in2 — produces out1, out2
+        auto worker1 = bridge.addWorker("worker1", *corefunc_copy2,
+            {hlir::HlirBridge::FunctionArg::kernel(*copy2_kernel),
+             hlir::HlirBridge::FunctionArg::fifoConsumer(*in1),
+             hlir::HlirBridge::FunctionArg::fifoConsumer(*in2),
+             hlir::HlirBridge::FunctionArg::fifoProducer(*out1),
+             hlir::HlirBridge::FunctionArg::fifoProducer(*out2)},
+            *tile_0_3);
+
+        // Worker 2 at (0,2): consumes out1, out2 — produces out3, out4
+        auto worker2 = bridge.addWorker("worker2", *corefunc_copy2,
+            {hlir::HlirBridge::FunctionArg::kernel(*copy2_kernel),
+             hlir::HlirBridge::FunctionArg::fifoConsumer(*out1),
+             hlir::HlirBridge::FunctionArg::fifoConsumer(*out2),
+             hlir::HlirBridge::FunctionArg::fifoProducer(*out3),
+             hlir::HlirBridge::FunctionArg::fifoProducer(*out4)},
+            *tile_0_2);
+
+        // Runtime — two fills on shim (0,0), two drains from forwarded FIFOs on shim (0,0)
+        bridge.createRuntime("runtime");
+        bridge.runtimeAddInputType(*dataTy);
+        bridge.runtimeAddInputType(*dataTy);
+        bridge.runtimeAddOutputType(*dataTy);
+        bridge.runtimeAddOutputType(*dataTy);
+        bridge.runtimeAddParam("inputA");
+        bridge.runtimeAddParam("inputB");
+        bridge.runtimeAddParam("outputA");
+        bridge.runtimeAddParam("outputB");
+        bridge.runtimeAddWorker(*worker1);
+        bridge.runtimeAddWorker(*worker2);
+        bridge.runtimeAddFill("fill_in1", *in1, "inputA", *shim0);
+        bridge.runtimeAddFill("fill_in2", *in2, "inputB", *shim0);
+        bridge.runtimeAddDrain("drain_out5", *out5, "outputA", *shim0);
+        bridge.runtimeAddDrain("drain_out6", *out6, "outputB", *shim0);
+        bridge.runtimeBuild();
+
+        // Build, export, and run code generator
+        bridge.build();
+        ensureOutputDir();
+        std::string xmlPath = OUTPUT_DIR + "dual_path_forward_test_gui.xml";
+        bridge.exportToGuiXml(xmlPath);
+        codegen::CodeGenBridge codegenBridge;
+        codegen::CodeGenOptions options;
+        options.outputDir = OUTPUT_DIR;
+        codegenBridge.runCodeGen(xmlPath, options);
+
+        return true;
+
+    } catch (const std::exception& e) {
+        std::cerr << "EXCEPTION: " << e.what() << "\n";
+        return false;
+    }
+}
+
 bool runBridgeTests() {
     std::cout << "\n";
     std::cout << "========================================\n";
@@ -2017,6 +2128,7 @@ bool runBridgeTests() {
     bool vectorExpPassed = testVectorExpExample();
     bool vectorMulPassed = testVectorVectorMulExample();
     bool matVecMulPassed = testMatrixVectorMulExample();
+    bool dualPathFwdPassed = testDualPathForwardExample();
 
     std::cout << "\n========================================\n";
     std::cout << "  Test Summary\n";
@@ -2028,10 +2140,11 @@ bool runBridgeTests() {
     std::cout << "  Vector Exp Example:      " << (vectorExpPassed ? "PASSED" : "FAILED") << "\n";
     std::cout << "  Vector Mul Example:      " << (vectorMulPassed ? "PASSED" : "FAILED") << "\n";
     std::cout << "  Matrix-Vector Mul Exmpl: " << (matVecMulPassed ? "PASSED" : "FAILED") << "\n";
+    std::cout << "  Dual Path Forward:       " << (dualPathFwdPassed ? "PASSED" : "FAILED") << "\n";
     std::cout << "========================================\n";
 
     bool allPassed = hlirPassed && codegenPassed && passthroughPassed && addActivatePassed
-                  && vectorExpPassed && vectorMulPassed && matVecMulPassed;
+                  && vectorExpPassed && vectorMulPassed && matVecMulPassed && dualPathFwdPassed;
     std::cout << "\n  Overall: " << (allPassed ? "SUCCESS" : "FAILURE") << "\n\n";
 
     return allPassed;
