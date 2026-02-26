@@ -71,6 +71,8 @@ ironsmith_add_plugin(AiePlugin
             design/CanvasDocumentImporter.cpp
             design/DesignOpenController.hpp
             design/DesignOpenController.cpp
+            HlirSyncService.hpp
+            HlirSyncService.cpp
 
         PUBLIC_DEPENDS
             ${QT6_REQUIRED_COMPONENTS}
@@ -82,6 +84,8 @@ ironsmith_add_plugin(AiePlugin
             IRONSmith::CanvasPlugin
             IRONSmith::ProjectExplorerPlugin
             IRONSmith::CodeEditorPlugin
+            HlirCppBridge
+            CodeGenBridge
 
         PRIVATE_DEFINES
             AIEPLUGIN_LIBRARY

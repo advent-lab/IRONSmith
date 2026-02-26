@@ -119,15 +119,25 @@ Utils::Result AiePlugin::configureDesignWorkflow(const RuntimeDependencies& deps
             });
 
     connect(m_designOpenController, &DesignOpenController::designOpened, this,
-            [this](const QString&, const QString&, const QString&) {
+            [this](const QString& bundlePath, const QString&, const QString&) {
                 if (m_kernelAssignments)
                     m_kernelAssignments->rehydrateAssignmentsFromCanvas();
+
+                // Attach HLIR sync to the new document; output goes under <bundle>/codegen/
+                if (m_hlirSync && m_service && m_service->canvasHost()) {
+                    const QString outputDir = bundlePath + QStringLiteral("/codegen");
+                    m_hlirSync->attachDocument(m_service->canvasHost()->document(), outputDir);
+                }
             });
 
     connect(m_designOpenController, &DesignOpenController::designClosed, this,
             [this](const QString&) {
                 if (m_kernelAssignments)
                     m_kernelAssignments->clearAssignments();
+
+                // Detach HLIR sync; removes all tracked components from the bridge
+                if (m_hlirSync)
+                    m_hlirSync->detachDocument();
             });
 
     return Utils::Result::success();

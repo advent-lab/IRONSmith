@@ -13,6 +13,7 @@
 #include "aieplugin/kernels/KernelToolboxController.hpp"
 #include "aieplugin/state/AieSidebarState.hpp"
 #include "aieplugin/state/AieWorkspaceState.hpp"
+#include "aieplugin/HlirSyncService.hpp"
 #include "aieplugin/AiePlugin.ForwardDecls.cpp"
 
 #include <extensionsystem/IPlugin.hpp>
@@ -98,6 +99,7 @@ private:
     QPointer<KernelRegistryService> m_kernelRegistry;
     QPointer<KernelAssignmentController> m_kernelAssignments;
     QPointer<KernelToolboxController> m_kernelToolboxController;
+    QPointer<HlirSyncService> m_hlirSync;
     QString m_workspaceRoot;
     bool m_layoutToolRegistered = false;
     bool m_kernelsToolRegistered = false;
@@ -117,6 +119,7 @@ Utils::Result AiePlugin::initialize(const QStringList& arguments, ExtensionSyste
     m_kernelRegistry = new KernelRegistryService(this);
     m_kernelAssignments = new KernelAssignmentController(this);
     m_kernelToolboxController = new KernelToolboxController(this);
+    m_hlirSync = new HlirSyncService(this);
 
     if (m_kernelAssignments)
         m_kernelAssignments->setRegistry(m_kernelRegistry);

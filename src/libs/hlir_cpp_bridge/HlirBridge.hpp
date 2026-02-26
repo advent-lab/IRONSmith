@@ -2,7 +2,14 @@
 
 #include "HlirTypes.hpp"
 #include "HlirComponents.hpp"
+
+// Qt defines `slots` as a macro (Q_SLOTS). Python's object.h has a struct
+// member also named `slots`, which causes a parse error when Qt headers are
+// included before Python.h. Save and restore the macro around the include.
+#pragma push_macro("slots")
+#undef slots
 #include <Python.h>
+#pragma pop_macro("slots")
 #include <string>
 #include <vector>
 #include <map>
