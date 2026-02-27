@@ -39,7 +39,7 @@ struct CANVAS_EXPORT CanvasDocumentOpenRequest final {
     bool activate = true;
 };
 
-enum class CANVAS_EXPORT CanvasDocumentCloseReason : unsigned char {
+enum class CanvasDocumentCloseReason : unsigned char {
     UserClosed,
     BundleDeleted,
     WorkspaceChanged,

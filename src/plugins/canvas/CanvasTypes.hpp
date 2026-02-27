@@ -39,7 +39,7 @@ struct CANVAS_EXPORT FabricCoord final {
 	int y = 0;
 };
 
-enum class CANVAS_EXPORT WireArrowPolicy : uint8_t {
+enum class WireArrowPolicy : uint8_t {
     None,
     Start,
     End
