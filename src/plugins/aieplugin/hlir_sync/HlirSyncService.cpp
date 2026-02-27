@@ -231,7 +231,18 @@ void HlirSyncService::verifyDesign()
                 msg += QStringLiteral("• ") + issue.message + u'\n';
         emit verificationFinished(false, msg);
     } else {
-        emit verificationFinished(true, tr("Design verification passed."));
+        const DesignStats stats = collectStats({m_document});
+        const QString msg = tr("Design verification passed.\n\n"
+                               "Design summary:\n"
+                               "  \u2022 SHIM tiles: %1\n"
+                               "  \u2022 MEM tiles:  %2\n"
+                               "  \u2022 AIE tiles:  %3\n"
+                               "  \u2022 FIFOs:      %4\n"
+                               "  \u2022 Fills:      %5\n"
+                               "  \u2022 Drains:     %6")
+            .arg(stats.shimTiles).arg(stats.memTiles).arg(stats.aieTiles)
+            .arg(stats.fifos).arg(stats.fills).arg(stats.drains);
+        emit verificationFinished(true, msg);
     }
 }
 

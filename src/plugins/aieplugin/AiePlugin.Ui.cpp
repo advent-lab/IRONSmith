@@ -259,7 +259,13 @@ void AiePlugin::connectRibbonActions(const RuntimeDependencies& deps,
             m_hlirSync->generateCode();
     });
 
-    // Show a message box when code generation completes or fails
+    auto* actVerify = new QAction(tr("Verify\nDesign"), this);
+    connect(actVerify, &QAction::triggered, this, [this]() {
+        if (m_hlirSync)
+            m_hlirSync->verifyDesign();
+    });
+
+    // Show a message box when code generation or verification completes or fails
     if (m_hlirSync) {
         connect(m_hlirSync, &HlirSyncService::codeGenFinished, this,
                 [this, uiHost = QPointer<Core::IUiHost>(deps.uiHost)]
@@ -273,15 +279,30 @@ void AiePlugin::connectRibbonActions(const RuntimeDependencies& deps,
                     else
                         QMessageBox::critical(parent, title, message);
                 });
+
+        connect(m_hlirSync, &HlirSyncService::verificationFinished, this,
+                [this, uiHost = QPointer<Core::IUiHost>(deps.uiHost)]
+                (bool passed, const QString& message) {
+                    const QString title = passed
+                        ? QStringLiteral("Design Verification")
+                        : QStringLiteral("Verification Failed");
+                    QWidget* parent = resolveDialogParent(uiHost);
+                    if (passed)
+                        QMessageBox::information(parent, title, message);
+                    else
+                        QMessageBox::critical(parent, title, message);
+                });
     }
 
-    Core::RibbonPresentation codeGenPres;
-    codeGenPres.size = Core::RibbonVisualSize::Large;
-    codeGenPres.iconPlacement = Core::RibbonIconPlacement::TextOnly;
+    Core::RibbonPresentation btnPres;
+    btnPres.size = Core::RibbonVisualSize::Large;
+    btnPres.iconPlacement = Core::RibbonIconPlacement::TextOnly;
 
     auto codeGenRoot = Core::RibbonNode::makeRow(QStringLiteral("codegen_root"));
     codeGenRoot->addCommand(QStringLiteral("output.codegen"),
-                            actCodeGen, Core::RibbonControlType::Button, codeGenPres);
+                            actCodeGen, Core::RibbonControlType::Button, btnPres);
+    codeGenRoot->addCommand(QStringLiteral("output.verify"),
+                            actVerify, Core::RibbonControlType::Button, btnPres);
 
     const auto ribbonResult = deps.uiHost->setRibbonGroupLayout(
         Core::Constants::RIBBON_TAB_OUTPUT,

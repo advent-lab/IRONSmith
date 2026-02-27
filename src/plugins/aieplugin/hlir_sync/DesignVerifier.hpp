@@ -38,6 +38,19 @@ public:
     virtual QList<VerificationIssue> run(const VerificationContext& ctx) const = 0;
 };
 
+/// Snapshot of design metrics, collected independently of verification checks.
+struct DesignStats {
+    int shimTiles = 0;
+    int memTiles  = 0;
+    int aieTiles  = 0;
+    int fifos     = 0;
+    int fills     = 0;
+    int drains    = 0;
+};
+
+/// Collect tile and FIFO counts from the canvas without running checks.
+DesignStats collectStats(const VerificationContext& ctx);
+
 /// Runs all registered checks and aggregates their results.
 class DesignVerifier {
 public:
