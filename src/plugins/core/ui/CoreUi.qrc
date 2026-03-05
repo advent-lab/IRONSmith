@@ -69,6 +69,8 @@
         <file>icons/svg/code_icon.svg</file>
         <file>icons/svg/file_new_icon.svg</file>
         <file>icons/svg/eye_icon.svg</file>
+        <file>icons/svg/generate_code.svg</file>
+        <file>icons/svg/verify_design.svg</file>
 
         <!-- Fonts -->
         <file>fonts/dejavu-sans-mono/ttf/DejaVuSansMono.ttf</file>

@@ -11,9 +11,11 @@
 #include "hlir_cpp_bridge/HlirBridge.hpp"
 #include "code_gen_bridge/CodeGenBridge.hpp"
 
+#include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QSet>
+#include <QtCore/QThread>
 #include <QtWidgets/QMessageBox>
 
 #include <filesystem>
@@ -514,32 +516,48 @@ QList<VerificationIssue> HlirSyncService::runVerification() const
 
 void HlirSyncService::verifyDesign()
 {
-    // Run verification and emit verificationFinished() with a pass/fail summary.
+    // Run verification and emit per-step progress, then a final summary.
     if (!m_document) {
         emit verificationFinished(false, tr("No design is open."));
         return;
     }
 
-    const auto issues = runVerification();
+    emit runStarted();
+    QCoreApplication::processEvents();
 
-    if (DesignVerifier::hasErrors(issues)) {
+    const auto results = DesignVerifier().verifyDetailed({m_document});
+
+    QList<VerificationIssue> allErrors;
+    for (const auto& result : results) {
+        const bool passed = !DesignVerifier::hasErrors(result.issues);
+        emit stepLogged(passed, result.displayName);
+        QCoreApplication::processEvents();
+        QThread::msleep(250);
+        if (!passed) {
+            for (const auto& issue : result.issues)
+                if (issue.severity == VerificationIssue::Severity::Error)
+                    allErrors.append(issue);
+        }
+    }
+
+    if (!allErrors.isEmpty()) {
         QString msg = tr("Verification failed:\n\n");
-        for (const auto& issue : issues)
-            if (issue.severity == VerificationIssue::Severity::Error)
-                msg += QStringLiteral("• ") + issue.message + u'\n';
+        for (const auto& issue : allErrors)
+            msg += QStringLiteral("\u2022 ") + issue.message + u'\n';
         emit verificationFinished(false, msg);
     } else {
         const DesignStats stats = collectStats({m_document});
-        const QString msg = tr("Design verification passed.\n\n"
-                               "Design summary:\n"
-                               "  \u2022 SHIM tiles: %1\n"
-                               "  \u2022 MEM tiles:  %2\n"
-                               "  \u2022 AIE tiles:  %3\n"
-                               "  \u2022 FIFOs:      %4\n"
-                               "  \u2022 Splits:     %5\n"
-                               "  \u2022 Joins:      %6\n"
-                               "  \u2022 Fills:      %7\n"
-                               "  \u2022 Drains:     %8")
+        const QString msg =
+            tr("Design verification passed.\n\n"
+               "Design summary:\n"
+               "  \u2022 SHIM tiles: %1\n"
+               "  \u2022 MEM tiles:  %2\n"
+               "  \u2022 AIE tiles:  %3\n"
+               "  \u2022 FIFOs:      %4\n"
+               "  \u2022 Splits:     %5\n"
+               "  \u2022 Joins:      %6\n"
+               "  \u2022 Fills:      %7\n"
+               "  \u2022 Drains:     %8")
             .arg(stats.shimTiles).arg(stats.memTiles).arg(stats.aieTiles)
             .arg(stats.fifos).arg(stats.splits).arg(stats.joins)
             .arg(stats.fills).arg(stats.drains);
@@ -550,28 +568,52 @@ void HlirSyncService::verifyDesign()
 void HlirSyncService::generateCode()
 {
     // Sync canvas, build HLIR, export to GUI XML, and run code generation.
+    // Each step emits stepLogged() + processEvents() so the log updates in real time.
     if (!m_bridge || !m_document) {
         emit codeGenFinished(false, tr("No design is open."));
         return;
     }
 
-    // Verify the design before generating code
-    const auto issues = runVerification();
-    if (DesignVerifier::hasErrors(issues)) {
+    emit runStarted();
+    QCoreApplication::processEvents();
+
+    const auto emitStep = [this](const QString& label, bool ok) {
+        emit stepLogged(ok, label);
+        QCoreApplication::processEvents();
+        QThread::msleep(250);
+    };
+
+    // Step 1: Verify the design before generating code
+    const auto verifyResults = DesignVerifier().verifyDetailed({m_document});
+    bool verifyPassed = true;
+    QList<VerificationIssue> verifyErrors;
+    for (const auto& result : verifyResults) {
+        const bool passed = !DesignVerifier::hasErrors(result.issues);
+        emitStep(result.displayName, passed);
+        if (!passed) {
+            verifyPassed = false;
+            for (const auto& issue : result.issues)
+                if (issue.severity == VerificationIssue::Severity::Error)
+                    verifyErrors.append(issue);
+        }
+    }
+
+    if (!verifyPassed) {
         QString msg = tr("Cannot generate code — design verification failed.\n\nIssues:\n");
-        for (const auto& issue : issues)
-            if (issue.severity == VerificationIssue::Severity::Error)
-                msg += QStringLiteral("• ") + issue.message + u'\n';
+        for (const auto& issue : verifyErrors)
+            msg += QStringLiteral("\u2022 ") + issue.message + u'\n';
         emit codeGenFinished(false, msg);
         return;
     }
 
-    // specIds are assigned lazily by the grid host, so sync here to capture the current layout
+    // Step 2: Sync canvas → HLIR (specIds assigned lazily by grid host)
     syncCanvas();
     buildRuntime();
+    emitStep(tr("Syncing canvas to HLIR"), true);
 
-    // Validate the HLIR program
+    // Step 3: Build and validate the HLIR program
     auto buildResult = m_bridge->build();
+    emitStep(tr("Building HLIR program"), buildResult.has_value());
     if (!buildResult) {
         QStringList errors;
         for (const auto& diag : buildResult.error())
@@ -580,22 +622,24 @@ void HlirSyncService::generateCode()
         return;
     }
 
-    // Export to GUI XML — "_gui.xml" suffix triggers the XMLTransformer step in main.py
+    // Step 4: Export to GUI XML — "_gui.xml" suffix triggers the XMLTransformer step
     QDir().mkpath(m_outputDir);
     const QString xmlPath = m_outputDir + QStringLiteral("/design_gui.xml");
     auto exportResult = m_bridge->exportToGuiXml(xmlPath.toStdString());
+    emitStep(tr("Exporting design to XML"), exportResult.has_value());
     if (!exportResult) {
         emit codeGenFinished(false, tr("Failed to export HLIR to XML."));
         return;
     }
 
-    // Run Python code generation
+    // Step 5: Run Python code generation
     codegen::CodeGenBridge codegenBridge;
     codegen::CodeGenOptions options;
     options.outputDir = m_outputDir.toStdString();
 
     auto genResult = codegenBridge.runCodeGen(
         std::filesystem::path(xmlPath.toStdWString()), options);
+    emitStep(tr("Running code generator"), genResult.has_value());
 
     if (genResult) {
         emit codeGenFinished(true, tr("Code generated in %1").arg(m_outputDir));

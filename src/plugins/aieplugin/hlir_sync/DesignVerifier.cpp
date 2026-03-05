@@ -262,6 +262,7 @@ class RuntimeSequenceCheck : public IVerificationCheck
 {
 public:
     QString name() const override { return QStringLiteral("RuntimeSequenceDefined"); }
+    QString displayName() const override { return QStringLiteral("Checking runtime I/O sequence"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -302,6 +303,7 @@ class ShimFillCheck : public IVerificationCheck
 {
 public:
     QString name() const override { return QStringLiteral("ShimFillConnectivity"); }
+    QString displayName() const override { return QStringLiteral("Checking SHIM fill connectivity"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -346,6 +348,7 @@ class ShimDrainCheck : public IVerificationCheck
 {
 public:
     QString name() const override { return QStringLiteral("ShimDrainConnectivity"); }
+    QString displayName() const override { return QStringLiteral("Checking SHIM drain connectivity"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -392,6 +395,7 @@ class DisconnectedDataflowCheck : public IVerificationCheck
 {
 public:
     QString name() const override { return QStringLiteral("DisconnectedDataflow"); }
+    QString displayName() const override { return QStringLiteral("Checking connected dataflow"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -479,6 +483,7 @@ class DmaChannelLimitCheck : public IVerificationCheck
 
 public:
     QString name() const override { return QStringLiteral("DmaChannelLimit"); }
+    QString displayName() const override { return QStringLiteral("Checking DMA channel limits"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -550,6 +555,7 @@ class SplitJoinDivisibilityCheck : public IVerificationCheck
 
 public:
     QString name() const override { return QStringLiteral("SplitJoinDivisibility"); }
+    QString displayName() const override { return QStringLiteral("Checking split/join divisibility"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -683,6 +689,16 @@ QList<VerificationIssue> DesignVerifier::verify(const VerificationContext& ctx) 
     for (const auto& check : m_checks)
         all.append(check->run(ctx));
     return all;
+}
+
+QList<CheckResult> DesignVerifier::verifyDetailed(const VerificationContext& ctx) const
+{
+    // Run every check individually and return per-check results for progress logging.
+    QList<CheckResult> results;
+    results.reserve(static_cast<int>(m_checks.size()));
+    for (const auto& check : m_checks)
+        results.append({check->displayName(), check->run(ctx)});
+    return results;
 }
 
 bool DesignVerifier::hasErrors(const QList<VerificationIssue>& issues)

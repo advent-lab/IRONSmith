@@ -42,6 +42,8 @@ ironsmith_add_plugin(AiePlugin
             kernels/KernelAssignmentController.cpp
             kernels/KernelToolboxController.hpp
             kernels/KernelToolboxController.cpp
+            panels/AieLogPanel.hpp
+            panels/AieLogPanel.cpp
             panels/AieToolPanel.hpp
             panels/AieToolPanel.cpp
             panels/AieKernelsPanel.hpp
@@ -71,6 +73,7 @@ ironsmith_add_plugin(AiePlugin
             design/CanvasDocumentImporter.cpp
             design/DesignOpenController.hpp
             design/DesignOpenController.cpp
+            hlir_sync/AieOutputLog.hpp
             hlir_sync/HlirSyncService.hpp
             hlir_sync/HlirSyncService.cpp
             hlir_sync/DesignVerifier.hpp

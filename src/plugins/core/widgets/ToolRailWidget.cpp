@@ -107,8 +107,10 @@ void ToolRailWidget::rebuild()
     auto clearLayout = [&](QVBoxLayout* lay) {
         while (lay->count() > 0) {
             QLayoutItem* it = lay->takeAt(0);
-            if (QWidget* w = it->widget())
+            if (QWidget* w = it->widget()) {
+                w->hide();
                 w->deleteLater();
+            }
             delete it;
         }
     };

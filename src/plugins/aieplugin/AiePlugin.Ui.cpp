@@ -10,9 +10,11 @@
 #include "aieplugin/kernels/KernelAssignmentController.hpp"
 #include "aieplugin/kernels/KernelRegistryService.hpp"
 #include "aieplugin/panels/AieKernelsPanel.hpp"
+#include "aieplugin/panels/AieLogPanel.hpp"
 #include "aieplugin/panels/AieNewDesignDialog.hpp"
 #include "aieplugin/panels/AiePropertiesPanel.hpp"
 #include "aieplugin/panels/AieToolPanel.hpp"
+#include "aieplugin/hlir_sync/AieOutputLog.hpp"
 #include "aieplugin/hlir_sync/HlirSyncService.hpp"
 
 #include "codeeditor/api/ICodeEditorService.hpp"
@@ -25,6 +27,7 @@
 #include "projectexplorer/api/IProjectExplorer.hpp"
 
 #include <QtGui/QAction>
+#include <QtGui/QIcon>
 #include <QtWidgets/QMessageBox>
 
 namespace Aie::Internal {
@@ -34,6 +37,7 @@ void AiePlugin::registerSidebarTools(const RuntimeDependencies& deps)
     registerLayoutSidebarTool(deps);
     registerPropertiesSidebarTool(deps);
     registerKernelsSidebarTool(deps);
+    registerLogSidebarTool(deps);
 
     if (!m_sidebarRegistry)
         return;
@@ -155,6 +159,40 @@ void AiePlugin::registerPropertiesSidebarTool(const RuntimeDependencies& deps)
     m_propertiesToolRegistered = true;
 }
 
+void AiePlugin::registerLogSidebarTool(const RuntimeDependencies& deps)
+{
+    if (!deps.uiHost)
+        return;
+
+    if (!m_sidebarRegistry)
+        m_sidebarRegistry = deps.uiHost->sidebarRegistry();
+    if (!m_sidebarRegistry || m_logToolRegistered)
+        return;
+
+    Core::SidebarToolSpec spec;
+    spec.id       = kLogSidebarToolId;
+    spec.title    = QStringLiteral("Log");
+    spec.iconResource = QStringLiteral(":/ui/icons/svg/text_file_icon.svg");
+    spec.side     = Core::SidebarSide::Right;
+    spec.family   = Core::SidebarFamily::Vertical;
+    spec.region   = Core::SidebarRegion::Exclusive;
+    spec.rail     = Core::SidebarRail::Bottom;
+    spec.order    = 0;
+    spec.toolTip  = QStringLiteral("Build & Verification Log");
+
+    const auto factory = [this](QWidget* parent) -> QWidget* {
+        return new AieLogPanel(m_outputLog, parent);
+    };
+
+    QString error;
+    if (!m_sidebarRegistry->registerTool(spec, factory, &error)) {
+        qCWarning(aiepluginlog) << "AiePlugin: register log panel failed:" << error;
+        return;
+    }
+
+    m_logToolRegistered = true;
+}
+
 void AiePlugin::persistSidebarOpenState()
 {
     if (!m_sidebarRegistry)
@@ -254,53 +292,60 @@ void AiePlugin::connectRibbonActions(const RuntimeDependencies& deps,
                                    tr("Build"));
 
     auto* actCodeGen = new QAction(tr("Generate\nCode"), this);
+    actCodeGen->setIcon(QIcon(QStringLiteral(":/ui/icons/svg/generate_code.svg")));
     connect(actCodeGen, &QAction::triggered, this, [this]() {
         if (m_hlirSync)
             m_hlirSync->generateCode();
     });
 
     auto* actVerify = new QAction(tr("Verify\nDesign"), this);
+    actVerify->setIcon(QIcon(QStringLiteral(":/ui/icons/svg/verify_design.svg")));
     connect(actVerify, &QAction::triggered, this, [this]() {
         if (m_hlirSync)
             m_hlirSync->verifyDesign();
     });
 
-    // Show a message box when code generation or verification completes or fails
-    if (m_hlirSync) {
+    // Route code generation and verification results to the Log panel.
+    if (m_hlirSync && m_outputLog) {
+        // Open the log panel when a new run begins, then forward steps and final result.
+        connect(m_hlirSync, &HlirSyncService::runStarted, this,
+                [this]() {
+                    if (m_sidebarRegistry)
+                        m_sidebarRegistry->requestShowTool(kLogSidebarToolId);
+                    m_outputLog->startRun();
+                });
+
+        connect(m_hlirSync, &HlirSyncService::stepLogged, this,
+                [this](bool ok, const QString& label) {
+                    m_outputLog->appendRunStep(ok, label);
+                });
+
         connect(m_hlirSync, &HlirSyncService::codeGenFinished, this,
-                [this, uiHost = QPointer<Core::IUiHost>(deps.uiHost)]
-                (bool success, const QString& message) {
-                    const QString title = success
-                        ? QStringLiteral("Code Generation")
-                        : QStringLiteral("Code Generation Failed");
-                    QWidget* parent = resolveDialogParent(uiHost);
-                    if (success)
-                        QMessageBox::information(parent, title, message);
-                    else
-                        QMessageBox::critical(parent, title, message);
+                [this](bool success, const QString& message) {
+                    const QString header = success
+                        ? QStringLiteral("Code generation succeeded.")
+                        : QStringLiteral("Code generation failed.");
+                    m_outputLog->finalizeRun(success, header + u'\n' + message);
                 });
 
         connect(m_hlirSync, &HlirSyncService::verificationFinished, this,
-                [this, uiHost = QPointer<Core::IUiHost>(deps.uiHost)]
-                (bool passed, const QString& message) {
-                    const QString title = passed
-                        ? QStringLiteral("Design Verification")
-                        : QStringLiteral("Verification Failed");
-                    QWidget* parent = resolveDialogParent(uiHost);
-                    if (passed)
-                        QMessageBox::information(parent, title, message);
-                    else
-                        QMessageBox::critical(parent, title, message);
+                [this](bool passed, const QString& message) {
+                    m_outputLog->finalizeRun(passed, message);
                 });
     }
 
+    Core::RibbonPresentation codeGenPres;
+    codeGenPres.size = Core::RibbonVisualSize::Large;
+    codeGenPres.iconPlacement = Core::RibbonIconPlacement::AboveText;
+    codeGenPres.iconPx = 40;
+
     Core::RibbonPresentation btnPres;
     btnPres.size = Core::RibbonVisualSize::Large;
-    btnPres.iconPlacement = Core::RibbonIconPlacement::TextOnly;
+    btnPres.iconPlacement = Core::RibbonIconPlacement::AboveText;
 
     auto codeGenRoot = Core::RibbonNode::makeRow(QStringLiteral("codegen_root"));
     codeGenRoot->addCommand(QStringLiteral("output.codegen"),
-                            actCodeGen, Core::RibbonControlType::Button, btnPres);
+                            actCodeGen, Core::RibbonControlType::Button, codeGenPres);
     codeGenRoot->addCommand(QStringLiteral("output.verify"),
                             actVerify, Core::RibbonControlType::Button, btnPres);
 
