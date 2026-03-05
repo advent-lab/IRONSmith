@@ -88,12 +88,6 @@ ironsmith_add_plugin(AiePlugin
             IRONSmith::CodeEditorPlugin
             HlirCppBridge
             CodeGenBridge
-
-        PRIVATE_DEFINES
-            AIEPLUGIN_LIBRARY
-
-        PUBLIC_DEFINES
-            AIEPLUGIN_BUILD_SHARED=1
 )
 
 target_compile_definitions(AiePlugin PRIVATE

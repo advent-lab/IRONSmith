@@ -22,7 +22,7 @@ class ICanvasHost;
 
 namespace Canvas::Internal {
 
-class CANVAS_EXPORT CanvasDocumentServiceImpl final : public Canvas::Api::ICanvasDocumentService
+class CanvasDocumentServiceImpl final : public Canvas::Api::ICanvasDocumentService
 {
     Q_OBJECT
 

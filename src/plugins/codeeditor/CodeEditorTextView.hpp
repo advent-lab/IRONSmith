@@ -23,7 +23,7 @@ class QsciScintilla;
 
 namespace CodeEditor {
 
-class CODEEDITOR_EXPORT CodeEditorTextView final : public QWidget {
+class CodeEditorTextView final : public QWidget {
     Q_OBJECT
 public:
     explicit CodeEditorTextView(QWidget* parent = nullptr);

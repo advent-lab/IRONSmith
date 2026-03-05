@@ -20,7 +20,7 @@ enum class KernelSourceScope : unsigned char {
     Workspace
 };
 
-struct AIEPLUGIN_EXPORT KernelAsset final {
+struct KernelAsset final {
     QString id;
     QString name;
     QString version;
@@ -48,12 +48,12 @@ struct KernelCatalogScanRequest final {
     QString workspaceRoot;
 };
 
-AIEPLUGIN_EXPORT QString kernelScopeName(KernelSourceScope scope);
+QString kernelScopeName(KernelSourceScope scope);
 
-AIEPLUGIN_EXPORT Utils::Result scanKernelCatalog(const KernelCatalogScanRequest& request,
-                                                  QVector<KernelAsset>& outKernels,
-                                                  QStringList* outWarnings = nullptr);
+Utils::Result scanKernelCatalog(const KernelCatalogScanRequest& request,
+                                QVector<KernelAsset>& outKernels,
+                                QStringList* outWarnings = nullptr);
 
-AIEPLUGIN_EXPORT const KernelAsset* findKernelById(const QVector<KernelAsset>& kernels, const QString& kernelId);
+const KernelAsset* findKernelById(const QVector<KernelAsset>& kernels, const QString& kernelId);
 
 } // namespace Aie::Internal

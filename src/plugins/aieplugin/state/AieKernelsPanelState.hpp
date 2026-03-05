@@ -11,7 +11,7 @@
 
 namespace Aie::Internal {
 
-class AIEPLUGIN_EXPORT AieKernelsPanelState final
+class AieKernelsPanelState final
 {
 public:
     struct Snapshot final {

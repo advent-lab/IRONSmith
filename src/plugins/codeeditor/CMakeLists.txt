@@ -53,12 +53,8 @@ ironsmith_add_plugin(CodeEditorPlugin
         PUBLIC_DEPENDS
             IRONSmith::Utils
 
-        PRIVATE_DEFINES
-            CODEEDITOR_LIBRARY
-
         PUBLIC_DEFINES
             "${_CODEEDITOR_HAVE_QSCI}"
-            CODEEDITOR_BUILD_SHARED=1
 )
 
 if (BUILD_WITH_TESTS)

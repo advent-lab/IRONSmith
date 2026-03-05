@@ -11,7 +11,7 @@
 
 namespace Aie::Internal {
 
-class AIEPLUGIN_EXPORT AieWorkspaceState final
+class AieWorkspaceState final
 {
 public:
     AieWorkspaceState();
