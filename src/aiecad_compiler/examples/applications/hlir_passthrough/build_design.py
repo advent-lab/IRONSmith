@@ -60,11 +60,11 @@ def build_passthrough_design():
 
     # Add ObjectFifos
     fifo_in = builder.add_fifo("of_in", obj_type="line_ty", depth=2)
-    print(f"[5] Added input FIFO: {fifo_in.name}")
+    print(f"[5] Added input FIFO: {fifo_in.component.name}")
 
     # Forward operation (passthrough)
     fifo_out = builder.add_fifo_forward("of_out", source="of_in")
-    print(f"[6] Added forward operation: {fifo_out.name} <- {fifo_out.source}")
+    print(f"[6] Added forward operation: {fifo_out.component.name} <- of_in")
 
     # Create runtime sequence
     print("[7] Building runtime sequence...")
@@ -88,7 +88,8 @@ def build_passthrough_design():
     print(f"    - Tiles: {len(program.tiles)}")
     print(f"    - FIFOs: {len(program.fifos)}")
     print(f"    - Symbols: {len(program.symbols)}")
-    print(f"    - Runtime operations: {len(program.runtime.operations)}")
+    if program.runtime:
+        print(f"    - Runtime operations: {len(program.runtime.operations)}")
 
     return program
 

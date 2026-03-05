@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
+
 #include <utils/Result.hpp>
 
 #include <QtCore/QJsonObject>

@@ -1,0 +1,177 @@
+<?xml version="1.0" ?>
+<Module name="vector_vector_mul_hlir_example">
+    <Symbols>
+        <Const name="N" type="int">65536</Const>
+        <TypeAbstraction name="data_ty">
+            <ndarray>
+                <shape>N</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="memtile_ty">
+            <ndarray>
+                <shape>N / 16</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="tile_ty">
+            <ndarray>
+                <shape>N / 64</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+    </Symbols>
+    <DataFlow>
+        <ExternalFunction name="eltwise_mul_bf16_vector" operation="mul">
+            <kernel>eltwise_mul_bf16_vector</kernel>
+            <source>/scratch/IRONSmithTesting/mlir-aie/aie_kernels/aie2/mul.cc</source>
+            <arg_types>
+                <type>tile_ty</type>
+                <type>tile_ty</type>
+                <type>tile_ty</type>
+            </arg_types>
+            <include_dirs>
+                <dir>/scratch/IRONSmithTesting/mlir-aie/aie_kernels</dir>
+                <dir>/scratch/IRONSmithTesting/mlir-aie/aie_runtime_lib/AIE2</dir>
+            </include_dirs>
+        </ExternalFunction>
+        <CoreFunction name="corefunc_mul" operation="mul" loop_count="N / 4096">
+            <parameters>
+                <param name="kernel" role="external_function"/>
+                <param name="inputA" role="consumer"/>
+                <param name="inputB" role="consumer"/>
+                <param name="outputC" role="consumer"/>
+            </parameters>
+            <body>
+                <Acquire source="outputC" count="1" name="elem_out"/>
+                <Acquire source="inputA" count="1" name="elem_in_a"/>
+                <Acquire source="inputB" count="1" name="elem_in_b"/>
+                <Call function="kernel" args="elem_in_a, elem_in_b, elem_out"/>
+                <Release source="inputA" count="1"/>
+                <Release source="inputB" count="1"/>
+                <Release source="outputC" count="1"/>
+            </body>
+        </CoreFunction>
+        <ObjectFifo name="of_in_a">
+            <type>memtile_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_b">
+            <type>memtile_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_out_c">
+            <type>memtile_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifoSplit name="split_a" context="L2_L1" data="A" column="0">
+            <source>of_in_a</source>
+            <num_outputs>4</num_outputs>
+            <output_type>tile_ty</output_type>
+            <placement>Tile(0, 1)</placement>
+        </ObjectFifoSplit>
+        <ObjectFifoSplit name="split_b" context="L2_L1" data="B" column="1">
+            <source>of_in_b</source>
+            <num_outputs>4</num_outputs>
+            <output_type>tile_ty</output_type>
+            <placement>Tile(1, 1)</placement>
+        </ObjectFifoSplit>
+        <ObjectFifoJoin name="join_c" context="L1_L2" data="C" column="2">
+            <dest>of_out_c</dest>
+            <num_inputs>4</num_inputs>
+            <input_type>tile_ty</input_type>
+            <placement>Tile(2, 1)</placement>
+        </ObjectFifoJoin>
+        <Worker name="worker0" operation="mul" column="0" worker_index="0">
+            <core_function>corefunc_mul</core_function>
+            <arguments>
+                <arg ref="eltwise_mul_bf16_vector"/>
+                <arg ref="split_a" index="0" mode="consumer"/>
+                <arg ref="split_b" index="0" mode="consumer"/>
+                <arg ref="join_c" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 5)</placement>
+        </Worker>
+        <Worker name="worker1" operation="mul" column="0" worker_index="1">
+            <core_function>corefunc_mul</core_function>
+            <arguments>
+                <arg ref="eltwise_mul_bf16_vector"/>
+                <arg ref="split_a" index="1" mode="consumer"/>
+                <arg ref="split_b" index="1" mode="consumer"/>
+                <arg ref="join_c" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 4)</placement>
+        </Worker>
+        <Worker name="worker2" operation="mul" column="0" worker_index="2">
+            <core_function>corefunc_mul</core_function>
+            <arguments>
+                <arg ref="eltwise_mul_bf16_vector"/>
+                <arg ref="split_a" index="2" mode="consumer"/>
+                <arg ref="split_b" index="2" mode="consumer"/>
+                <arg ref="join_c" index="2" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 3)</placement>
+        </Worker>
+        <Worker name="worker3" operation="mul" column="0" worker_index="3">
+            <core_function>corefunc_mul</core_function>
+            <arguments>
+                <arg ref="eltwise_mul_bf16_vector"/>
+                <arg ref="split_a" index="3" mode="consumer"/>
+                <arg ref="split_b" index="3" mode="consumer"/>
+                <arg ref="join_c" index="3" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 2)</placement>
+        </Worker>
+        <Runtime name="runtime">
+            <Sequence inputs="memtile_ty, memtile_ty, memtile_ty" as="inputa_in, inputb_in, outputc_out">
+                <Start>worker0, worker1, worker2, worker3</Start>
+                <Fill target="of_in_a" source="inputa_in" data_ref="inputA" column="0" use_tap="false">
+                    <placement>Tile(0, 0)</placement>
+                </Fill>
+                <Fill target="of_in_b" source="inputb_in" data_ref="inputB" column="0" use_tap="false">
+                    <placement>Tile(0, 0)</placement>
+                </Fill>
+                <Drain source="of_out_c" target="outputc_out" data_ref="outputC" column="1" use_tap="false">
+                    <placement>Tile(1, 0)</placement>
+                    <wait>true</wait>
+                </Drain>
+            </Sequence>
+        </Runtime>
+        <Program name="program">
+            <device>current_device</device>
+            <runtime>runtime</runtime>
+            <placer>SequentialPlacer</placer>
+        </Program>
+    </DataFlow>
+    <Function name="jit_function" decorator="iron.jit" entry="vector_vector_mul_hlir_example_jit">
+        <parameters>
+            <param name="inputA" type="memtile_ty"/>
+            <param name="inputB" type="memtile_ty"/>
+            <param name="outputC" type="memtile_ty"/>
+        </parameters>
+        <body>
+            <UseDataFlow/>
+            <Return>program</Return>
+        </body>
+    </Function>
+    <Function name="main_function" entry="main">
+        <body>
+            <Assign name="N" value="65536"/>
+            <Tensor name="inputA">
+                <init>iron.arange(N, dtype=bfloat16, device=&quot;npu&quot;)</init>
+            </Tensor>
+            <Tensor name="inputB">
+                <init>iron.arange(N, dtype=bfloat16, device=&quot;npu&quot;)</init>
+            </Tensor>
+            <Tensor name="outputC">
+                <init>iron.zeros(N, dtype=bfloat16, device=&quot;npu&quot;)</init>
+            </Tensor>
+            <Call function="jit_function" args="inputA, inputB, outputC"/>
+        </body>
+    </Function>
+    <EntryPoint>
+        <If condition="__name__ == '__main__'">
+            <Call function="main_function"/>
+        </If>
+    </EntryPoint>
+</Module>

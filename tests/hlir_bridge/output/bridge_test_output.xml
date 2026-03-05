@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<Module name="bridge_test">
+    <Symbols>
+        <Const name="test_size" type="int">256</Const>
+        <TypeAbstraction name="test_type">
+            <ndarray>
+                <shape>test_size</shape>
+                <dtype>float32</dtype>
+            </ndarray>
+        </TypeAbstraction>
+    </Symbols>
+    <DataFlow>
+        <ObjectFifo name="test_fifo">
+            <type>test_type</type>
+            <depth>8</depth>
+        </ObjectFifo>
+        <Program name="program">
+            <device>current_device</device>
+            <placer>SequentialPlacer</placer>
+        </Program>
+    </DataFlow>
+</Module>

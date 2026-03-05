@@ -42,6 +42,12 @@ ironsmith_add_plugin(CorePlugin
             ${QT6_REQUIRED_COMPONENTS}
             ExtensionSystem
             Utils
+
+        PRIVATE_DEFINES
+            CORE_LIBRARY
+
+        PUBLIC_DEFINES
+            CORE_BUILD_SHARED=1
 )
 
 add_subdirectory(ui)

@@ -126,50 +126,102 @@ class ExternalFunctionCodeGen(CodeGenExtension):
 # ----------------------------------------------------------------------
 class CoreFunctionCodeGen(CodeGenExtension):
     """Generates CoreFunction (def statements inside jit function)"""
-    
+
+
     kind = "CoreFunction"
-    
+
+
     def generate(self, node_id: str) -> str:
         name = self._get_node_attr(node_id, 'label')
-        
+
+
         # Get parameters
         param_nodes = self._get_children(node_id, 'has_param')
         params = []
         for p_id in param_nodes:
             p_name = self._get_node_attr(p_id, 'label')
             params.append(p_name)
-        
+
+
         params_str = ", ".join(params)
-        
+
+
         # Generate function signature
         lines = [f"def {name}({params_str}):"]
-        
+
+
         # Generate body
         body_nodes = self._get_children(node_id, 'contains')
         if not body_nodes:
-            lines.append("        pass")
+            lines.append("    pass")
         else:
-            for child_id in body_nodes:
-                child_kind = self._get_node_attr(child_id, 'kind')
-                # Handle different statement types
-                if child_kind == 'Acquire':
-                    var_name = self._get_node_attr(child_id, 'label')
-                    call_nodes = self._get_children(child_id, 'contains')
-                    if call_nodes:
-                        call_expr = self._reconstruct_core_function_call(call_nodes[0])
-                        lines.append(f"        {var_name} = {call_expr}")
-                elif child_kind == 'Release':
-                    call_nodes = self._get_children(child_id, 'contains')
-                    if call_nodes:
-                        call_expr = self._reconstruct_core_function_call(call_nodes[0])
-                        lines.append(f"        {call_expr}")
-                elif child_kind == 'Call':
-                    # This is a function call statement
-                    call_expr = self._reconstruct_function_call_statement(child_id)
-                    if call_expr:
-                        lines.append(f"        {call_expr}")
-        
+            # Process body statements with base indentation (1 level = 4 spaces).
+            # The "\n    ".join() below adds another 4 spaces to each continuation
+            # line, so indent_level=1 here produces the correct 8-space body indent.
+            body_lines = self._process_body_statements(body_nodes, indent_level=1)
+            lines.extend(body_lines)
+
         return "\n    ".join(lines)
+
+    def _process_body_statements(self, node_ids: List[str], indent_level: int = 2) -> List[str]:
+        """
+        Process body statements recursively, handling For loops with nested content.
+
+        Args:
+            node_ids: List of node IDs to process
+            indent_level: Number of indentation levels (4 spaces each)
+
+        Returns:
+            List of code lines with proper indentation
+        """
+        lines = []
+        indent = "    " * indent_level
+
+        for child_id in node_ids:
+            child_kind = self._get_node_attr(child_id, 'kind')
+
+            if child_kind == 'For':
+                # Handle For loop
+                # Label format: "for _ in range_(...)"
+                label = self._get_node_attr(child_id, 'label')
+                lines.append(f"{indent}{label}:")
+
+                # Process nested body statements inside the For loop
+                nested_nodes = self._get_children(child_id, 'contains')
+                if nested_nodes:
+                    nested_lines = self._process_body_statements(nested_nodes, indent_level + 1)
+                    lines.extend(nested_lines)
+                else:
+                    lines.append(f"{indent}    pass")
+
+            elif child_kind == 'Acquire':
+                var_name = self._get_node_attr(child_id, 'label')
+                call_nodes = self._get_children(child_id, 'contains')
+                if call_nodes:
+                    call_expr = self._reconstruct_core_function_call(call_nodes[0])
+                    lines.append(f"{indent}{var_name} = {call_expr}")
+
+            elif child_kind == 'Release':
+                call_nodes = self._get_children(child_id, 'contains')
+                if call_nodes:
+                    call_expr = self._reconstruct_core_function_call(call_nodes[0])
+                    lines.append(f"{indent}{call_expr}")
+
+            elif child_kind == 'Call':
+                # This is a function call statement
+                call_expr = self._reconstruct_function_call_statement(child_id)
+                if call_expr:
+                    lines.append(f"{indent}{call_expr}")
+
+            elif child_kind == 'Assignment':
+                # Indexed assignment: target[index] = value
+                target = self._get_node_attr(child_id, 'target')
+                index = self._get_node_attr(child_id, 'index')
+                value = self._get_node_attr(child_id, 'value')
+                if target is not None and index is not None and value is not None:
+                    lines.append(f"{indent}{target}[{index}] = {value}")
+
+        return lines
     
     def _reconstruct_core_function_call(self, call_id: str) -> str:
         """Reconstruct method calls in CoreFunction body (acquire/release)"""
@@ -348,8 +400,8 @@ class WorkerCodeGen(CodeGenExtension):
                             elif item_kind == 'String':
                                 item_val = self._get_node_attr(item_id, 'label')
                                 items.append(f'"{item_val}"')
-                            elif item_kind in ['BinaryOp', 'ConstExpr']:
-                                # Reconstruct expression
+                            elif item_kind in ['BinaryOp', 'ConstExpr', 'Const']:
+                                # Reconstruct expression (includes symbolic constants)
                                 expr = self._reconstruct_expression(item_id)
                                 if expr:
                                     items.append(expr)

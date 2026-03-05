@@ -14,7 +14,7 @@
 
 namespace ProjectExplorer::Internal {
 
-class ProjectExplorerFileSystemService final : public QObject
+class PROJECTEXPLORER_EXPORT ProjectExplorerFileSystemService final : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QString rootPath READ rootPath WRITE setRootPath NOTIFY rootPathChanged)

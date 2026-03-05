@@ -56,6 +56,12 @@ ironsmith_add_plugin(ProjectExplorerPlugin
             ${QT6_REQUIRED_COMPONENTS}
             IRONSmith::ExtensionSystem
             IRONSmith::CorePlugin
+
+        PRIVATE_DEFINES
+            PROJECTEXPLORER_LIBRARY
+
+        PUBLIC_DEFINES
+            PROJECTEXPLORER_BUILD_SHARED=1
 )
 
 if (BUILD_WITH_TESTS)

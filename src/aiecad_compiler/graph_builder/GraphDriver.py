@@ -277,6 +277,24 @@ class GraphBuilder:
         self._link(p, n, "contains")
         self._declare_symbol(name, n)
 
+    def _symbol_tensortiler2d(self, e: etree.Element, p: NodeId):
+        """
+        Create TensorTiler2D node for tiler variable declarations.
+
+        Example: a_tap = TensorTiler2D.group_tiler(tensor_dims, tile_dims, tile_counts,
+                             prune_step=False)[0]
+        """
+        name = e.get("name")
+        n = self._add_node(name, "TensorTiler2D",
+                           tensor_dims=e.get("tensor_dims", ""),
+                           tile_dims=e.get("tile_dims", ""),
+                           tile_counts=e.get("tile_counts", ""),
+                           prune_step=e.get("prune_step", "False"),
+                           index=e.get("index", "0"),
+                           pattern_repeat=e.get("pattern_repeat"))
+        self._link(p, n, "contains")
+        self._declare_symbol(name, n)
+
     # ===================================================================
     # SECTION 5: DataFlow Section Processing
     # ===================================================================

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "codeeditor/CodeEditorGlobal.hpp"
+
 #include <utils/EnvironmentQtPolicy.hpp>
 
 #include <QtCore/QString>

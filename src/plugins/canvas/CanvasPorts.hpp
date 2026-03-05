@@ -10,13 +10,13 @@
 
 namespace Canvas {
 
-enum class CANVAS_EXPORT PortRole : uint8_t {
+enum class PortRole : uint8_t {
     Producer,
     Consumer,
     Dynamic
 };
 
-enum class CANVAS_EXPORT PortSide : uint8_t {
+enum class PortSide : uint8_t {
     Left,
     Right,
     Top,

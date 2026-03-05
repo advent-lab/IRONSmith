@@ -13,6 +13,7 @@
 #include "aieplugin/panels/AieNewDesignDialog.hpp"
 #include "aieplugin/panels/AiePropertiesPanel.hpp"
 #include "aieplugin/panels/AieToolPanel.hpp"
+#include "aieplugin/hlir_sync/HlirSyncService.hpp"
 
 #include "codeeditor/api/ICodeEditorService.hpp"
 #include "core/CoreConstants.hpp"
@@ -243,6 +244,73 @@ void AiePlugin::connectRibbonActions(const RuntimeDependencies& deps,
                 if (m_designOpenController)
                     m_designOpenController->openBundlePath(result.bundlePath);
             });
+
+    // --- Output tab: Generate Code button ---
+    // Add a "Build" group to the Output ribbon tab and populate it with a
+    // Generate Code button that drives the HlirSyncService pipeline:
+    //   syncCanvas() → bridge.build() → exportToGuiXml() → CodeGenBridge::runCodeGen()
+    deps.uiHost->ensureRibbonGroup(Core::Constants::RIBBON_TAB_OUTPUT,
+                                   QStringLiteral("IRONSmith.Ribbon.Output.BuildGroup"),
+                                   tr("Build"));
+
+    auto* actCodeGen = new QAction(tr("Generate\nCode"), this);
+    connect(actCodeGen, &QAction::triggered, this, [this]() {
+        if (m_hlirSync)
+            m_hlirSync->generateCode();
+    });
+
+    auto* actVerify = new QAction(tr("Verify\nDesign"), this);
+    connect(actVerify, &QAction::triggered, this, [this]() {
+        if (m_hlirSync)
+            m_hlirSync->verifyDesign();
+    });
+
+    // Show a message box when code generation or verification completes or fails
+    if (m_hlirSync) {
+        connect(m_hlirSync, &HlirSyncService::codeGenFinished, this,
+                [this, uiHost = QPointer<Core::IUiHost>(deps.uiHost)]
+                (bool success, const QString& message) {
+                    const QString title = success
+                        ? QStringLiteral("Code Generation")
+                        : QStringLiteral("Code Generation Failed");
+                    QWidget* parent = resolveDialogParent(uiHost);
+                    if (success)
+                        QMessageBox::information(parent, title, message);
+                    else
+                        QMessageBox::critical(parent, title, message);
+                });
+
+        connect(m_hlirSync, &HlirSyncService::verificationFinished, this,
+                [this, uiHost = QPointer<Core::IUiHost>(deps.uiHost)]
+                (bool passed, const QString& message) {
+                    const QString title = passed
+                        ? QStringLiteral("Design Verification")
+                        : QStringLiteral("Verification Failed");
+                    QWidget* parent = resolveDialogParent(uiHost);
+                    if (passed)
+                        QMessageBox::information(parent, title, message);
+                    else
+                        QMessageBox::critical(parent, title, message);
+                });
+    }
+
+    Core::RibbonPresentation btnPres;
+    btnPres.size = Core::RibbonVisualSize::Large;
+    btnPres.iconPlacement = Core::RibbonIconPlacement::TextOnly;
+
+    auto codeGenRoot = Core::RibbonNode::makeRow(QStringLiteral("codegen_root"));
+    codeGenRoot->addCommand(QStringLiteral("output.codegen"),
+                            actCodeGen, Core::RibbonControlType::Button, btnPres);
+    codeGenRoot->addCommand(QStringLiteral("output.verify"),
+                            actVerify, Core::RibbonControlType::Button, btnPres);
+
+    const auto ribbonResult = deps.uiHost->setRibbonGroupLayout(
+        Core::Constants::RIBBON_TAB_OUTPUT,
+        QStringLiteral("IRONSmith.Ribbon.Output.BuildGroup"),
+        std::move(codeGenRoot));
+
+    if (!ribbonResult)
+        qCWarning(aiepluginlog) << "AiePlugin: failed to set Output ribbon layout:" << ribbonResult.error;
 }
 
 void AiePlugin::showOpenError(Core::IUiHost* uiHost, const QString& message) const

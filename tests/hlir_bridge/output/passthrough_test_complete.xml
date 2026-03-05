@@ -1,0 +1,260 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Module name="passthrough_test">
+  <Symbols>
+    <Import name="numpy" alias="np"/>
+    <Import name="ml_dtypes" alias="ml_dtypes"/>
+    <Import name="aie.iron" alias="iron">
+      <Submodule name="Program"/>
+      <Submodule name="Runtime"/>
+      <Submodule name="Worker"/>
+      <Submodule name="ObjectFifo"/>
+      <Submodule name="SequentialPlacer"/>
+      <Submodule name="AnyComputeTile"/>
+      <Submodule name="Tile"/>
+      <Submodule name="ExternalFunction"/>
+      <Submodule name="jit"/>
+      <Submodule name="dataflow"/>
+      <Function name="get_current_device"/>
+      <Function name="arange"/>
+      <Function name="zeros"/>
+    </Import>
+    <Import name="aie.helpers.taplib">
+      <Submodule name="TensorAccessPattern"/>
+    </Import>
+    <Const name="N" type="int">4096</Const>
+    <TypeAbstraction name="vector_ty">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>N</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int32</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="line_ty">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>N // 4</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int32</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+  </Symbols>
+  <DataFlow>
+    <ObjectFifo name="of_in">
+      <obj_type>
+        <type_ref>line_ty</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="of_in"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="of_out">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="of_in"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="forward"/>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <Runtime name="rt">
+      <instance>
+        <constructor ref="Runtime"/>
+      </instance>
+    </Runtime>
+    <List name="Workers">
+      <items/>
+    </List>
+    <SequenceBlock>
+      <context>
+        <call>
+          <method ref="rt" name="sequence">
+            <arg type_ref="vector_ty"/>
+            <arg type_ref="vector_ty"/>
+          </method>
+        </call>
+      </context>
+      <bindings>
+        <bind name="inputa_in" type_ref="vector_ty"/>
+        <bind name="outputc_out" type_ref="vector_ty"/>
+      </bindings>
+      <body>
+        <Operation name="fill_inputa_in_col0">
+          <target>
+            <method ref="rt" name="fill"/>
+          </target>
+          <args>
+            <arg>
+              <call>
+                <method ref="of_in" name="prod"/>
+              </call>
+            </arg>
+            <arg>
+              <var ref="inputa_in"/>
+            </arg>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>0</const>
+                </arg>
+                <arg>
+                  <const>0</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </args>
+        </Operation>
+        <Operation name="drain_outputc_out_col0">
+          <target>
+            <method ref="rt" name="drain"/>
+          </target>
+          <args>
+            <arg>
+              <call>
+                <method ref="of_out" name="cons"/>
+              </call>
+            </arg>
+            <arg>
+              <var ref="outputc_out"/>
+            </arg>
+            <kwarg name="wait" value="True"/>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>0</const>
+                </arg>
+                <arg>
+                  <const>0</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </args>
+        </Operation>
+      </body>
+    </SequenceBlock>
+    <Program name="my_program">
+      <constructor>
+        <call>
+          <constructor ref="Program">
+            <arg>
+              <call>
+                <function ref="iron.get_current_device"/>
+              </call>
+            </arg>
+            <arg>
+              <var ref="rt"/>
+            </arg>
+          </constructor>
+        </call>
+      </constructor>
+    </Program>
+    <ResolveProgram>
+      <target>
+        <method ref="my_program" name="resolve_program">
+          <arg>
+            <constructor ref="SequentialPlacer"/>
+          </arg>
+        </method>
+      </target>
+      <returns>
+        <symbol ref="my_program_resolved"/>
+      </returns>
+    </ResolveProgram>
+  </DataFlow>
+  <Function name="passthrough_test_jit" decorator="iron.jit">
+    <parameters>
+      <param name="inputA" type_ref="vector_ty"/>
+      <param name="outputC" type_ref="vector_ty"/>
+    </parameters>
+    <attributes>
+      <kwarg name="is_placed" value="False"/>
+    </attributes>
+    <body>
+      <UseDataFlow>
+        <UseType name="vector_ty"/>
+        <UseType name="line_ty"/>
+      </UseDataFlow>
+      <Return>
+        <var ref="program"/>
+      </Return>
+    </body>
+  </Function>
+  <Function name="main">
+    <body>
+      <Assign>
+        <target>N</target>
+        <source>
+          <const>4096</const>
+        </source>
+      </Assign>
+      <Assign>
+        <target>inputA</target>
+        <source>
+          <call>
+            <function ref="iron.arange">
+              <arg>
+                <var>N</var>
+              </arg>
+              <kwarg name="dtype">
+                <var>np.int32</var>
+              </kwarg>
+              <kwarg name="device">
+                <string>npu</string>
+              </kwarg>
+            </function>
+          </call>
+        </source>
+      </Assign>
+      <Assign>
+        <target>outputC</target>
+        <source>
+          <call>
+            <function ref="iron.zeros">
+              <arg>
+                <var>N</var>
+              </arg>
+              <kwarg name="dtype">
+                <var>np.int32</var>
+              </kwarg>
+              <kwarg name="device">
+                <string>npu</string>
+              </kwarg>
+            </function>
+          </call>
+        </source>
+      </Assign>
+      <Call>
+        <function ref="passthrough_test_jit">
+          <arg>
+            <var>inputA</var>
+          </arg>
+          <arg>
+            <var>outputC</var>
+          </arg>
+        </function>
+      </Call>
+    </body>
+  </Function>
+  <EntryPoint>
+    <If condition="__name__ == '__main__'">
+      <Call>
+        <function ref="main"/>
+      </Call>
+    </If>
+  </EntryPoint>
+</Module>

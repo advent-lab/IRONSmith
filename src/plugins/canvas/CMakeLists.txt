@@ -115,6 +115,12 @@ ironsmith_add_plugin(CanvasPlugin
         PRIVATE_DEPENDS
             IRONSmith::ExtensionSystem
             IRONSmith::CorePlugin
+
+        PRIVATE_DEFINES
+            CANVAS_LIBRARY
+
+        PUBLIC_DEFINES
+            CANVAS_BUILD_SHARED=1
 )
 
 if (BUILD_WITH_TESTS)

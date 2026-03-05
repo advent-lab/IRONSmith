@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
+
 #include <utils/Result.hpp>
 
 #include <QtCore/QString>
@@ -28,7 +30,7 @@ struct DesignBundleCreateResult final {
     bool createdCopy = false;
 };
 
-class DesignBundleCreator final
+class AIEPLUGIN_EXPORT DesignBundleCreator final
 {
 public:
     static Utils::Result validateRequest(const DesignBundleCreateRequest& request);

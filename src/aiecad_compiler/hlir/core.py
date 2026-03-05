@@ -146,6 +146,31 @@ class KernelCall:
 
 
 @dataclass
+class Assignment:
+    """
+    Represents an indexed assignment (e.g., for zero-init loops).
+
+    Example: elem_out[i] = 0
+    """
+    target: str        # Variable being assigned to (e.g., "elem_out")
+    index: str         # Index expression (e.g., "i")
+    value: Union[int, str]  # Right-hand side value (e.g., 0)
+
+
+@dataclass
+class ForLoop:
+    """
+    Represents a for loop: for <var> in range_(<count>): <body>.
+
+    Used to represent nested loops inside CoreFunction bodies
+    (e.g., zero-init loop and inner compute loop in matrix_vector_mul).
+    """
+    var: str                    # Loop variable name (e.g., "i" or "_")
+    count: Union[int, str]      # Range count (can be symbolic, e.g., "m")
+    body: List[Any] = field(default_factory=list)  # List of body statements
+
+
+@dataclass
 class CoreFunction:
     """
     Represents a Python function that wraps kernel invocations.
@@ -153,12 +178,21 @@ class CoreFunction:
     Core functions define the acquire/call/release semantics for
     invoking external kernels with FIFO-based data.
 
+    Two modes:
+    1. Flat mode (body_stmts is None): flat acquires → kernel_call → releases,
+       optionally wrapped in a single for loop via loop_count metadata.
+    2. Body mode (body_stmts is set): explicit body statement list supporting
+       nested ForLoop, Assignment, Acquire, Release, and KernelCall elements.
+       This mode is required for patterns like matrix_vector_mul that have
+       outer acquires, zero-init loops, inner loops, etc.
+
     Attributes:
         name: Function name
         parameters: List of parameter names (first is kernel, rest are FIFOs)
-        acquires: List of acquire operations
-        kernel_call: The kernel invocation
-        releases: List of release operations
+        acquires: List of acquire operations (flat mode only)
+        kernel_call: The kernel invocation (flat mode only)
+        releases: List of release operations (flat mode only)
+        body_stmts: Explicit body statements (body mode, overrides flat fields)
         metadata: Additional properties
     """
     name: str
@@ -166,6 +200,7 @@ class CoreFunction:
     acquires: List[Acquire] = field(default_factory=list)
     kernel_call: Optional[KernelCall] = None
     releases: List[Release] = field(default_factory=list)
+    body_stmts: Optional[List[Any]] = None  # If set, overrides flat structure
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __str__(self):

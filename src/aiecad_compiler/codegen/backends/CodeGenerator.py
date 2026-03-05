@@ -19,6 +19,7 @@ Key Design Principles:
 4. Complete: Generates all code elements (imports, types, functions, etc.)
 """
 
+import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Set, Optional, Any
@@ -219,9 +220,16 @@ class CodeGenerator:
                     if alias:
                         self._emit(f"import {name} as {alias}")
                 elif name == 'aie.helpers.taplib':
-                    # Import TensorAccessPattern
+                    # Import TensorAccessPattern and TensorTiler2D if used
                     self._emit()
-                    self._emit("from aie.helpers.taplib import TensorAccessPattern")
+                    has_tiler2d = bool(self._find_nodes_by_kind('TensorTiler2D'))
+                    if has_tiler2d:
+                        self._emit("from aie.helpers.taplib import TensorAccessPattern, TensorTiler2D")
+                    else:
+                        self._emit("from aie.helpers.taplib import TensorAccessPattern")
+                elif name == 'aie.iron.controlflow':
+                    # Import range_ for core function loops
+                    self._emit("from aie.iron.controlflow import range_")
                 elif alias:
                     self._emit(f"import {name} as {alias}")
                 else:
@@ -918,8 +926,8 @@ class CodeGenerator:
                                         elif item_kind == 'String':
                                             item_val = self._get_node_attr(item_id, 'label')
                                             items.append(f'"{item_val}"')
-                                        elif item_kind in ['BinaryOp', 'ConstExpr', 'Expr']:
-                                            # Reconstruct expression
+                                        elif item_kind in ['BinaryOp', 'ConstExpr', 'Expr', 'Const']:
+                                            # Reconstruct expression (includes symbolic constants)
                                             expr = self._reconstruct_expression(item_id)
                                             if expr:
                                                 items.append(expr)
@@ -1044,17 +1052,37 @@ class CodeGenerator:
         
         if not symbols_sections:
             return
-        
+
+        # Emit constant definitions first (so symbolic types can reference them)
+        const_nodes = [c for c in self._get_children(symbols_sections[0], 'contains')
+                       if self._get_node_attr(c, 'kind') == 'Const']
+        if const_nodes:
+            for child_id in const_nodes:
+                const_name = self._get_node_attr(child_id, 'label')
+                const_value = self._get_node_attr(child_id, 'value')
+                if const_name and const_value is not None:
+                    self._emit(f"{const_name} = {const_value}")
+            self._emit()
+
         self._emit("# Define tensor types")
-        
+
         # Find TypeAbstraction nodes
         for child_id in self._get_children(symbols_sections[0], 'contains'):
             if self._get_node_attr(child_id, 'kind') == 'TypeAbstraction':
                 type_name = self._get_node_attr(child_id, 'label')
                 type_def = self._reconstruct_type_definition(child_id)
                 self._emit(f"{type_name} = {type_def}")
-        
+
         self._emit()
+
+        # Emit TensorTiler2D variable assignments (TAP definitions)
+        tiler_nodes = [c for c in self._get_children(symbols_sections[0], 'contains')
+                       if self._get_node_attr(c, 'kind') == 'TensorTiler2D']
+        if tiler_nodes:
+            self._emit("# Tensor access patterns")
+            for tiler_id in tiler_nodes:
+                self._emit_tiler2d_assignment(tiler_id)
+            self._emit()
     
     def _reconstruct_type_definition(self, type_id: str) -> str:
         """Reconstruct type definition from TypeAbstraction node."""
@@ -1099,6 +1127,9 @@ class CodeGenerator:
                 # Strip outer parentheses from expressions (BinaryOp already adds them)
                 if expr_str and expr_str.startswith('(') and expr_str.endswith(')'):
                     expr_str = expr_str[1:-1]
+                # Shape dimensions must use integer division (numpy requires int, not float)
+                if expr_str and '/' in expr_str:
+                    expr_str = re.sub(r'(?<!/)/(?!/)', '//', expr_str)
                 elements.append(expr_str if expr_str else "?")
 
         if len(elements) == 1:
@@ -1116,7 +1147,37 @@ class CodeGenerator:
                 dtype_label = f"np.{dtype_label}"
             return f"np.dtype[{dtype_label}]"
         return "np.dtype"
-    
+
+    def _emit_tiler2d_assignment(self, tiler_id: str):
+        """
+        Emit a TensorTiler2D.group_tiler() assignment statement.
+
+        Example output:
+            a_tap = TensorTiler2D.group_tiler(
+                (n_fifo_elems, A_elem_size), (1, 512),
+                (n_fifo_elems, A_elem_size // 512),
+                prune_step=False,
+            )[0]
+        """
+        name = self._get_node_attr(tiler_id, 'label')
+        tensor_dims = self._get_node_attr(tiler_id, 'tensor_dims') or ""
+        tile_dims = self._get_node_attr(tiler_id, 'tile_dims') or ""
+        tile_counts = self._get_node_attr(tiler_id, 'tile_counts') or ""
+        prune_step = self._get_node_attr(tiler_id, 'prune_step') or "False"
+        index = self._get_node_attr(tiler_id, 'index') or "0"
+        pattern_repeat = self._get_node_attr(tiler_id, 'pattern_repeat')
+
+        args = []
+        args.append(f"({tensor_dims})")
+        args.append(f"({tile_dims})")
+        args.append(f"({tile_counts})")
+        if pattern_repeat:
+            args.append(f"pattern_repeat={pattern_repeat}")
+        args.append(f"prune_step={prune_step}")
+
+        args_str = ", ".join(args)
+        self._emit(f"{name} = TensorTiler2D.group_tiler({args_str})[{index}]")
+
     # ===================================================================
     # SECTION 10: DataFlow Generation
     # ===================================================================

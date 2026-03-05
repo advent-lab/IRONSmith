@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
+
 #include <utils/EnvironmentQtPolicy.hpp>
 
 #include <QtCore/QString>

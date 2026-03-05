@@ -3,12 +3,14 @@
 
 #pragma once
 
+#include "core/CoreGlobal.hpp"
+
 #include <QtCore/QObject>
 #include <QtCore/QString>
 
 namespace Core {
 
-class IHeaderInfo : public QObject
+class CORE_EXPORT IHeaderInfo : public QObject
 {
     Q_OBJECT
 

@@ -98,7 +98,8 @@ class NamingConventions:
         column = attrs.get("column", "")
 
         if not column.isdigit():
-            return [f"split_output_{i}" for i in range(num_outputs)]
+            name = attrs.get("name", "split")
+            return [f"{name}_out{i + 1}" for i in range(num_outputs)]
 
         col_num = int(column)
         base_idx = col_num * num_outputs + 1
@@ -121,7 +122,8 @@ class NamingConventions:
         column = attrs.get("column", "")
 
         if not column.isdigit():
-            return [f"join_input_{i}" for i in range(num_inputs)]
+            name = attrs.get("name", "join")
+            return [f"{name}_in{i + 1}" for i in range(num_inputs)]
 
         col_num = int(column)
         base_idx = col_num * num_inputs + 1
@@ -232,9 +234,17 @@ class MethodChainBuilder:
 
     def build_split_chain(self, source_name: str, num_outputs: int,
                          output_type: str, output_names: List[str],
-                         placement: str, attrs: Dict[str, str]) -> etree.Element:
+                         placement: str, attrs: Dict[str, str],
+                         source_type_divisor: int = 1,
+                         explicit_offsets: Optional[List[str]] = None) -> etree.Element:
         """
         Build <ObjectFifo> element with .cons().split() method chain.
+
+        Args:
+            source_type_divisor: Divisor from source FIFO's type (e.g., 16 for memtile_ty = N/16)
+
+        Args:
+            source_type_divisor: Divisor from source FIFO's type (e.g., 16 for memtile_ty = N/16)
 
         Returns XML structure for split operation.
         """
@@ -265,23 +275,26 @@ class MethodChainBuilder:
             type_ref_elem = etree.SubElement(type_list, "type_ref")
             type_ref_elem.text = output_type
 
-        # kwarg: offsets (calculate based on output type size)
+        # kwarg: offsets
         kwarg_offsets = etree.SubElement(method_split, "kwarg", name="offsets")
         offset_list = etree.SubElement(kwarg_offsets, "list")
 
-        # Determine divisor from output_type name
-        # chunk_a_worker -> 8, chunk_a -> 4, data_a_ty -> 1
-        divisor = 8 if "_worker" in output_type else 4 if "chunk_" in output_type else 1
-
-        for i in range(num_outputs):
-            offset_expr = etree.SubElement(offset_list, "binary_op", op="*")
-            # ((tensor.numel()) // divisor) * i
-            div_expr = etree.SubElement(offset_expr, "binary_op", op="//")
-            method_elem = etree.SubElement(div_expr, "method", ref=tensor_ref, name="numel")
-            const_divisor = etree.SubElement(div_expr, "const")
-            const_divisor.text = str(divisor)
-            const_i = etree.SubElement(offset_expr, "const")
-            const_i.text = str(i)
+        if explicit_offsets:
+            # Use explicit symbolic offsets from the GUI XML (as raw const text)
+            for off in explicit_offsets:
+                off_elem = etree.SubElement(offset_list, "const")
+                off_elem.text = str(off).strip()
+        else:
+            # Calculate offsets as: (tensor.numel() // total_divisor) * i
+            total_divisor = source_type_divisor * num_outputs
+            for i in range(num_outputs):
+                offset_expr = etree.SubElement(offset_list, "binary_op", op="*")
+                div_expr = etree.SubElement(offset_expr, "binary_op", op="//")
+                method_elem = etree.SubElement(div_expr, "method", ref=tensor_ref, name="numel")
+                const_divisor = etree.SubElement(div_expr, "const")
+                const_divisor.text = str(total_divisor)
+                const_i = etree.SubElement(offset_expr, "const")
+                const_i.text = str(i)
 
         # kwarg: names
         kwarg_names = etree.SubElement(method_split, "kwarg", name="names")
@@ -297,9 +310,17 @@ class MethodChainBuilder:
 
     def build_join_chain(self, dest_name: str, num_inputs: int,
                         input_type: str, input_names: List[str],
-                        placement: str, attrs: Dict[str, str]) -> etree.Element:
+                        placement: str, attrs: Dict[str, str],
+                        dest_type_divisor: int = 1,
+                        explicit_offsets: Optional[List[str]] = None) -> etree.Element:
         """
         Build <ObjectFifo> element with .prod().join() method chain.
+
+        Args:
+            dest_type_divisor: Divisor from dest FIFO's type (e.g., 16 for memtile_ty = N/16)
+
+        Args:
+            dest_type_divisor: Divisor from dest FIFO's type (e.g., 16 for memtile_ty = N/16)
         """
         data = attrs.get("data", "")
         tensor_ref = self.expander.get_tensor_ref(data)
@@ -337,22 +358,26 @@ class MethodChainBuilder:
         # kwarg: placement
         self._add_placement_kwarg(method_join, placement)
 
-        # kwarg: offsets (calculate based on input type size)
+        # kwarg: offsets
         kwarg_offsets = etree.SubElement(method_join, "kwarg", name="offsets")
         offset_list = etree.SubElement(kwarg_offsets, "list")
 
-        # Determine divisor from input_type name
-        # chunk_d_worker -> 8, chunk_d -> 4, data_d_ty -> 1
-        divisor = 8 if "_worker" in input_type else 4 if "chunk_" in input_type else 1
-
-        for i in range(num_inputs):
-            offset_expr = etree.SubElement(offset_list, "binary_op", op="*")
-            div_expr = etree.SubElement(offset_expr, "binary_op", op="//")
-            method_elem = etree.SubElement(div_expr, "method", ref=tensor_ref, name="numel")
-            const_divisor = etree.SubElement(div_expr, "const")
-            const_divisor.text = str(divisor)
-            const_i = etree.SubElement(offset_expr, "const")
-            const_i.text = str(i)
+        if explicit_offsets:
+            # Use explicit symbolic offsets from the GUI XML (as raw const text)
+            for off in explicit_offsets:
+                off_elem = etree.SubElement(offset_list, "const")
+                off_elem.text = str(off).strip()
+        else:
+            # Calculate offsets as: (tensor.numel() // total_divisor) * i
+            total_divisor = dest_type_divisor * num_inputs
+            for i in range(num_inputs):
+                offset_expr = etree.SubElement(offset_list, "binary_op", op="*")
+                div_expr = etree.SubElement(offset_expr, "binary_op", op="//")
+                method_elem = etree.SubElement(div_expr, "method", ref=tensor_ref, name="numel")
+                const_divisor = etree.SubElement(div_expr, "const")
+                const_divisor.text = str(total_divisor)
+                const_i = etree.SubElement(offset_expr, "const")
+                const_i.text = str(i)
 
         return obj_fifo
 
@@ -402,9 +427,16 @@ class XMLTransformer:
 
         # Naming lookup tables
         self.objectfifo_names = {}  # simple_name → expanded_name
+        self.objectfifo_types = {}  # simple_name → type_name (e.g., "of_in_a" → "memtile_ty")
+        self.type_divisors = self._extract_type_divisors()  # type_name → divisor (e.g., "memtile_ty" → 16)
         self.split_outputs = {}  # split_name → list of output names
         self.join_inputs = {}  # join_name → list of input names
         self.function_entry_names = self._build_function_mapping()  # function_name → entry_name
+
+        # Track if we need controlflow import (for range_ loops)
+        self.needs_controlflow_import = False
+        # Track if we need TensorTiler2D import
+        self.needs_tiler2d_import = False
 
     def _build_function_mapping(self) -> Dict[str, str]:
         """Build mapping of function names to entry names."""
@@ -426,6 +458,38 @@ class XMLTransformer:
                 value = const.text.strip() if const.text else ""
                 symbols[name] = value
         return symbols
+
+    def _extract_type_divisors(self) -> Dict[str, int]:
+        """
+        Extract divisor values from type shape expressions.
+
+        For types like 'memtile_ty' with shape 'N / 16', extracts divisor 16.
+        For types like 'tile_ty' with shape 'N / 64', extracts divisor 64.
+        Returns dict mapping type name to its divisor (1 if no division).
+        """
+        type_divisors = {}
+        symbols_section = self.root.find("Symbols")
+        if symbols_section is not None:
+            for type_abs in symbols_section.findall("TypeAbstraction"):
+                name = type_abs.get("name")
+                ndarray = type_abs.find("ndarray")
+                if ndarray is not None:
+                    shape_elem = ndarray.find("shape")
+                    if shape_elem is not None and shape_elem.text:
+                        shape = shape_elem.text.strip()
+                        # Parse shape like "N / 16" to extract divisor
+                        if "/" in shape:
+                            parts = shape.split("/")
+                            if len(parts) == 2:
+                                try:
+                                    divisor = int(parts[1].strip())
+                                    type_divisors[name] = divisor
+                                except ValueError:
+                                    type_divisors[name] = 1
+                        else:
+                            # No division means full size (divisor = 1)
+                            type_divisors[name] = 1
+        return type_divisors
 
     def _extract_function_params(self) -> Dict[str, List[str]]:
         """Extract function parameter lists."""
@@ -474,6 +538,9 @@ class XMLTransformer:
         # Create new complete XML structure
         complete_root = etree.Element("Module", name=self.root.get("name"))
 
+        # Pre-scan for features that require imports
+        self._prescan_for_imports()
+
         # Transform each section
         self._transform_symbols(complete_root)
         self._transform_dataflow(complete_root)
@@ -481,6 +548,30 @@ class XMLTransformer:
         self._transform_entrypoint(complete_root)
 
         return complete_root
+
+    def _prescan_for_imports(self):
+        """Pre-scan the XML to determine which imports are needed."""
+        # Check for CoreFunctions with loop_count or nested ForLoop elements
+        dataflow = self.root.find("DataFlow")
+        if dataflow is not None:
+            for core_func in dataflow.findall("CoreFunction"):
+                if core_func.get("loop_count"):
+                    self.needs_controlflow_import = True
+                    break
+                # Check for nested ForLoop elements in body
+                body = core_func.find("body")
+                if body is not None:
+                    if body.find(".//ForLoop") is not None:
+                        self.needs_controlflow_import = True
+                        break
+
+        # Check for TensorTiler2D specs in Symbols
+        simple_symbols = self.root.find("Symbols")
+        if simple_symbols is not None:
+            for child in simple_symbols:
+                if child.tag == "TensorTiler2D":
+                    self.needs_tiler2d_import = True
+                    break
 
     def _transform_symbols(self, parent: etree.Element):
         """Transform Symbols section with expanded type expressions."""
@@ -507,6 +598,9 @@ class XMLTransformer:
 
             elif child.tag == "TypeAbstraction":
                 self._transform_type_abstraction(child, symbols_section)
+
+            elif child.tag == "TensorTiler2D":
+                self._transform_tiler2d(child, symbols_section)
 
         # Auto-generate tensor-specific type variations if only generic types were provided
         self._auto_generate_type_variations(simple_symbols, symbols_section)
@@ -535,14 +629,26 @@ class XMLTransformer:
         for func in functions:
             func_elem = etree.SubElement(iron_import, "Function", name=func)
 
-        # Add TensorAccessPattern
+        # Add taplib imports
         taplib_import = etree.SubElement(parent, "Import", name="aie.helpers.taplib")
         sub_elem = etree.SubElement(taplib_import, "Submodule", name="TensorAccessPattern")
+        if self.needs_tiler2d_import:
+            sub_elem2 = etree.SubElement(taplib_import, "Submodule", name="TensorTiler2D")
+
+        # Add controlflow import if needed (for range_ loops)
+        if self.needs_controlflow_import:
+            controlflow_import = etree.SubElement(parent, "Import", name="aie.iron.controlflow")
+            sub_elem = etree.SubElement(controlflow_import, "Submodule", name="range_")
 
     def _transform_type_abstraction(self, simple_type: etree.Element, parent: etree.Element):
-        """Transform TypeAbstraction with expanded expressions."""
+        """Transform TypeAbstraction with expanded expressions.
+
+        Handles:
+        - Symbolic shapes (m * k, n_cores * m, etc.) — emitted as raw expr text
+        - Data-size shapes (data_size, data_size / N) — emitted as numel() calls
+        - Multi-dimensional shapes (dim1, dim2) — one tuple per dimension
+        """
         name = simple_type.get("name")
-        context = simple_type.get("context", "")
 
         type_abs = etree.SubElement(parent, "TypeAbstraction", name=name)
 
@@ -555,28 +661,37 @@ class XMLTransformer:
             shape = ndarray.find("shape")
             if shape is not None:
                 shape_elem = etree.SubElement(ndarray_elem, "shape")
-                tuple_elem = etree.SubElement(shape_elem, "tuple")
-                expr_elem = etree.SubElement(tuple_elem, "expr")
-
-                # Expand shape expression
                 shape_text = shape.text.strip() if shape.text else ""
 
-                # Get first tensor reference (typically inputA)
+                # Split by comma for multi-dimensional shapes
+                dims = [d.strip() for d in shape_text.split(",") if d.strip()]
+
                 tensor_refs = self.expander.tensor_refs
                 tensor_ref = next(iter(tensor_refs.values())) if tensor_refs else "input"
 
-                if "/" in shape_text:
-                    # Complex expression: need binary_op
-                    parts = shape_text.split("/")
-                    denominator = parts[1].strip()
+                for dim in dims:
+                    tuple_elem = etree.SubElement(shape_elem, "tuple")
+                    expr_elem = etree.SubElement(tuple_elem, "expr")
 
-                    binary_op = etree.SubElement(expr_elem, "binary_op", op="//")
-                    method_elem = etree.SubElement(binary_op, "method", ref=tensor_ref, name="numel")
-                    const_elem = etree.SubElement(binary_op, "const")
-                    const_elem.text = denominator
-                else:
-                    # Simple expression: just method call
-                    method_elem = etree.SubElement(expr_elem, "method", ref=tensor_ref, name="numel")
+                    # Determine if this is a data_size pattern (legacy) or symbolic
+                    is_data_size = "data_size" in dim
+                    if is_data_size and tensor_ref:
+                        # data_size / N → numel() // N
+                        if "/" in dim:
+                            parts = dim.split("/")
+                            denominator = parts[1].strip()
+                            binary_op = etree.SubElement(expr_elem, "binary_op", op="//")
+                            etree.SubElement(binary_op, "method", ref=tensor_ref, name="numel")
+                            const_elem = etree.SubElement(binary_op, "const")
+                            const_elem.text = denominator
+                        else:
+                            # data_size → numel()
+                            etree.SubElement(expr_elem, "method", ref=tensor_ref, name="numel")
+                    else:
+                        # Symbolic expression — keep as raw text.
+                        # Constants will be defined as local variables in the jit function.
+                        # Use integer division (//) so numpy ndarray shapes stay int (not float).
+                        expr_elem.text = re.sub(r'(?<!/)/(?!/)', '//', dim)
 
             # Transform dtype
             dtype = ndarray.find("dtype")
@@ -729,15 +844,19 @@ class XMLTransformer:
                 type_ref = etree.SubElement(type_list, "type_ref")
                 type_ref.text = type_elem.text.strip()
 
-        # include_dirs (use default path)
-        kwarg_include = etree.SubElement(attributes, "kwarg", name="include_dirs")
-        include_list = etree.SubElement(kwarg_include, "list")
-        string_elem = etree.SubElement(include_list, "string")
-        string_elem.text = "/scratch/andrewa/mlir-aie/aie_kernels/"
+        # include_dirs (read from GUI XML if present)
+        include_dirs_elem = simple_func.find("include_dirs")
+        if include_dirs_elem is not None:
+            kwarg_include = etree.SubElement(attributes, "kwarg", name="include_dirs")
+            include_list = etree.SubElement(kwarg_include, "list")
+            for dir_elem in include_dirs_elem.findall("dir"):
+                string_elem = etree.SubElement(include_list, "string")
+                string_elem.text = dir_elem.text.strip() if dir_elem.text else ""
 
     def _transform_core_function(self, simple_func: etree.Element, parent: etree.Element):
-        """Transform CoreFunction with full body."""
+        """Transform CoreFunction with full body, including optional loop wrapper."""
         name = simple_func.get("name")
+        loop_count = simple_func.get("loop_count")
 
         core_func = etree.SubElement(parent, "CoreFunction", name=name)
 
@@ -750,35 +869,119 @@ class XMLTransformer:
 
         # Body
         body_section = etree.SubElement(core_func, "body")
+
+        # If loop_count is specified, wrap body in a For loop
+        if loop_count:
+            self.needs_controlflow_import = True
+            # Expand the loop_count expression
+            expanded_loop_count = self.expander.expand_shape_expression(loop_count)
+            # Create For element with range_(loop_count)
+            for_elem = etree.SubElement(body_section, "For", var="_")
+            for_elem.set("range", f"range_({expanded_loop_count})")
+            # Statements go inside the For element
+            stmt_parent = for_elem
+        else:
+            # Statements go directly in body
+            stmt_parent = body_section
+
         body = simple_func.find("body")
         if body is not None:
-            for stmt in body:
-                if stmt.tag == "Acquire":
-                    acquire = etree.SubElement(body_section, "Acquire", name=stmt.get("name"))
-                    call = etree.SubElement(acquire, "call")
-                    method = etree.SubElement(call, "method", ref=stmt.get("source"), name="acquire")
-                    arg = etree.SubElement(method, "arg")
-                    const = etree.SubElement(arg, "const")
-                    const.text = stmt.get("count", "1")
+            self._transform_core_body_stmts(body, stmt_parent)
 
-                elif stmt.tag == "Call":
-                    call = etree.SubElement(body_section, "Call")
-                    func = etree.SubElement(call, "function", ref=stmt.get("function"))
-                    # Parse args
-                    args_text = stmt.get("args", "")
-                    for arg_name in args_text.split(","):
-                        arg_name = arg_name.strip()
-                        if arg_name:
-                            arg = etree.SubElement(func, "arg")
-                            var = etree.SubElement(arg, "var", ref=arg_name)
+    def _transform_core_body_stmts(self, stmts_elem: etree.Element, parent: etree.Element):
+        """
+        Transform a sequence of body statement elements into complete XML nodes.
 
-                elif stmt.tag == "Release":
-                    release = etree.SubElement(body_section, "Release")
-                    call = etree.SubElement(release, "call")
-                    method = etree.SubElement(call, "method", ref=stmt.get("source"), name="release")
-                    arg = etree.SubElement(method, "arg")
-                    const = etree.SubElement(arg, "const")
-                    const.text = stmt.get("count", "1")
+        Handles: Acquire, Release, Call, ForLoop, Assignment
+        Supports nested ForLoop recursively for patterns like matrix_vector_mul.
+        """
+        for stmt in stmts_elem:
+            if stmt.tag == "Acquire":
+                acquire = etree.SubElement(parent, "Acquire", name=stmt.get("name"))
+                call = etree.SubElement(acquire, "call")
+                method = etree.SubElement(call, "method", ref=stmt.get("source"), name="acquire")
+                arg = etree.SubElement(method, "arg")
+                const = etree.SubElement(arg, "const")
+                const.text = stmt.get("count", "1")
+
+            elif stmt.tag == "Call":
+                call = etree.SubElement(parent, "Call")
+                func = etree.SubElement(call, "function", ref=stmt.get("function"))
+                args_text = stmt.get("args", "")
+                for arg_name in args_text.split(","):
+                    arg_name = arg_name.strip()
+                    if arg_name:
+                        arg = etree.SubElement(func, "arg")
+                        var = etree.SubElement(arg, "var", ref=arg_name)
+
+            elif stmt.tag == "Release":
+                release = etree.SubElement(parent, "Release")
+                call = etree.SubElement(release, "call")
+                method = etree.SubElement(call, "method", ref=stmt.get("source"), name="release")
+                arg = etree.SubElement(method, "arg")
+                const = etree.SubElement(arg, "const")
+                const.text = stmt.get("count", "1")
+
+            elif stmt.tag == "ForLoop":
+                # Nested for loop: for <var> in range_(<count>)
+                self.needs_controlflow_import = True
+                var_name = stmt.get("var", "_")
+                count_expr = stmt.get("count", "1")
+                expanded_count = self.expander.expand_shape_expression(count_expr)
+                for_elem = etree.SubElement(parent, "For", var=var_name)
+                for_elem.set("range", f"range_({expanded_count})")
+                # Recursively process the nested body
+                self._transform_core_body_stmts(stmt, for_elem)
+
+            elif stmt.tag == "Assignment":
+                # Indexed assignment: target[index] = value
+                target = stmt.get("target", "")
+                index = stmt.get("index", "")
+                value = stmt.get("value", "0")
+                assign_elem = etree.SubElement(parent, "Assignment")
+                assign_elem.set("target", target)
+                assign_elem.set("index", index)
+                assign_elem.set("value", value)
+
+    def _transform_tiler2d(self, simple_tiler: etree.Element, parent: etree.Element):
+        """
+        Transform a TensorTiler2D element into an assignment variable node.
+
+        Generates: name = TensorTiler2D.group_tiler(tensor_dims, tile_dims, tile_counts,
+                             [pattern_repeat=value,] prune_step=bool)[index]
+        """
+        name = simple_tiler.get("name")
+        prune_step = simple_tiler.get("prune_step", "false").lower() == "true"
+        index = int(simple_tiler.get("index", "0"))
+        pattern_repeat = simple_tiler.get("pattern_repeat")
+
+        # Parse dimension expressions (comma-separated)
+        tensor_dims_text = (simple_tiler.findtext("tensor_dims") or "").strip()
+        tile_dims_text = (simple_tiler.findtext("tile_dims") or "").strip()
+        tile_counts_text = (simple_tiler.findtext("tile_counts") or "").strip()
+
+        # Expand expressions
+        def expand_dim_list(text):
+            parts = [p.strip() for p in text.split(",")]
+            return [self.expander.expand_shape_expression(p) for p in parts if p]
+
+        tensor_dims = expand_dim_list(tensor_dims_text)
+        tile_dims = expand_dim_list(tile_dims_text)
+        tile_counts = expand_dim_list(tile_counts_text)
+
+        # Emit as a TensorTiler2D node: name = TensorTiler2D.group_tiler(...)[index]
+        tiler_node = etree.SubElement(parent, "TensorTiler2D")
+        tiler_node.set("name", name)
+
+        # Store expanded parameters as attributes for CodeGenerator to use
+        tiler_node.set("tensor_dims", ", ".join(tensor_dims))
+        tiler_node.set("tile_dims", ", ".join(tile_dims))
+        tiler_node.set("tile_counts", ", ".join(tile_counts))
+        tiler_node.set("prune_step", "True" if prune_step else "False")
+        tiler_node.set("index", str(index))
+        if pattern_repeat is not None:
+            expanded_repeat = self.expander.expand_shape_expression(pattern_repeat)
+            tiler_node.set("pattern_repeat", expanded_repeat)
 
     def _transform_objectfifo(self, simple_of: etree.Element, parent: etree.Element):
         """Transform ObjectFifo with generated name based on context."""
@@ -792,6 +995,10 @@ class XMLTransformer:
         else:
             expanded_name = simple_name
         self.objectfifo_names[simple_name] = expanded_name
+
+        # Store the FIFO's type for offset calculations in split/join
+        fifo_type = simple_of.find("type").text.strip() if simple_of.find("type") is not None else "data_ty"
+        self.objectfifo_types[simple_name] = fifo_type
 
         # Create ObjectFifo element
         obj_fifo = etree.SubElement(parent, "ObjectFifo", name=expanded_name)
@@ -850,6 +1057,11 @@ class XMLTransformer:
         # Get expanded source name
         expanded_source = self.objectfifo_names.get(source_name, source_name)
 
+        # Get the source FIFO's type divisor for offset calculation
+        # e.g., if source is memtile_ty (N/16), divisor is 16
+        source_fifo_type = self.objectfifo_types.get(source_name, "data_ty")
+        source_type_divisor = self.type_divisors.get(source_fifo_type, 1)
+
         # Map generic type to specific type
         specific_output_type = self._map_to_specific_type(
             generic_output_type, attrs.get("data", ""), attrs.get("context", "")
@@ -859,12 +1071,23 @@ class XMLTransformer:
         output_names = NamingConventions.generate_split_output_names(attrs, num_outputs)
         self.split_outputs[simple_name] = output_names
 
-        # Generate split name from context
+        # Generate split name from context; fall back to the HLIR operation name
+        # when there is no context metadata (e.g. GUI-generated designs).
         split_name = NamingConventions.generate_objectfifo_name(attrs, num_outputs)
+        if not attrs.get("context"):
+            split_name = simple_name
 
-        # Build method chain
+        # Check for explicit offsets in the GUI XML
+        explicit_offsets = None
+        offsets_elem = simple_split.find("offsets")
+        if offsets_elem is not None and offsets_elem.text:
+            explicit_offsets = [o.strip() for o in offsets_elem.text.split(",") if o.strip()]
+
+        # Build method chain with source type divisor for offset calculation
         obj_fifo = self.method_builder.build_split_chain(
-            expanded_source, num_outputs, specific_output_type, output_names, placement, attrs
+            expanded_source, num_outputs, specific_output_type, output_names, placement, attrs,
+            source_type_divisor=source_type_divisor,
+            explicit_offsets=explicit_offsets
         )
         obj_fifo.set("name", split_name)
 
@@ -883,6 +1106,11 @@ class XMLTransformer:
         # Get expanded dest name
         expanded_dest = self.objectfifo_names.get(dest_name, dest_name)
 
+        # Get the dest FIFO's type divisor for offset calculation
+        # e.g., if dest is memtile_ty (N/16), divisor is 16
+        dest_fifo_type = self.objectfifo_types.get(dest_name, "data_ty")
+        dest_type_divisor = self.type_divisors.get(dest_fifo_type, 1)
+
         # Map generic type to specific type
         specific_input_type = self._map_to_specific_type(
             generic_input_type, attrs.get("data", ""), attrs.get("context", "")
@@ -892,12 +1120,23 @@ class XMLTransformer:
         input_names = NamingConventions.generate_join_input_names(attrs, num_inputs)
         self.join_inputs[simple_name] = input_names
 
-        # Generate join name from context
+        # Generate join name from context; fall back to the HLIR operation name
+        # when there is no context metadata (e.g. GUI-generated designs).
         join_name = NamingConventions.generate_objectfifo_name(attrs, num_inputs)
+        if not attrs.get("context"):
+            join_name = simple_name
 
-        # Build method chain
+        # Check for explicit offsets in the GUI XML
+        explicit_offsets = None
+        offsets_elem = simple_join.find("offsets")
+        if offsets_elem is not None and offsets_elem.text:
+            explicit_offsets = [o.strip() for o in offsets_elem.text.split(",") if o.strip()]
+
+        # Build method chain with dest type divisor for offset calculation
         obj_fifo = self.method_builder.build_join_chain(
-            expanded_dest, num_inputs, specific_input_type, input_names, placement, attrs
+            expanded_dest, num_inputs, specific_input_type, input_names, placement, attrs,
+            dest_type_divisor=dest_type_divisor,
+            explicit_offsets=explicit_offsets
         )
         obj_fifo.set("name", join_name)
 
@@ -925,9 +1164,23 @@ class XMLTransformer:
         call_cons = etree.SubElement(method_chain, "call")
         method_cons = etree.SubElement(call_cons, "method", name="cons")
 
-        # Call: .forward()
+        # Call: .forward(placement=Tile(x, y))
         call_forward = etree.SubElement(method_chain, "call")
         method_forward = etree.SubElement(call_forward, "method", name="forward")
+
+        # Add placement kwarg if present
+        placement_str = simple_forward.get("placement")
+        if placement_str:
+            match = re.match(r'Tile\((\d+),\s*(\d+)\)', placement_str)
+            if match:
+                kwarg_placement = etree.SubElement(call_forward, "kwarg", name="placement")
+                constructor = etree.SubElement(kwarg_placement, "constructor", ref="Tile")
+                arg_x = etree.SubElement(constructor, "arg")
+                const_x = etree.SubElement(arg_x, "const")
+                const_x.text = match.group(1)
+                arg_y = etree.SubElement(constructor, "arg")
+                const_y = etree.SubElement(arg_y, "const")
+                const_y.text = match.group(2)
 
         # Set the name to match simple name
         obj_fifo.set("name", simple_name)
@@ -1093,6 +1346,8 @@ class XMLTransformer:
         source = simple_fill.get("source")
         column = simple_fill.get("column", "0")
         use_tap = simple_fill.get("use_tap", "false").lower() == "true"
+        # data_ref preserves original parameter name (A, B, etc.) for TAP calculations
+        data_ref = simple_fill.get("data_ref", source)
 
         # Get expanded target name
         expanded_target = self.objectfifo_names.get(target, target)
@@ -1107,8 +1362,11 @@ class XMLTransformer:
         # args
         args = etree.SubElement(operation, "args")
 
+        tap_type = simple_fill.get("tap_type", "tap")
+        tap_var = simple_fill.get("tap_var")
+
         if use_tap:
-            # Complex form with kwargs and TensorAccessPattern
+            # Complex form with kwargs and TAP/TensorTiler2D
             # placement
             placement = simple_fill.find("placement").text.strip()
             kwarg_placement = etree.SubElement(args, "kwarg", name="placement")
@@ -1131,9 +1389,12 @@ class XMLTransformer:
             kwarg_source = etree.SubElement(args, "kwarg", name="source")
             var = etree.SubElement(kwarg_source, "var", ref=source)
 
-            # tap (TensorAccessPattern)
+            # tap — either a TensorTiler2D variable reference or inline TAP constructor
             kwarg_tap = etree.SubElement(args, "kwarg", name="tap")
-            self._build_tensor_access_pattern(kwarg_tap, source, column)
+            if tap_type == "tiler2d" and tap_var:
+                var_ref = etree.SubElement(kwarg_tap, "var", ref=tap_var)
+            else:
+                self._build_tensor_access_pattern(kwarg_tap, data_ref, column)
         else:
             # Simple form with positional args only
             # arg1: ObjectFifo.prod()
@@ -1145,12 +1406,29 @@ class XMLTransformer:
             arg2 = etree.SubElement(args, "arg")
             var = etree.SubElement(arg2, "var", ref=source)
 
+            # placement kwarg (if present)
+            placement_elem = simple_fill.find("placement")
+            if placement_elem is not None:
+                placement = placement_elem.text.strip()
+                kwarg_placement = etree.SubElement(args, "kwarg", name="placement")
+                match = re.match(r'Tile\((\d+),\s*(\d+)\)', placement)
+                if match:
+                    constructor = etree.SubElement(kwarg_placement, "constructor", ref="Tile")
+                    arg_x = etree.SubElement(constructor, "arg")
+                    const_x = etree.SubElement(arg_x, "const")
+                    const_x.text = match.group(1)
+                    arg_y = etree.SubElement(constructor, "arg")
+                    const_y = etree.SubElement(arg_y, "const")
+                    const_y.text = match.group(2)
+
     def _transform_drain(self, simple_drain: etree.Element, parent: etree.Element):
         """Transform Drain operation with or without TensorAccessPattern."""
         source = simple_drain.get("source")
         target = simple_drain.get("target")
         column = simple_drain.get("column", "0")
         use_tap = simple_drain.get("use_tap", "false").lower() == "true"
+        # data_ref preserves original parameter name (D, etc.) for TAP calculations
+        data_ref = simple_drain.get("data_ref", target)
 
         # Get expanded source name
         expanded_source = self.objectfifo_names.get(source, source)
@@ -1165,8 +1443,11 @@ class XMLTransformer:
         # args
         args = etree.SubElement(operation, "args")
 
+        tap_type = simple_drain.get("tap_type", "tap")
+        tap_var = simple_drain.get("tap_var")
+
         if use_tap:
-            # Complex form with kwargs and TensorAccessPattern
+            # Complex form with kwargs and TAP/TensorTiler2D
             # placement
             placement = simple_drain.find("placement").text.strip()
             kwarg_placement = etree.SubElement(args, "kwarg", name="placement")
@@ -1194,9 +1475,12 @@ class XMLTransformer:
             if wait is not None:
                 kwarg_wait = etree.SubElement(args, "kwarg", name="wait", value=wait.text.strip().capitalize())
 
-            # tap (TensorAccessPattern)
+            # tap — either a TensorTiler2D variable reference or inline TAP constructor
             kwarg_tap = etree.SubElement(args, "kwarg", name="tap")
-            self._build_tensor_access_pattern(kwarg_tap, target, column)
+            if tap_type == "tiler2d" and tap_var:
+                var_ref = etree.SubElement(kwarg_tap, "var", ref=tap_var)
+            else:
+                self._build_tensor_access_pattern(kwarg_tap, data_ref, column)
         else:
             # Simple form with positional args only
             # arg1: ObjectFifo.cons()
@@ -1212,6 +1496,21 @@ class XMLTransformer:
             wait = simple_drain.find("wait")
             if wait is not None:
                 kwarg_wait = etree.SubElement(args, "kwarg", name="wait", value=wait.text.strip().capitalize())
+
+            # placement kwarg (if present)
+            placement_elem = simple_drain.find("placement")
+            if placement_elem is not None:
+                placement = placement_elem.text.strip()
+                kwarg_placement = etree.SubElement(args, "kwarg", name="placement")
+                match = re.match(r'Tile\((\d+),\s*(\d+)\)', placement)
+                if match:
+                    constructor = etree.SubElement(kwarg_placement, "constructor", ref="Tile")
+                    arg_x = etree.SubElement(constructor, "arg")
+                    const_x = etree.SubElement(arg_x, "const")
+                    const_x.text = match.group(1)
+                    arg_y = etree.SubElement(constructor, "arg")
+                    const_y = etree.SubElement(arg_y, "const")
+                    const_y.text = match.group(2)
 
     def _build_tensor_access_pattern(self, parent: etree.Element, tensor: str, column: str):
         """Build TensorAccessPattern constructor."""

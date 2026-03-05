@@ -68,11 +68,11 @@ def add_activate_hlir_example_jit(A, B, D):
 
     #Define kernels here... ------------------------------------------------\/
     externalfunc1 = ExternalFunction(
-        name="eltwise_add_bf16_scalar", source_file="../../../aie_kernels/aie2/add.cc", arg_types=[worker_chunk_ty, worker_chunk_ty, worker_chunk_ty], include_dirs=["/scratch/andrewa/mlir-aie/aie_kernels/"]
+        name="eltwise_add_bf16_scalar", source_file="/scratch/IRONSmithTesting/mlir-aie/aie_kernels/aie2/add.cc", arg_types=[worker_chunk_ty, worker_chunk_ty, worker_chunk_ty], include_dirs=["/scratch/IRONSmithTesting/mlir-aie/aie_kernels", "/scratch/IRONSmithTesting/mlir-aie/aie_runtime_lib/AIE2"]
     )
 
     externalfunc2 = ExternalFunction(
-        name="bf16_relu", source_file="../../../aie_kernels/aie2/relu.cc", arg_types=[worker_chunk_ty, worker_chunk_ty], include_dirs=["/scratch/andrewa/mlir-aie/aie_kernels/"]
+        name="bf16_relu", source_file="/scratch/IRONSmithTesting/mlir-aie/aie_kernels/aie2/relu.cc", arg_types=[worker_chunk_ty, worker_chunk_ty], include_dirs=["/scratch/IRONSmithTesting/mlir-aie/aie_kernels", "/scratch/IRONSmithTesting/mlir-aie/aie_runtime_lib/AIE2"]
     )
 
     # core_fn here:
@@ -115,19 +115,20 @@ def add_activate_hlir_example_jit(A, B, D):
 
     # Runtime operations to move data to/from the AIE-array
     rt = Runtime()
-    with rt.sequence(data_ty, data_ty, data_ty) as (A, B, D):
-        rt.fill(placement=Tile(0, 0), in_fifo=of_in_a_col0.prod(), source=A, tap=TensorAccessPattern(tensor_dims=[A.numel()], offset=((A.numel() // 4) * 0), sizes=[((A.numel() // 4) // (A.numel() // 8)), (A.numel() // 8)], strides=[(A.numel() // 8), 1]))
-        rt.fill(placement=Tile(1, 0), in_fifo=of_in_a_col1.prod(), source=A, tap=TensorAccessPattern(tensor_dims=[A.numel()], offset=((A.numel() // 4) * 1), sizes=[((A.numel() // 4) // (A.numel() // 8)), (A.numel() // 8)], strides=[(A.numel() // 8), 1]))
-        rt.fill(placement=Tile(2, 0), in_fifo=of_in_a_col2.prod(), source=A, tap=TensorAccessPattern(tensor_dims=[A.numel()], offset=((A.numel() // 4) * 2), sizes=[((A.numel() // 4) // (A.numel() // 8)), (A.numel() // 8)], strides=[(A.numel() // 8), 1]))
-        rt.fill(placement=Tile(3, 0), in_fifo=of_in_a_col3.prod(), source=A, tap=TensorAccessPattern(tensor_dims=[A.numel()], offset=((A.numel() // 4) * 3), sizes=[((A.numel() // 4) // (A.numel() // 8)), (A.numel() // 8)], strides=[(A.numel() // 8), 1]))
-        rt.fill(placement=Tile(0, 0), in_fifo=of_in_b_col0.prod(), source=B, tap=TensorAccessPattern(tensor_dims=[B.numel()], offset=((B.numel() // 4) * 0), sizes=[((B.numel() // 4) // (B.numel() // 8)), (B.numel() // 8)], strides=[(B.numel() // 8), 1]))
-        rt.fill(placement=Tile(1, 0), in_fifo=of_in_b_col1.prod(), source=B, tap=TensorAccessPattern(tensor_dims=[B.numel()], offset=((B.numel() // 4) * 1), sizes=[((B.numel() // 4) // (B.numel() // 8)), (B.numel() // 8)], strides=[(B.numel() // 8), 1]))
-        rt.fill(placement=Tile(2, 0), in_fifo=of_in_b_col2.prod(), source=B, tap=TensorAccessPattern(tensor_dims=[B.numel()], offset=((B.numel() // 4) * 2), sizes=[((B.numel() // 4) // (B.numel() // 8)), (B.numel() // 8)], strides=[(B.numel() // 8), 1]))
-        rt.fill(placement=Tile(3, 0), in_fifo=of_in_b_col3.prod(), source=B, tap=TensorAccessPattern(tensor_dims=[B.numel()], offset=((B.numel() // 4) * 3), sizes=[((B.numel() // 4) // (B.numel() // 8)), (B.numel() // 8)], strides=[(B.numel() // 8), 1]))
-        rt.drain(placement=Tile(0, 0), out_fifo=of_out_d_col0.cons(), dest=D, wait=True, tap=TensorAccessPattern(tensor_dims=[D.numel()], offset=((D.numel() // 4) * 0), sizes=[((D.numel() // 4) // (D.numel() // 8)), (D.numel() // 8)], strides=[(D.numel() // 8), 1]))
-        rt.drain(placement=Tile(1, 0), out_fifo=of_out_d_col1.cons(), dest=D, wait=True, tap=TensorAccessPattern(tensor_dims=[D.numel()], offset=((D.numel() // 4) * 1), sizes=[((D.numel() // 4) // (D.numel() // 8)), (D.numel() // 8)], strides=[(D.numel() // 8), 1]))
-        rt.drain(placement=Tile(2, 0), out_fifo=of_out_d_col2.cons(), dest=D, wait=True, tap=TensorAccessPattern(tensor_dims=[D.numel()], offset=((D.numel() // 4) * 2), sizes=[((D.numel() // 4) // (D.numel() // 8)), (D.numel() // 8)], strides=[(D.numel() // 8), 1]))
-        rt.drain(placement=Tile(3, 0), out_fifo=of_out_d_col3.cons(), dest=D, wait=True, tap=TensorAccessPattern(tensor_dims=[D.numel()], offset=((D.numel() // 4) * 3), sizes=[((D.numel() // 4) // (D.numel() // 8)), (D.numel() // 8)], strides=[(D.numel() // 8), 1]))
+    with rt.sequence(data_ty, data_ty, data_ty) as (a_in, b_in, d_out):
+        rt.start(*Workers)
+        rt.fill(placement=Tile(0, 0), in_fifo=of_in_a_col0.prod(), source=a_in, tap=TensorAccessPattern(tensor_dims=[A.numel()], offset=((A.numel() // 4) * 0), sizes=[((A.numel() // 4) // (A.numel() // 8)), (A.numel() // 8)], strides=[(A.numel() // 8), 1]))
+        rt.fill(placement=Tile(1, 0), in_fifo=of_in_a_col1.prod(), source=a_in, tap=TensorAccessPattern(tensor_dims=[A.numel()], offset=((A.numel() // 4) * 1), sizes=[((A.numel() // 4) // (A.numel() // 8)), (A.numel() // 8)], strides=[(A.numel() // 8), 1]))
+        rt.fill(placement=Tile(2, 0), in_fifo=of_in_a_col2.prod(), source=a_in, tap=TensorAccessPattern(tensor_dims=[A.numel()], offset=((A.numel() // 4) * 2), sizes=[((A.numel() // 4) // (A.numel() // 8)), (A.numel() // 8)], strides=[(A.numel() // 8), 1]))
+        rt.fill(placement=Tile(3, 0), in_fifo=of_in_a_col3.prod(), source=a_in, tap=TensorAccessPattern(tensor_dims=[A.numel()], offset=((A.numel() // 4) * 3), sizes=[((A.numel() // 4) // (A.numel() // 8)), (A.numel() // 8)], strides=[(A.numel() // 8), 1]))
+        rt.fill(placement=Tile(0, 0), in_fifo=of_in_b_col0.prod(), source=b_in, tap=TensorAccessPattern(tensor_dims=[B.numel()], offset=((B.numel() // 4) * 0), sizes=[((B.numel() // 4) // (B.numel() // 8)), (B.numel() // 8)], strides=[(B.numel() // 8), 1]))
+        rt.fill(placement=Tile(1, 0), in_fifo=of_in_b_col1.prod(), source=b_in, tap=TensorAccessPattern(tensor_dims=[B.numel()], offset=((B.numel() // 4) * 1), sizes=[((B.numel() // 4) // (B.numel() // 8)), (B.numel() // 8)], strides=[(B.numel() // 8), 1]))
+        rt.fill(placement=Tile(2, 0), in_fifo=of_in_b_col2.prod(), source=b_in, tap=TensorAccessPattern(tensor_dims=[B.numel()], offset=((B.numel() // 4) * 2), sizes=[((B.numel() // 4) // (B.numel() // 8)), (B.numel() // 8)], strides=[(B.numel() // 8), 1]))
+        rt.fill(placement=Tile(3, 0), in_fifo=of_in_b_col3.prod(), source=b_in, tap=TensorAccessPattern(tensor_dims=[B.numel()], offset=((B.numel() // 4) * 3), sizes=[((B.numel() // 4) // (B.numel() // 8)), (B.numel() // 8)], strides=[(B.numel() // 8), 1]))
+        rt.drain(placement=Tile(0, 0), out_fifo=of_out_d_col0.cons(), dest=d_out, wait=True, tap=TensorAccessPattern(tensor_dims=[D.numel()], offset=((D.numel() // 4) * 0), sizes=[((D.numel() // 4) // (D.numel() // 8)), (D.numel() // 8)], strides=[(D.numel() // 8), 1]))
+        rt.drain(placement=Tile(1, 0), out_fifo=of_out_d_col1.cons(), dest=d_out, wait=True, tap=TensorAccessPattern(tensor_dims=[D.numel()], offset=((D.numel() // 4) * 1), sizes=[((D.numel() // 4) // (D.numel() // 8)), (D.numel() // 8)], strides=[(D.numel() // 8), 1]))
+        rt.drain(placement=Tile(2, 0), out_fifo=of_out_d_col2.cons(), dest=d_out, wait=True, tap=TensorAccessPattern(tensor_dims=[D.numel()], offset=((D.numel() // 4) * 2), sizes=[((D.numel() // 4) // (D.numel() // 8)), (D.numel() // 8)], strides=[(D.numel() // 8), 1]))
+        rt.drain(placement=Tile(3, 0), out_fifo=of_out_d_col3.cons(), dest=d_out, wait=True, tap=TensorAccessPattern(tensor_dims=[D.numel()], offset=((D.numel() // 4) * 3), sizes=[((D.numel() // 4) // (D.numel() // 8)), (D.numel() // 8)], strides=[(D.numel() // 8), 1]))
 
     # Create the program from the current device and runtime
     my_program = Program(iron.get_current_device(), rt)
@@ -137,11 +138,10 @@ def add_activate_hlir_example_jit(A, B, D):
 
 
 def main():
-    datatype = bfloat16
     data_size = 128
-    A = iron.arange(data_size, dtype=datatype, device="npu")
-    B = iron.arange(data_size, dtype=datatype, device="npu")
-    D = iron.zeros(data_size, dtype=datatype, device="npu")
+    A = iron.arange(data_size, dtype=bfloat16, device="npu")
+    B = iron.arange(data_size, dtype=bfloat16, device="npu")
+    D = iron.zeros(data_size, dtype=bfloat16, device="npu")
     add_activate_hlir_example_jit(A, B, D)
 
 

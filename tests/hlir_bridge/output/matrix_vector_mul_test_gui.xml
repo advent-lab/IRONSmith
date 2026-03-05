@@ -1,0 +1,243 @@
+<?xml version="1.0" ?>
+<Module name="matrix_vector_mul_test">
+    <Symbols>
+        <Const name="M" type="int">256</Const>
+        <Const name="K" type="int">256</Const>
+        <Const name="m" type="int">32</Const>
+        <Const name="k" type="int">32</Const>
+        <Const name="n_cores" type="int">4</Const>
+        <Const name="M_div_m" type="int">M // m</Const>
+        <Const name="K_div_k" type="int">K // k</Const>
+        <Const name="rows_per_core" type="int">M_div_m // n_cores</Const>
+        <Const name="n_fifo_elems" type="int">rows_per_core * K_div_k</Const>
+        <Const name="A_elem_size" type="int">n_cores * m * k</Const>
+        <TypeAbstraction name="inA_ty">
+            <ndarray>
+                <shape>m * k</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="inB_ty">
+            <ndarray>
+                <shape>k</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="outC_ty">
+            <ndarray>
+                <shape>m</shape>
+                <dtype>int32</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="A_mem_ty">
+            <ndarray>
+                <shape>n_cores * m * k</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="C_mem_ty">
+            <ndarray>
+                <shape>n_cores * m</shape>
+                <dtype>int32</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="A_ty">
+            <ndarray>
+                <shape>n_fifo_elems, A_elem_size</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="B_ty">
+            <ndarray>
+                <shape>1, K</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="C_ty">
+            <ndarray>
+                <shape>1, M</shape>
+                <dtype>int32</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TensorTiler2D name="a_tap" prune_step="false" index="0">
+            <tensor_dims>n_fifo_elems, A_elem_size</tensor_dims>
+            <tile_dims>1, 512</tile_dims>
+            <tile_counts>n_fifo_elems, A_elem_size // 512</tile_counts>
+        </TensorTiler2D>
+        <TensorTiler2D name="b_tap" prune_step="false" index="0" pattern_repeat="rows_per_core">
+            <tensor_dims>1, K</tensor_dims>
+            <tile_dims>1, k</tile_dims>
+            <tile_counts>1, K_div_k</tile_counts>
+        </TensorTiler2D>
+        <TensorTiler2D name="c_tap" prune_step="false" index="0">
+            <tensor_dims>1, M</tensor_dims>
+            <tile_dims>1, n_cores * m</tile_dims>
+            <tile_counts>1, rows_per_core</tile_counts>
+        </TensorTiler2D>
+    </Symbols>
+    <DataFlow>
+        <ExternalFunction name="matvec_vectorized_i16_i32" operation="matvec">
+            <kernel>matvec_vectorized_i16_i32</kernel>
+            <source>/scratch/IRONSmithTesting/mlir-aie/aie_kernels/aie2/mv.cc</source>
+            <arg_types>
+                <type>inA_ty</type>
+                <type>inB_ty</type>
+                <type>outC_ty</type>
+            </arg_types>
+            <include_dirs>
+                <dir>/scratch/IRONSmithTesting/mlir-aie/aie_kernels</dir>
+                <dir>/scratch/IRONSmithTesting/mlir-aie/aie_kernels/aie2</dir>
+                <dir>/scratch/IRONSmithTesting/mlir-aie/aie_runtime_lib/AIE2</dir>
+            </include_dirs>
+        </ExternalFunction>
+        <CoreFunction name="core_fn" operation="matvec">
+            <parameters>
+                <param name="a_in" role="external_function"/>
+                <param name="b_in" role="unknown"/>
+                <param name="c_out" role="unknown"/>
+                <param name="matvec" role="unknown"/>
+            </parameters>
+            <body>
+                <Acquire source="c_out" count="1" name="elem_out"/>
+                <ForLoop var="i" count="m">
+                    <Assignment target="elem_out" index="i" value="0"/>
+                </ForLoop>
+                <ForLoop var="_" count="K_div_k">
+                    <Acquire source="a_in" count="1" name="elem_a"/>
+                    <Acquire source="b_in" count="1" name="elem_b"/>
+                    <Call function="matvec" args="elem_a, elem_b, elem_out"/>
+                    <Release source="a_in" count="1"/>
+                    <Release source="b_in" count="1"/>
+                </ForLoop>
+                <Release source="c_out" count="1"/>
+            </body>
+        </CoreFunction>
+        <ObjectFifo name="inA">
+            <type>A_mem_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="inB">
+            <type>inB_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="outC">
+            <type>C_mem_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifoSplit name="a_fifos" column="0" context="L2_L1" data="A">
+            <source>inA</source>
+            <num_outputs>4</num_outputs>
+            <output_type>inA_ty</output_type>
+            <placement>Tile(0, 1)</placement>
+            <offsets>0, 1024, 2048, 3072</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoForward name="B_fwd" source="inB" placement="Tile(1, 1)"/>
+        <ObjectFifoJoin name="c_fifos" column="2" context="L1_L2" data="C">
+            <dest>outC</dest>
+            <num_inputs>4</num_inputs>
+            <input_type>outC_ty</input_type>
+            <placement>Tile(2, 1)</placement>
+            <offsets>0, 32, 64, 96</offsets>
+        </ObjectFifoJoin>
+        <Worker name="worker0" column="0" operation="matvec" worker_index="0">
+            <core_function>core_fn</core_function>
+            <arguments>
+                <arg ref="a_fifos" index="0" mode="consumer"/>
+                <arg ref="B_fwd" mode="consumer"/>
+                <arg ref="c_fifos" index="0" mode="producer"/>
+                <arg ref="matvec_vectorized_i16_i32"/>
+            </arguments>
+            <placement>Tile(0, 2)</placement>
+        </Worker>
+        <Worker name="worker1" column="0" operation="matvec" worker_index="1">
+            <core_function>core_fn</core_function>
+            <arguments>
+                <arg ref="a_fifos" index="1" mode="consumer"/>
+                <arg ref="B_fwd" mode="consumer"/>
+                <arg ref="c_fifos" index="1" mode="producer"/>
+                <arg ref="matvec_vectorized_i16_i32"/>
+            </arguments>
+            <placement>Tile(0, 3)</placement>
+        </Worker>
+        <Worker name="worker2" column="0" operation="matvec" worker_index="2">
+            <core_function>core_fn</core_function>
+            <arguments>
+                <arg ref="a_fifos" index="2" mode="consumer"/>
+                <arg ref="B_fwd" mode="consumer"/>
+                <arg ref="c_fifos" index="2" mode="producer"/>
+                <arg ref="matvec_vectorized_i16_i32"/>
+            </arguments>
+            <placement>Tile(0, 4)</placement>
+        </Worker>
+        <Worker name="worker3" column="0" operation="matvec" worker_index="3">
+            <core_function>core_fn</core_function>
+            <arguments>
+                <arg ref="a_fifos" index="3" mode="consumer"/>
+                <arg ref="B_fwd" mode="consumer"/>
+                <arg ref="c_fifos" index="3" mode="producer"/>
+                <arg ref="matvec_vectorized_i16_i32"/>
+            </arguments>
+            <placement>Tile(0, 5)</placement>
+        </Worker>
+        <Runtime name="runtime">
+            <Sequence inputs="A_ty, B_ty, C_ty" as="inputa_in, inputb_in, outputc_out">
+                <Start>worker0, worker1, worker2, worker3</Start>
+                <Fill target="inA" source="inputa_in" data_ref="inputA" column="0" use_tap="true" tap_type="tiler2d" tap_var="a_tap">
+                    <placement>Tile(0, 0)</placement>
+                </Fill>
+                <Fill target="inB" source="inputb_in" data_ref="inputB" column="1" use_tap="true" tap_type="tiler2d" tap_var="b_tap">
+                    <placement>Tile(1, 0)</placement>
+                </Fill>
+                <Drain source="outC" target="outputc_out" data_ref="outputC" column="2" use_tap="true" tap_type="tiler2d" tap_var="c_tap">
+                    <placement>Tile(2, 0)</placement>
+                    <wait>true</wait>
+                </Drain>
+            </Sequence>
+        </Runtime>
+        <Program name="program">
+            <device>current_device</device>
+            <runtime>runtime</runtime>
+            <placer>SequentialPlacer</placer>
+        </Program>
+    </DataFlow>
+    <Function name="jit_function" decorator="iron.jit" entry="matrix_vector_mul_test_jit">
+        <parameters>
+            <param name="inputA" type="A_ty"/>
+            <param name="inputB" type="B_ty"/>
+            <param name="outputC" type="C_ty"/>
+        </parameters>
+        <body>
+            <UseDataFlow/>
+            <Return>program</Return>
+        </body>
+    </Function>
+    <Function name="main_function" entry="main">
+        <body>
+            <Assign name="M" value="256"/>
+            <Assign name="K" value="256"/>
+            <Assign name="m" value="32"/>
+            <Assign name="k" value="32"/>
+            <Assign name="n_cores" value="4"/>
+            <Assign name="M_div_m" value="M // m"/>
+            <Assign name="K_div_k" value="K // k"/>
+            <Assign name="rows_per_core" value="M_div_m // n_cores"/>
+            <Assign name="n_fifo_elems" value="rows_per_core * K_div_k"/>
+            <Assign name="A_elem_size" value="n_cores * m * k"/>
+            <Tensor name="inputA">
+                <init>iron.arange(n_fifo_elems, dtype=np.int16, device="npu")</init>
+            </Tensor>
+            <Tensor name="inputB">
+                <init>iron.arange(n_fifo_elems, dtype=np.int16, device="npu")</init>
+            </Tensor>
+            <Tensor name="outputC">
+                <init>iron.zeros(n_fifo_elems, dtype=np.int16, device="npu")</init>
+            </Tensor>
+            <Call function="jit_function" args="inputA, inputB, outputC"/>
+        </body>
+    </Function>
+    <EntryPoint>
+        <If condition="__name__ == '__main__'">
+            <Call function="main_function"/>
+        </If>
+    </EntryPoint>
+</Module>

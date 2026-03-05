@@ -342,19 +342,22 @@ class WorkerExtension(GraphExtension):
                     self._link(prev_nid, method_nid, "calls")
                     self._link(chain_nid, method_nid, "has_call")  # Also link from chain node
                     
-                    # Process kwargs for this method (e.g., split(obj_types=[...], offsets=[...]))
-                    for kwarg in method_elem:
+                    # Process kwargs — may be children of <method> or <call> (forward pattern)
+                    kwarg_sources = list(method_elem) + [
+                        c for c in call_elem if c.tag == "kwarg"
+                    ]
+                    for kwarg in kwarg_sources:
                         if kwarg.tag == "kwarg":
                             kw_name = kwarg.get("name")
                             kw_value = kwarg.get("value")
-                            
+
                             # Check if kwarg has child elements (list, constructor, etc.)
                             kw_children = [c for c in kwarg if c.tag is not etree.Comment]
                             if kw_children:
                                 # Handle complex kwargs
                                 kw_nid = self._add_node(f"{kw_name}=...", "Kwarg", name=kw_name)
                                 self._link(method_nid, kw_nid, "has_kwarg")
-                                
+
                                 for child in kw_children:
                                     child_nid = self._process_kwarg_value(child, kw_nid)
                                     if child_nid:
@@ -389,6 +392,11 @@ class WorkerExtension(GraphExtension):
                     str_val = item.text.strip() if item.text else ""
                     str_nid = self._add_node(str_val, "String")
                     self._link(list_nid, str_nid, "contains")
+                elif item.tag == "const":
+                    # Handle literal/symbolic constants in lists (e.g., offsets)
+                    const_val = item.text.strip() if item.text else ""
+                    const_nid = self._add_node(const_val, "Const", value=const_val)
+                    self._link(list_nid, const_nid, "contains")
                 elif item.tag == "binary_op":
                     # Handle expressions in lists
                     expr_nid = self._walk_expression(item, list_nid)
@@ -603,7 +611,28 @@ class CoreFunctionExtension(GraphExtension):
                                     except NameError:
                                         var_nid = self._add_node(var_ref, "VarRef")
                                         self._link(call_nid, var_nid, "has_arg")
-    
+
+        elif tag == "For":
+            # <For var="_" range="range_(...)">...</For>
+            loop_var = elem.get("var", "_")
+            range_expr = elem.get("range", "range_(...)")
+            for_nid = self._add_node(f"for {loop_var} in {range_expr}", "For")
+            self._link(parent_nid, for_nid, "contains")
+
+            # Process nested body statements inside the For loop
+            for child in elem:
+                if child.tag is not etree.Comment:
+                    self._process_body_statement(child, for_nid)
+
+        elif tag == "Assignment":
+            # <Assignment target="elem_out" index="i" value="0"/>
+            target = elem.get("target", "")
+            index = elem.get("index", "")
+            value = elem.get("value", "")
+            assign_nid = self._add_node(target, "Assignment",
+                                        target=target, index=index, value=value)
+            self._link(parent_nid, assign_nid, "contains")
+
     def _walk_call(self, elem: etree.Element, parent_nid: NodeId) -> NodeId:
         """Walk a call element and create call node"""
         call_nid = self._add_node("call", "Call")

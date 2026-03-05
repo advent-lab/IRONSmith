@@ -5,13 +5,15 @@
 
 #include <QtCore/QObject>
 
+#include "core/CoreGlobal.hpp"
+
 class QMainWindow;
 class QWidget;
 
 namespace Core {
 namespace Internal { class MainWindow; }
 
-class ICore : public QObject
+class CORE_EXPORT ICore : public QObject
 {
 	Q_OBJECT
 

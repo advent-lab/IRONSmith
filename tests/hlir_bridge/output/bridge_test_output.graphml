@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d3" for="edge" attr.name="type" attr.type="string"/>
+<key id="d2" for="node" attr.name="value" attr.type="string"/>
+<key id="d1" for="node" attr.name="kind" attr.type="string"/>
+<key id="d0" for="node" attr.name="label" attr.type="string"/>
+<graph edgedefault="directed"><node id="Module_1">
+  <data key="d0">bridge_test</data>
+  <data key="d1">Module</data>
+</node>
+<node id="Section_2">
+  <data key="d0">Symbols</data>
+  <data key="d1">Section</data>
+</node>
+<node id="Const_3">
+  <data key="d0">test_size</data>
+  <data key="d1">Const</data>
+  <data key="d2">256</data>
+</node>
+<node id="TypeAbstraction_4">
+  <data key="d0">test_type</data>
+  <data key="d1">TypeAbstraction</data>
+</node>
+<node id="TypeNode_5">
+  <data key="d0">ndarray</data>
+  <data key="d1">TypeNode</data>
+</node>
+<node id="TypeNode_6">
+  <data key="d0">shape</data>
+  <data key="d1">TypeNode</data>
+</node>
+<node id="TypeNode_7">
+  <data key="d0">dtype</data>
+  <data key="d1">TypeNode</data>
+</node>
+<node id="Section_8">
+  <data key="d0">DataFlow</data>
+  <data key="d1">Section</data>
+</node>
+<node id="ObjectFifo_9">
+  <data key="d0">test_fifo</data>
+  <data key="d1">ObjectFifo</data>
+</node>
+<node id="Program_10">
+  <data key="d0">program</data>
+  <data key="d1">Program</data>
+</node>
+<edge source="Module_1" target="Section_2">
+  <data key="d3">contains</data>
+</edge>
+<edge source="Module_1" target="Section_8">
+  <data key="d3">contains</data>
+</edge>
+<edge source="Section_2" target="Const_3">
+  <data key="d3">contains</data>
+</edge>
+<edge source="Section_2" target="TypeAbstraction_4">
+  <data key="d3">contains</data>
+</edge>
+<edge source="TypeAbstraction_4" target="TypeNode_5">
+  <data key="d3">has</data>
+</edge>
+<edge source="TypeNode_5" target="TypeNode_6">
+  <data key="d3">has</data>
+</edge>
+<edge source="TypeNode_5" target="TypeNode_7">
+  <data key="d3">has</data>
+</edge>
+<edge source="Section_8" target="ObjectFifo_9">
+  <data key="d3">contains</data>
+</edge>
+<edge source="Section_8" target="Program_10">
+  <data key="d3">contains</data>
+</edge>
+</graph></graphml>

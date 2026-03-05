@@ -23,6 +23,6 @@ struct CANVAS_EXPORT LinkHubStyle final {
     QColor text;
 };
 
-LinkHubStyle linkHubStyle(LinkHubKind kind);
+CANVAS_EXPORT LinkHubStyle linkHubStyle(LinkHubKind kind);
 
 } // namespace Canvas::Support

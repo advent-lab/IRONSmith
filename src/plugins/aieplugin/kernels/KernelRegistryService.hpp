@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
 #include "aieplugin/kernels/KernelCatalog.hpp"
 
 #include <utils/Result.hpp>

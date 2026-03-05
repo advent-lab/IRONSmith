@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <Module name="passthrough_hlir_example">
     <Symbols>
+        <Const name="N" type="int">4096</Const>
         <TypeAbstraction name="vector_ty">
             <ndarray>
                 <shape>N</shape>
@@ -21,11 +22,11 @@
         </ObjectFifo>
         <ObjectFifoForward name="of_out" source="of_in"/>
         <Runtime name="runtime">
-            <Sequence inputs="vector_ty, vector_ty" as="inputA, outputC">
-                <Fill target="of_in" source="inputA" use_tap="false">
+            <Sequence inputs="vector_ty, vector_ty" as="inputa_in, outputc_out">
+                <Fill target="of_in" source="inputa_in" data_ref="inputA" use_tap="false">
                     <placement>Tile(0, 0)</placement>
                 </Fill>
-                <Drain source="of_out" target="outputC" use_tap="false">
+                <Drain source="of_out" target="outputc_out" data_ref="outputC" use_tap="false">
                     <placement>Tile(0, 0)</placement>
                     <wait>true</wait>
                 </Drain>

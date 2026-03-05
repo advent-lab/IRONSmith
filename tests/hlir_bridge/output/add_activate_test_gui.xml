@@ -1,0 +1,471 @@
+<?xml version="1.0" ?>
+<Module name="add_activate_test">
+    <Symbols>
+        <Const name="data_size" type="int">128</Const>
+        <TypeAbstraction name="data_ty">
+            <ndarray>
+                <shape>data_size</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="chunk_ty">
+            <ndarray>
+                <shape>data_size / 4</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="worker_chunk_ty">
+            <ndarray>
+                <shape>data_size / 8</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+    </Symbols>
+    <DataFlow>
+        <ExternalFunction name="externalfunc1" operation="element_wise_add">
+            <kernel>eltwise_add_bf16_scalar</kernel>
+            <source>../../../aie_kernels/aie2/add.cc</source>
+            <arg_types>
+                <type>worker_chunk_ty</type>
+                <type>worker_chunk_ty</type>
+                <type>worker_chunk_ty</type>
+            </arg_types>
+        </ExternalFunction>
+        <ExternalFunction name="externalfunc2" operation="relu_activation">
+            <kernel>bf16_relu</kernel>
+            <source>../../../aie_kernels/aie2/relu.cc</source>
+            <arg_types>
+                <type>worker_chunk_ty</type>
+                <type>worker_chunk_ty</type>
+            </arg_types>
+        </ExternalFunction>
+        <CoreFunction name="corefunc1" operation="eltwise_add">
+            <parameters>
+                <param name="kernel" role="external_function"/>
+                <param name="inputA" role="consumer"/>
+                <param name="inputB" role="consumer"/>
+                <param name="outputC" role="consumer"/>
+            </parameters>
+            <body>
+                <Acquire source="inputA" count="1" name="elementA"/>
+                <Acquire source="inputB" count="1" name="elementB"/>
+                <Acquire source="outputC" count="1" name="elementC"/>
+                <Call function="kernel" args="elementA, elementB, elementC"/>
+                <Release source="inputA" count="1"/>
+                <Release source="inputB" count="1"/>
+                <Release source="outputC" count="1"/>
+            </body>
+        </CoreFunction>
+        <CoreFunction name="corefunc2" operation="relu">
+            <parameters>
+                <param name="kernel" role="external_function"/>
+                <param name="inputC" role="consumer"/>
+                <param name="outputD" role="consumer"/>
+            </parameters>
+            <body>
+                <Acquire source="inputC" count="1" name="elementC"/>
+                <Acquire source="outputD" count="1" name="elementD"/>
+                <Call function="kernel" args="elementC, elementD"/>
+                <Release source="inputC" count="1"/>
+                <Release source="outputD" count="1"/>
+            </body>
+        </CoreFunction>
+        <ObjectFifo name="of_in_a_col0">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_a_col1">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_a_col2">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_a_col3">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_b_col0">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_b_col1">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_b_col2">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_b_col3">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_inter_1">
+            <type>worker_chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_inter_2">
+            <type>worker_chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_inter_3">
+            <type>worker_chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_inter_4">
+            <type>worker_chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_inter_5">
+            <type>worker_chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_inter_6">
+            <type>worker_chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_inter_7">
+            <type>worker_chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_inter_8">
+            <type>worker_chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_out_d_col0">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_out_d_col1">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_out_d_col2">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_out_d_col3">
+            <type>chunk_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifoSplit name="split_a_col0" column="0" context="L2_L1" data="A">
+            <source>of_in_a_col0</source>
+            <num_outputs>2</num_outputs>
+            <output_type>worker_chunk_ty</output_type>
+            <placement>Tile(0, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoSplit name="split_a_col1" column="1" context="L2_L1" data="A">
+            <source>of_in_a_col1</source>
+            <num_outputs>2</num_outputs>
+            <output_type>worker_chunk_ty</output_type>
+            <placement>Tile(1, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoSplit name="split_a_col2" column="2" context="L2_L1" data="A">
+            <source>of_in_a_col2</source>
+            <num_outputs>2</num_outputs>
+            <output_type>worker_chunk_ty</output_type>
+            <placement>Tile(2, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoSplit name="split_a_col3" column="3" context="L2_L1" data="A">
+            <source>of_in_a_col3</source>
+            <num_outputs>2</num_outputs>
+            <output_type>worker_chunk_ty</output_type>
+            <placement>Tile(3, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoSplit name="split_b_col0" column="0" context="L2_L1" data="B">
+            <source>of_in_b_col0</source>
+            <num_outputs>2</num_outputs>
+            <output_type>worker_chunk_ty</output_type>
+            <placement>Tile(0, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoSplit name="split_b_col1" column="1" context="L2_L1" data="B">
+            <source>of_in_b_col1</source>
+            <num_outputs>2</num_outputs>
+            <output_type>worker_chunk_ty</output_type>
+            <placement>Tile(1, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoSplit name="split_b_col2" column="2" context="L2_L1" data="B">
+            <source>of_in_b_col2</source>
+            <num_outputs>2</num_outputs>
+            <output_type>worker_chunk_ty</output_type>
+            <placement>Tile(2, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoSplit name="split_b_col3" column="3" context="L2_L1" data="B">
+            <source>of_in_b_col3</source>
+            <num_outputs>2</num_outputs>
+            <output_type>worker_chunk_ty</output_type>
+            <placement>Tile(3, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoJoin name="join_d_col0" column="0" context="L1_L2" data="D">
+            <dest>of_out_d_col0</dest>
+            <num_inputs>2</num_inputs>
+            <input_type>worker_chunk_ty</input_type>
+            <placement>Tile(0, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoJoin>
+        <ObjectFifoJoin name="join_d_col1" column="1" context="L1_L2" data="D">
+            <dest>of_out_d_col1</dest>
+            <num_inputs>2</num_inputs>
+            <input_type>worker_chunk_ty</input_type>
+            <placement>Tile(1, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoJoin>
+        <ObjectFifoJoin name="join_d_col2" column="2" context="L1_L2" data="D">
+            <dest>of_out_d_col2</dest>
+            <num_inputs>2</num_inputs>
+            <input_type>worker_chunk_ty</input_type>
+            <placement>Tile(2, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoJoin>
+        <ObjectFifoJoin name="join_d_col3" column="3" context="L1_L2" data="D">
+            <dest>of_out_d_col3</dest>
+            <num_inputs>2</num_inputs>
+            <input_type>worker_chunk_ty</input_type>
+            <placement>Tile(3, 1)</placement>
+            <offsets>0, 16</offsets>
+        </ObjectFifoJoin>
+        <Worker name="worker_add_col0_w0" column="0" operation="add" worker_index="0">
+            <core_function>corefunc1</core_function>
+            <arguments>
+                <arg ref="externalfunc1"/>
+                <arg ref="split_a_col0" index="0" mode="consumer"/>
+                <arg ref="split_b_col0" index="0" mode="consumer"/>
+                <arg ref="of_inter_1" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 5)</placement>
+        </Worker>
+        <Worker name="worker_add_col0_w1" column="0" operation="add" worker_index="1">
+            <core_function>corefunc1</core_function>
+            <arguments>
+                <arg ref="externalfunc1"/>
+                <arg ref="split_a_col0" index="1" mode="consumer"/>
+                <arg ref="split_b_col0" index="1" mode="consumer"/>
+                <arg ref="of_inter_2" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 3)</placement>
+        </Worker>
+        <Worker name="worker_add_col1_w0" column="1" operation="add" worker_index="0">
+            <core_function>corefunc1</core_function>
+            <arguments>
+                <arg ref="externalfunc1"/>
+                <arg ref="split_a_col1" index="0" mode="consumer"/>
+                <arg ref="split_b_col1" index="0" mode="consumer"/>
+                <arg ref="of_inter_3" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 5)</placement>
+        </Worker>
+        <Worker name="worker_add_col1_w1" column="1" operation="add" worker_index="1">
+            <core_function>corefunc1</core_function>
+            <arguments>
+                <arg ref="externalfunc1"/>
+                <arg ref="split_a_col1" index="1" mode="consumer"/>
+                <arg ref="split_b_col1" index="1" mode="consumer"/>
+                <arg ref="of_inter_4" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 3)</placement>
+        </Worker>
+        <Worker name="worker_add_col2_w0" column="2" operation="add" worker_index="0">
+            <core_function>corefunc1</core_function>
+            <arguments>
+                <arg ref="externalfunc1"/>
+                <arg ref="split_a_col2" index="0" mode="consumer"/>
+                <arg ref="split_b_col2" index="0" mode="consumer"/>
+                <arg ref="of_inter_5" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 5)</placement>
+        </Worker>
+        <Worker name="worker_add_col2_w1" column="2" operation="add" worker_index="1">
+            <core_function>corefunc1</core_function>
+            <arguments>
+                <arg ref="externalfunc1"/>
+                <arg ref="split_a_col2" index="1" mode="consumer"/>
+                <arg ref="split_b_col2" index="1" mode="consumer"/>
+                <arg ref="of_inter_6" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 3)</placement>
+        </Worker>
+        <Worker name="worker_add_col3_w0" column="3" operation="add" worker_index="0">
+            <core_function>corefunc1</core_function>
+            <arguments>
+                <arg ref="externalfunc1"/>
+                <arg ref="split_a_col3" index="0" mode="consumer"/>
+                <arg ref="split_b_col3" index="0" mode="consumer"/>
+                <arg ref="of_inter_7" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 5)</placement>
+        </Worker>
+        <Worker name="worker_add_col3_w1" column="3" operation="add" worker_index="1">
+            <core_function>corefunc1</core_function>
+            <arguments>
+                <arg ref="externalfunc1"/>
+                <arg ref="split_a_col3" index="1" mode="consumer"/>
+                <arg ref="split_b_col3" index="1" mode="consumer"/>
+                <arg ref="of_inter_8" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 3)</placement>
+        </Worker>
+        <Worker name="worker_relu_col0_w0" column="0" operation="relu" worker_index="0">
+            <core_function>corefunc2</core_function>
+            <arguments>
+                <arg ref="externalfunc2"/>
+                <arg ref="of_inter_1" mode="consumer"/>
+                <arg ref="join_d_col0" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 4)</placement>
+        </Worker>
+        <Worker name="worker_relu_col0_w1" column="0" operation="relu" worker_index="1">
+            <core_function>corefunc2</core_function>
+            <arguments>
+                <arg ref="externalfunc2"/>
+                <arg ref="of_inter_2" mode="consumer"/>
+                <arg ref="join_d_col0" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 2)</placement>
+        </Worker>
+        <Worker name="worker_relu_col1_w0" column="1" operation="relu" worker_index="0">
+            <core_function>corefunc2</core_function>
+            <arguments>
+                <arg ref="externalfunc2"/>
+                <arg ref="of_inter_3" mode="consumer"/>
+                <arg ref="join_d_col1" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 4)</placement>
+        </Worker>
+        <Worker name="worker_relu_col1_w1" column="1" operation="relu" worker_index="1">
+            <core_function>corefunc2</core_function>
+            <arguments>
+                <arg ref="externalfunc2"/>
+                <arg ref="of_inter_4" mode="consumer"/>
+                <arg ref="join_d_col1" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 2)</placement>
+        </Worker>
+        <Worker name="worker_relu_col2_w0" column="2" operation="relu" worker_index="0">
+            <core_function>corefunc2</core_function>
+            <arguments>
+                <arg ref="externalfunc2"/>
+                <arg ref="of_inter_5" mode="consumer"/>
+                <arg ref="join_d_col2" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 4)</placement>
+        </Worker>
+        <Worker name="worker_relu_col2_w1" column="2" operation="relu" worker_index="1">
+            <core_function>corefunc2</core_function>
+            <arguments>
+                <arg ref="externalfunc2"/>
+                <arg ref="of_inter_6" mode="consumer"/>
+                <arg ref="join_d_col2" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 2)</placement>
+        </Worker>
+        <Worker name="worker_relu_col3_w0" column="3" operation="relu" worker_index="0">
+            <core_function>corefunc2</core_function>
+            <arguments>
+                <arg ref="externalfunc2"/>
+                <arg ref="of_inter_7" mode="consumer"/>
+                <arg ref="join_d_col3" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 4)</placement>
+        </Worker>
+        <Worker name="worker_relu_col3_w1" column="3" operation="relu" worker_index="1">
+            <core_function>corefunc2</core_function>
+            <arguments>
+                <arg ref="externalfunc2"/>
+                <arg ref="of_inter_8" mode="consumer"/>
+                <arg ref="join_d_col3" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 2)</placement>
+        </Worker>
+        <Runtime name="runtime">
+            <Sequence inputs="data_ty, data_ty, data_ty" as="a_in, b_in, d_out">
+                <Start>worker_add_col0_w0, worker_add_col0_w1, worker_add_col1_w0, worker_add_col1_w1, worker_add_col2_w0, worker_add_col2_w1, worker_add_col3_w0, worker_add_col3_w1, worker_relu_col0_w0, worker_relu_col0_w1, worker_relu_col1_w0, worker_relu_col1_w1, worker_relu_col2_w0, worker_relu_col2_w1, worker_relu_col3_w0, worker_relu_col3_w1</Start>
+                <Fill target="of_in_a_col0" source="a_in" data_ref="A" column="0" use_tap="true">
+                    <placement>Tile(0, 0)</placement>
+                </Fill>
+                <Fill target="of_in_a_col1" source="a_in" data_ref="A" column="1" use_tap="true">
+                    <placement>Tile(1, 0)</placement>
+                </Fill>
+                <Fill target="of_in_a_col2" source="a_in" data_ref="A" column="2" use_tap="true">
+                    <placement>Tile(2, 0)</placement>
+                </Fill>
+                <Fill target="of_in_a_col3" source="a_in" data_ref="A" column="3" use_tap="true">
+                    <placement>Tile(3, 0)</placement>
+                </Fill>
+                <Fill target="of_in_b_col0" source="b_in" data_ref="B" column="0" use_tap="true">
+                    <placement>Tile(0, 0)</placement>
+                </Fill>
+                <Fill target="of_in_b_col1" source="b_in" data_ref="B" column="1" use_tap="true">
+                    <placement>Tile(1, 0)</placement>
+                </Fill>
+                <Fill target="of_in_b_col2" source="b_in" data_ref="B" column="2" use_tap="true">
+                    <placement>Tile(2, 0)</placement>
+                </Fill>
+                <Fill target="of_in_b_col3" source="b_in" data_ref="B" column="3" use_tap="true">
+                    <placement>Tile(3, 0)</placement>
+                </Fill>
+                <Drain source="of_out_d_col0" target="d_out" data_ref="D" column="0" use_tap="true">
+                    <placement>Tile(0, 0)</placement>
+                    <wait>true</wait>
+                </Drain>
+                <Drain source="of_out_d_col1" target="d_out" data_ref="D" column="1" use_tap="true">
+                    <placement>Tile(1, 0)</placement>
+                    <wait>true</wait>
+                </Drain>
+                <Drain source="of_out_d_col2" target="d_out" data_ref="D" column="2" use_tap="true">
+                    <placement>Tile(2, 0)</placement>
+                    <wait>true</wait>
+                </Drain>
+                <Drain source="of_out_d_col3" target="d_out" data_ref="D" column="3" use_tap="true">
+                    <placement>Tile(3, 0)</placement>
+                    <wait>true</wait>
+                </Drain>
+            </Sequence>
+        </Runtime>
+        <Program name="program">
+            <device>current_device</device>
+            <runtime>runtime</runtime>
+            <placer>SequentialPlacer</placer>
+        </Program>
+    </DataFlow>
+    <Function name="jit_function" decorator="iron.jit" entry="add_activate_test_jit">
+        <parameters>
+            <param name="A" type="data_ty"/>
+            <param name="B" type="data_ty"/>
+            <param name="D" type="data_ty"/>
+        </parameters>
+        <body>
+            <UseDataFlow/>
+            <Return>program</Return>
+        </body>
+    </Function>
+    <Function name="main_function" entry="main">
+        <body>
+            <Assign name="data_size" value="128"/>
+            <Tensor name="A">
+                <init>iron.arange(data_size, dtype=bfloat16, device="npu")</init>
+            </Tensor>
+            <Tensor name="B">
+                <init>iron.arange(data_size, dtype=bfloat16, device="npu")</init>
+            </Tensor>
+            <Tensor name="D">
+                <init>iron.zeros(data_size, dtype=bfloat16, device="npu")</init>
+            </Tensor>
+            <Call function="jit_function" args="A, B, D"/>
+        </body>
+    </Function>
+    <EntryPoint>
+        <If condition="__name__ == '__main__'">
+            <Call function="main_function"/>
+        </If>
+    </EntryPoint>
+</Module>

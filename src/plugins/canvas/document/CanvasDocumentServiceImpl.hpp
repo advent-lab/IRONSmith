@@ -4,6 +4,7 @@
 #pragma once
 
 #include "canvas/api/ICanvasDocumentService.hpp"
+#include "canvas/CanvasGlobal.hpp"
 
 #include <utils/Result.hpp>
 #include <utils/async/DebouncedInvoker.hpp>

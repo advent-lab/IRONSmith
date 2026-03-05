@@ -522,6 +522,51 @@ HlirResult<ComponentId> HlirBridge::addFifoJoin(
     return parseJsonResult<ComponentId>(jsonRes.value());
 }
 
+HlirResult<ComponentId> HlirBridge::addTensorTiler2D(
+    const std::string& name,
+    const std::vector<std::string>& tensorDims,
+    const std::vector<std::string>& tileDims,
+    const std::vector<std::string>& tileCounts,
+    bool pruneStep,
+    int index,
+    const std::string& patternRepeat,
+    const ComponentId& providedId,
+    const std::map<std::string, std::string>& metadata)
+{
+    PyObject* tensorDimsList = buildPythonList(tensorDims);
+    PyObject* tileDimsList   = buildPythonList(tileDims);
+    PyObject* tileCountsList = buildPythonList(tileCounts);
+    PyObject* metadataDict   = buildMetadataDict(metadata);
+
+    const char* providedIdStr    = providedId.value.empty() ? nullptr : providedId.value.c_str();
+    const char* patternRepeatStr = patternRepeat.empty()    ? ""      : patternRepeat.c_str();
+
+    PyObject* args = Py_BuildValue("(sOOOOisOs)",
+        name.c_str(),
+        tensorDimsList, tileDimsList, tileCountsList,
+        pruneStep ? Py_True : Py_False,
+        index,
+        patternRepeatStr,
+        metadataDict,
+        providedIdStr);
+
+    Py_DECREF(tensorDimsList);
+    Py_DECREF(tileDimsList);
+    Py_DECREF(tileCountsList);
+    Py_DECREF(metadataDict);
+
+    auto pyRes = callBuilderMethod("add_tiler2d", args);
+    Py_DECREF(args);
+
+    if (!pyRes) return std::unexpected(pyRes.error());
+
+    auto jsonRes = extractJsonString(pyRes.value());
+    Py_DECREF(pyRes.value());
+
+    if (!jsonRes) return std::unexpected(jsonRes.error());
+    return parseJsonResult<ComponentId>(jsonRes.value());
+}
+
 HlirResult<ComponentId> HlirBridge::addFifoForward(
     const std::string& name,
     const ComponentId& sourceId,
@@ -634,6 +679,35 @@ HlirResult<ComponentId> HlirBridge::addCoreFunction(
     return parseJsonResult<ComponentId>(jsonRes.value());
 }
 
+HlirResult<ComponentId> HlirBridge::addCoreFunctionBody(
+    const std::string& name,
+    const std::vector<std::string>& parameters,
+    const std::string& bodyStmtsJson,
+    const ComponentId& providedId,
+    const std::map<std::string, std::string>& metadata)
+{
+    PyObject* paramsList = buildPythonList(parameters);
+    PyObject* metadataDict = buildMetadataDict(metadata);
+    const char* providedIdStr = providedId.value.empty() ? nullptr : providedId.value.c_str();
+
+    // Args: (name, parameters, body_stmts_json, metadata, provided_id)
+    PyObject* args = Py_BuildValue("(sOsOs)",
+        name.c_str(), paramsList, bodyStmtsJson.c_str(), metadataDict, providedIdStr);
+    Py_DECREF(paramsList);
+    Py_DECREF(metadataDict);
+
+    auto pyRes = callBuilderMethod("add_core_function_body", args);
+    Py_DECREF(args);
+
+    if (!pyRes) return std::unexpected(pyRes.error());
+
+    auto jsonRes = extractJsonString(pyRes.value());
+    Py_DECREF(pyRes.value());
+
+    if (!jsonRes) return std::unexpected(jsonRes.error());
+    return parseJsonResult<ComponentId>(jsonRes.value());
+}
+
 HlirResult<ComponentId> HlirBridge::addWorker(
     const std::string& name,
     const ComponentId& coreFnId,
@@ -663,6 +737,11 @@ HlirResult<ComponentId> HlirBridge::addWorker(
             argJson["id"] = arg.componentId.value;
             argJson["direction"] = arg.fifoDirection;
             argJson["index"] = arg.fifoIndex;
+        } else if (arg.type == FunctionArg::Type::FORWARD) {
+            // Forward operation consumer - no index (broadcast to all)
+            argJson["type"] = "forward";
+            argJson["id"] = arg.componentId.value;
+            argJson["direction"] = "cons";
         } else {
             // Regular FIFO
             argJson["type"] = "fifo";
@@ -869,13 +948,15 @@ HlirResult<void> HlirBridge::runtimeAddFill(
     const std::string& inputName,
     const ComponentId& tileId,
     int column,
-    bool useTap)
+    bool useTap,
+    const ComponentId& tapId)
 {
-    // Build args with column and useTap parameters
-    PyObject* args = Py_BuildValue("(ssssiO)",
+    const char* tapIdStr = tapId.value.empty() ? "" : tapId.value.c_str();
+    PyObject* args = Py_BuildValue("(ssssiOs)",
         name.c_str(), fifoId.value.c_str(),
         inputName.c_str(), tileId.value.c_str(),
-        column, useTap ? Py_True : Py_False);
+        column, useTap ? Py_True : Py_False,
+        tapIdStr);
 
     auto pyRes = callBuilderMethod("runtime_add_fill", args);
     Py_DECREF(args);
@@ -895,13 +976,15 @@ HlirResult<void> HlirBridge::runtimeAddDrain(
     const std::string& outputName,
     const ComponentId& tileId,
     int column,
-    bool useTap)
+    bool useTap,
+    const ComponentId& tapId)
 {
-    // Build args with column and useTap parameters
-    PyObject* args = Py_BuildValue("(ssssiO)",
+    const char* tapIdStr = tapId.value.empty() ? "" : tapId.value.c_str();
+    PyObject* args = Py_BuildValue("(ssssiOs)",
         name.c_str(), fifoId.value.c_str(),
         outputName.c_str(), tileId.value.c_str(),
-        column, useTap ? Py_True : Py_False);
+        column, useTap ? Py_True : Py_False,
+        tapIdStr);
 
     auto pyRes = callBuilderMethod("runtime_add_drain", args);
     Py_DECREF(args);

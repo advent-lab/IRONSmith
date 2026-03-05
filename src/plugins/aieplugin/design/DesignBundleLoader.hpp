@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
 #include "aieplugin/design/DesignModel.hpp"
 #include "aieplugin/NpuProfile.hpp"
 
@@ -12,7 +13,7 @@
 
 namespace Aie::Internal {
 
-class DesignBundleLoader final
+class AIEPLUGIN_EXPORT DesignBundleLoader final
 {
 public:
     explicit DesignBundleLoader(const Aie::NpuProfileCatalog* catalog);

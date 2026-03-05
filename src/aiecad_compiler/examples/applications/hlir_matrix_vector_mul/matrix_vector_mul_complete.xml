@@ -1,0 +1,965 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Module name="matrix_vector_mul_hlir_example">
+  <Symbols>
+    <Import name="numpy" alias="np"/>
+    <Import name="ml_dtypes" alias="ml_dtypes"/>
+    <Import name="aie.iron" alias="iron">
+      <Submodule name="Program"/>
+      <Submodule name="Runtime"/>
+      <Submodule name="Worker"/>
+      <Submodule name="ObjectFifo"/>
+      <Submodule name="SequentialPlacer"/>
+      <Submodule name="AnyComputeTile"/>
+      <Submodule name="Tile"/>
+      <Submodule name="ExternalFunction"/>
+      <Submodule name="jit"/>
+      <Submodule name="dataflow"/>
+      <Function name="get_current_device"/>
+      <Function name="arange"/>
+      <Function name="zeros"/>
+    </Import>
+    <Import name="aie.helpers.taplib">
+      <Submodule name="TensorAccessPattern"/>
+      <Submodule name="TensorTiler2D"/>
+    </Import>
+    <Import name="aie.iron.controlflow">
+      <Submodule name="range_"/>
+    </Import>
+    <Const name="M" type="int">256</Const>
+    <Const name="K" type="int">256</Const>
+    <Const name="m" type="int">32</Const>
+    <Const name="k" type="int">32</Const>
+    <Const name="n_cores" type="int">4</Const>
+    <Const name="M_div_m" type="int">M // m</Const>
+    <Const name="K_div_k" type="int">K // k</Const>
+    <Const name="rows_per_core" type="int">M_div_m // n_cores</Const>
+    <Const name="n_fifo_elems" type="int">rows_per_core * K_div_k</Const>
+    <Const name="A_elem_size" type="int">n_cores * m * k</Const>
+    <TypeAbstraction name="inA_ty">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>m * k</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="inB_ty">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>k</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="outC_ty">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>m</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int32</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="A_mem_ty">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>n_cores * m * k</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="C_mem_ty">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>n_cores * m</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int32</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="A_ty">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>n_fifo_elems</expr>
+          </tuple>
+          <tuple>
+            <expr>A_elem_size</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="B_ty">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>1</expr>
+          </tuple>
+          <tuple>
+            <expr>K</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="C_ty">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>1</expr>
+          </tuple>
+          <tuple>
+            <expr>M</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int32</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TensorTiler2D name="a_tap" tensor_dims="rows_per_core * K_div_k, n_cores * m * k" tile_dims="1, 512" tile_counts="rows_per_core * K_div_k, A_elem_size // 512" prune_step="False" index="0"/>
+    <TensorTiler2D name="b_tap" tensor_dims="1, 256" tile_dims="1, 32" tile_counts="1, K // k" prune_step="False" index="0" pattern_repeat="M_div_m // n_cores"/>
+    <TensorTiler2D name="c_tap" tensor_dims="1, 256" tile_dims="1, n_cores * m" tile_counts="1, M_div_m // n_cores" prune_step="False" index="0"/>
+  </Symbols>
+  <DataFlow>
+    <ExternalFunction name="matvec_vectorized_i16_i32">
+      <attributes>
+        <kwarg name="name" value="matvec_vectorized_i16_i32"/>
+        <kwarg name="source_file" value="/scratch/IRONSmithTesting/mlir-aie/aie_kernels/aie2/mv.cc"/>
+        <kwarg name="arg_types">
+          <list>
+            <type_ref>inA_ty</type_ref>
+            <type_ref>inB_ty</type_ref>
+            <type_ref>outC_ty</type_ref>
+          </list>
+        </kwarg>
+        <kwarg name="include_dirs">
+          <list>
+            <string>/scratch/IRONSmithTesting/mlir-aie/aie_kernels</string>
+            <string>/scratch/IRONSmithTesting/mlir-aie/aie_kernels/aie2</string>
+            <string>/scratch/IRONSmithTesting/mlir-aie/aie_runtime_lib/AIE2</string>
+          </list>
+        </kwarg>
+      </attributes>
+    </ExternalFunction>
+    <CoreFunction name="core_fn">
+      <parameters>
+        <param name="a_in"/>
+        <param name="b_in"/>
+        <param name="c_out"/>
+        <param name="matvec"/>
+      </parameters>
+      <body>
+        <Acquire name="elem_out">
+          <call>
+            <method ref="c_out" name="acquire">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Acquire>
+        <For var="i" range="range_(32)">
+          <Assignment target="elem_out" index="i" value="0"/>
+        </For>
+        <For var="_" range="range_(K // k)">
+          <Acquire name="elem_a">
+            <call>
+              <method ref="a_in" name="acquire">
+                <arg>
+                  <const>1</const>
+                </arg>
+              </method>
+            </call>
+          </Acquire>
+          <Acquire name="elem_b">
+            <call>
+              <method ref="b_in" name="acquire">
+                <arg>
+                  <const>1</const>
+                </arg>
+              </method>
+            </call>
+          </Acquire>
+          <Call>
+            <function ref="matvec">
+              <arg>
+                <var ref="elem_a"/>
+              </arg>
+              <arg>
+                <var ref="elem_b"/>
+              </arg>
+              <arg>
+                <var ref="elem_out"/>
+              </arg>
+            </function>
+          </Call>
+          <Release>
+            <call>
+              <method ref="a_in" name="release">
+                <arg>
+                  <const>1</const>
+                </arg>
+              </method>
+            </call>
+          </Release>
+          <Release>
+            <call>
+              <method ref="b_in" name="release">
+                <arg>
+                  <const>1</const>
+                </arg>
+              </method>
+            </call>
+          </Release>
+        </For>
+        <Release>
+          <call>
+            <method ref="c_out" name="release">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Release>
+      </body>
+    </CoreFunction>
+    <ObjectFifo name="inA">
+      <obj_type>
+        <type_ref>A_mem_ty</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="inA"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="inB">
+      <obj_type>
+        <type_ref>inB_ty</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="inB"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="outC">
+      <obj_type>
+        <type_ref>C_mem_ty</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="outC"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="MEM_L2_L1_A1A2A3A4_col0">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inA"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="split">
+              <kwarg name="obj_types">
+                <list>
+                  <type_ref>inA_ty</type_ref>
+                  <type_ref>inA_ty</type_ref>
+                  <type_ref>inA_ty</type_ref>
+                  <type_ref>inA_ty</type_ref>
+                </list>
+              </kwarg>
+              <kwarg name="offsets">
+                <list>
+                  <const>0</const>
+                  <const>m * k</const>
+                  <const>2 * m * k</const>
+                  <const>3 * m * k</const>
+                </list>
+              </kwarg>
+              <kwarg name="names">
+                <list>
+                  <string>MEM_L2_L1_A1_col0</string>
+                  <string>MEM_L2_L1_A2_col0</string>
+                  <string>MEM_L2_L1_A3_col0</string>
+                  <string>MEM_L2_L1_A4_col0</string>
+                </list>
+              </kwarg>
+              <kwarg name="placement">
+                <constructor ref="Tile">
+                  <arg>
+                    <const>0</const>
+                  </arg>
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                </constructor>
+              </kwarg>
+            </method>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="B_fwd">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inB"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="forward"/>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>1</const>
+                </arg>
+                <arg>
+                  <const>1</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="MEM_L1_L2_C9C10C11C12_col2">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="outC"/>
+          </base>
+          <call>
+            <method name="prod"/>
+          </call>
+          <call>
+            <method name="join">
+              <kwarg name="obj_types">
+                <list>
+                  <type_ref>outC_ty</type_ref>
+                  <type_ref>outC_ty</type_ref>
+                  <type_ref>outC_ty</type_ref>
+                  <type_ref>outC_ty</type_ref>
+                </list>
+              </kwarg>
+              <kwarg name="names">
+                <list>
+                  <string>MEM_L1_L2_C9_col2</string>
+                  <string>MEM_L1_L2_C10_col2</string>
+                  <string>MEM_L1_L2_C11_col2</string>
+                  <string>MEM_L1_L2_C12_col2</string>
+                </list>
+              </kwarg>
+              <kwarg name="placement">
+                <constructor ref="Tile">
+                  <arg>
+                    <const>2</const>
+                  </arg>
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                </constructor>
+              </kwarg>
+              <kwarg name="offsets">
+                <list>
+                  <const>0</const>
+                  <const>m</const>
+                  <const>2 * m</const>
+                  <const>3 * m</const>
+                </list>
+              </kwarg>
+            </method>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <Worker name="worker0">
+      <core_fn ref="core_fn"/>
+      <fn_args>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="MEM_L2_L1_A1A2A3A4_col0"/>
+                </base>
+                <index_value>
+                  <const>0</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="B_fwd"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="MEM_L1_L2_C9C10C11C12_col2"/>
+                </base>
+                <index_value>
+                  <const>0</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <var ref="matvec_vectorized_i16_i32"/>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>0</const>
+          </arg>
+          <arg>
+            <const>2</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker1">
+      <core_fn ref="core_fn"/>
+      <fn_args>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="MEM_L2_L1_A1A2A3A4_col0"/>
+                </base>
+                <index_value>
+                  <const>1</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="B_fwd"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="MEM_L1_L2_C9C10C11C12_col2"/>
+                </base>
+                <index_value>
+                  <const>1</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <var ref="matvec_vectorized_i16_i32"/>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>0</const>
+          </arg>
+          <arg>
+            <const>3</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker2">
+      <core_fn ref="core_fn"/>
+      <fn_args>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="MEM_L2_L1_A1A2A3A4_col0"/>
+                </base>
+                <index_value>
+                  <const>2</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="B_fwd"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="MEM_L1_L2_C9C10C11C12_col2"/>
+                </base>
+                <index_value>
+                  <const>2</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <var ref="matvec_vectorized_i16_i32"/>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>0</const>
+          </arg>
+          <arg>
+            <const>4</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker3">
+      <core_fn ref="core_fn"/>
+      <fn_args>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="MEM_L2_L1_A1A2A3A4_col0"/>
+                </base>
+                <index_value>
+                  <const>3</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="B_fwd"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="MEM_L1_L2_C9C10C11C12_col2"/>
+                </base>
+                <index_value>
+                  <const>3</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <var ref="matvec_vectorized_i16_i32"/>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>0</const>
+          </arg>
+          <arg>
+            <const>5</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Runtime name="rt">
+      <instance>
+        <constructor ref="Runtime"/>
+      </instance>
+    </Runtime>
+    <List name="Workers">
+      <items>
+        <var ref="worker0"/>
+        <var ref="worker1"/>
+        <var ref="worker2"/>
+        <var ref="worker3"/>
+      </items>
+    </List>
+    <SequenceBlock>
+      <context>
+        <call>
+          <method ref="rt" name="sequence">
+            <arg type_ref="A_ty"/>
+            <arg type_ref="B_ty"/>
+            <arg type_ref="C_ty"/>
+          </method>
+        </call>
+      </context>
+      <bindings>
+        <bind name="inputa_in" type_ref="A_ty"/>
+        <bind name="inputb_in" type_ref="B_ty"/>
+        <bind name="outputc_out" type_ref="C_ty"/>
+      </bindings>
+      <body>
+        <Operation name="start">
+          <target>
+            <method ref="rt" name="start"/>
+          </target>
+          <args>
+            <arg>
+              <var ref="Workers"/>
+            </arg>
+          </args>
+        </Operation>
+        <Operation name="fill_inputa_in_col0">
+          <target>
+            <method ref="rt" name="fill"/>
+          </target>
+          <args>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>0</const>
+                </arg>
+                <arg>
+                  <const>0</const>
+                </arg>
+              </constructor>
+            </kwarg>
+            <kwarg name="in_fifo">
+              <var ref="inA"/>
+              <method name="prod"/>
+            </kwarg>
+            <kwarg name="source">
+              <var ref="inputa_in"/>
+            </kwarg>
+            <kwarg name="tap">
+              <var ref="a_tap"/>
+            </kwarg>
+          </args>
+        </Operation>
+        <Operation name="fill_inputb_in_col1">
+          <target>
+            <method ref="rt" name="fill"/>
+          </target>
+          <args>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>1</const>
+                </arg>
+                <arg>
+                  <const>0</const>
+                </arg>
+              </constructor>
+            </kwarg>
+            <kwarg name="in_fifo">
+              <var ref="inB"/>
+              <method name="prod"/>
+            </kwarg>
+            <kwarg name="source">
+              <var ref="inputb_in"/>
+            </kwarg>
+            <kwarg name="tap">
+              <var ref="b_tap"/>
+            </kwarg>
+          </args>
+        </Operation>
+        <Operation name="drain_outputc_out_col2">
+          <target>
+            <method ref="rt" name="drain"/>
+          </target>
+          <args>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>2</const>
+                </arg>
+                <arg>
+                  <const>0</const>
+                </arg>
+              </constructor>
+            </kwarg>
+            <kwarg name="out_fifo">
+              <var ref="outC"/>
+              <method name="cons"/>
+            </kwarg>
+            <kwarg name="dest">
+              <var ref="outputc_out"/>
+            </kwarg>
+            <kwarg name="wait" value="True"/>
+            <kwarg name="tap">
+              <var ref="c_tap"/>
+            </kwarg>
+          </args>
+        </Operation>
+      </body>
+    </SequenceBlock>
+    <Program name="my_program">
+      <constructor>
+        <call>
+          <constructor ref="Program">
+            <arg>
+              <call>
+                <function ref="iron.get_current_device"/>
+              </call>
+            </arg>
+            <arg>
+              <var ref="rt"/>
+            </arg>
+          </constructor>
+        </call>
+      </constructor>
+    </Program>
+    <ResolveProgram>
+      <target>
+        <method ref="my_program" name="resolve_program">
+          <arg>
+            <constructor ref="SequentialPlacer"/>
+          </arg>
+        </method>
+      </target>
+      <returns>
+        <symbol ref="my_program_resolved"/>
+      </returns>
+    </ResolveProgram>
+  </DataFlow>
+  <Function name="matrix_vector_mul_hlir_example_jit" decorator="iron.jit">
+    <parameters>
+      <param name="inputA" type_ref="A_ty"/>
+      <param name="inputB" type_ref="B_ty"/>
+      <param name="outputC" type_ref="C_ty"/>
+    </parameters>
+    <attributes>
+      <kwarg name="is_placed" value="False"/>
+    </attributes>
+    <body>
+      <UseDataFlow>
+        <UseType name="inA_ty"/>
+        <UseType name="inB_ty"/>
+        <UseType name="outC_ty"/>
+        <UseType name="A_mem_ty"/>
+        <UseType name="C_mem_ty"/>
+        <UseType name="A_ty"/>
+        <UseType name="B_ty"/>
+        <UseType name="C_ty"/>
+      </UseDataFlow>
+      <Return>
+        <var ref="program"/>
+      </Return>
+    </body>
+  </Function>
+  <Function name="main">
+    <body>
+      <Assign>
+        <target>M</target>
+        <source>
+          <const>256</const>
+        </source>
+      </Assign>
+      <Assign>
+        <target>K</target>
+        <source>
+          <const>256</const>
+        </source>
+      </Assign>
+      <Assign>
+        <target>m</target>
+        <source>
+          <const>32</const>
+        </source>
+      </Assign>
+      <Assign>
+        <target>k</target>
+        <source>
+          <const>32</const>
+        </source>
+      </Assign>
+      <Assign>
+        <target>n_cores</target>
+        <source>
+          <const>4</const>
+        </source>
+      </Assign>
+      <Assign>
+        <target>M_div_m</target>
+        <source>
+          <var ref="M // m"/>
+        </source>
+      </Assign>
+      <Assign>
+        <target>K_div_k</target>
+        <source>
+          <var ref="K // k"/>
+        </source>
+      </Assign>
+      <Assign>
+        <target>rows_per_core</target>
+        <source>
+          <var ref="M_div_m // n_cores"/>
+        </source>
+      </Assign>
+      <Assign>
+        <target>n_fifo_elems</target>
+        <source>
+          <var ref="rows_per_core * K_div_k"/>
+        </source>
+      </Assign>
+      <Assign>
+        <target>A_elem_size</target>
+        <source>
+          <var ref="n_cores * m * k"/>
+        </source>
+      </Assign>
+      <Assign>
+        <target>inputA</target>
+        <source>
+          <call>
+            <function ref="iron.arange">
+              <arg>
+                <var>n_fifo_elems</var>
+              </arg>
+              <kwarg name="dtype">
+                <var>np.int16</var>
+              </kwarg>
+              <kwarg name="device">
+                <string>npu</string>
+              </kwarg>
+            </function>
+          </call>
+        </source>
+      </Assign>
+      <Assign>
+        <target>inputB</target>
+        <source>
+          <call>
+            <function ref="iron.arange">
+              <arg>
+                <var>n_fifo_elems</var>
+              </arg>
+              <kwarg name="dtype">
+                <var>np.int16</var>
+              </kwarg>
+              <kwarg name="device">
+                <string>npu</string>
+              </kwarg>
+            </function>
+          </call>
+        </source>
+      </Assign>
+      <Assign>
+        <target>outputC</target>
+        <source>
+          <call>
+            <function ref="iron.zeros">
+              <arg>
+                <var>n_fifo_elems</var>
+              </arg>
+              <kwarg name="dtype">
+                <var>np.int16</var>
+              </kwarg>
+              <kwarg name="device">
+                <string>npu</string>
+              </kwarg>
+            </function>
+          </call>
+        </source>
+      </Assign>
+      <Call>
+        <function ref="matrix_vector_mul_hlir_example_jit">
+          <arg>
+            <var>inputA</var>
+          </arg>
+          <arg>
+            <var>inputB</var>
+          </arg>
+          <arg>
+            <var>outputC</var>
+          </arg>
+        </function>
+      </Call>
+    </body>
+  </Function>
+  <EntryPoint>
+    <If condition="__name__ == '__main__'">
+      <Call>
+        <function ref="main"/>
+      </Call>
+    </If>
+  </EntryPoint>
+</Module>

@@ -24,20 +24,28 @@
     <DataFlow>
         <ExternalFunction name="externalfunc1" operation="element_wise_add">
             <kernel>eltwise_add_bf16_scalar</kernel>
-            <source>../../../aie_kernels/aie2/add.cc</source>
+            <source>/scratch/IRONSmithTesting/mlir-aie/aie_kernels/aie2/add.cc</source>
             <arg_types>
                 <type>worker_chunk_ty</type>
                 <type>worker_chunk_ty</type>
                 <type>worker_chunk_ty</type>
             </arg_types>
+            <include_dirs>
+                <dir>/scratch/IRONSmithTesting/mlir-aie/aie_kernels</dir>
+                <dir>/scratch/IRONSmithTesting/mlir-aie/aie_runtime_lib/AIE2</dir>
+            </include_dirs>
         </ExternalFunction>
         <ExternalFunction name="externalfunc2" operation="relu_activation">
             <kernel>bf16_relu</kernel>
-            <source>../../../aie_kernels/aie2/relu.cc</source>
+            <source>/scratch/IRONSmithTesting/mlir-aie/aie_kernels/aie2/relu.cc</source>
             <arg_types>
                 <type>worker_chunk_ty</type>
                 <type>worker_chunk_ty</type>
             </arg_types>
+            <include_dirs>
+                <dir>/scratch/IRONSmithTesting/mlir-aie/aie_kernels</dir>
+                <dir>/scratch/IRONSmithTesting/mlir-aie/aie_runtime_lib/AIE2</dir>
+            </include_dirs>
         </ExternalFunction>
         <CoreFunction name="corefunc1" operation="eltwise_add">
             <parameters>
@@ -375,45 +383,45 @@
             <placement>Tile(3, 2)</placement>
         </Worker>
         <Runtime name="runtime">
-            <Sequence inputs="data_ty, data_ty, data_ty" as="A, B, D">
-                <StartWorkers>worker_add_col0_w0, worker_add_col0_w1, worker_add_col1_w0, worker_add_col1_w1, worker_add_col2_w0, worker_add_col2_w1, worker_add_col3_w0, worker_add_col3_w1, worker_relu_col0_w0, worker_relu_col0_w1, worker_relu_col1_w0, worker_relu_col1_w1, worker_relu_col2_w0, worker_relu_col2_w1, worker_relu_col3_w0, worker_relu_col3_w1</StartWorkers>
-                <Fill target="of_in_a_col0" source="A" column="0" use_tap="true">
+            <Sequence inputs="data_ty, data_ty, data_ty" as="a_in, b_in, d_out">
+                <Start>worker_add_col0_w0, worker_add_col0_w1, worker_add_col1_w0, worker_add_col1_w1, worker_add_col2_w0, worker_add_col2_w1, worker_add_col3_w0, worker_add_col3_w1, worker_relu_col0_w0, worker_relu_col0_w1, worker_relu_col1_w0, worker_relu_col1_w1, worker_relu_col2_w0, worker_relu_col2_w1, worker_relu_col3_w0, worker_relu_col3_w1</Start>
+                <Fill target="of_in_a_col0" source="a_in" data_ref="A" column="0" use_tap="true">
                     <placement>Tile(0, 0)</placement>
                 </Fill>
-                <Fill target="of_in_a_col1" source="A" column="1" use_tap="true">
+                <Fill target="of_in_a_col1" source="a_in" data_ref="A" column="1" use_tap="true">
                     <placement>Tile(1, 0)</placement>
                 </Fill>
-                <Fill target="of_in_a_col2" source="A" column="2" use_tap="true">
+                <Fill target="of_in_a_col2" source="a_in" data_ref="A" column="2" use_tap="true">
                     <placement>Tile(2, 0)</placement>
                 </Fill>
-                <Fill target="of_in_a_col3" source="A" column="3" use_tap="true">
+                <Fill target="of_in_a_col3" source="a_in" data_ref="A" column="3" use_tap="true">
                     <placement>Tile(3, 0)</placement>
                 </Fill>
-                <Fill target="of_in_b_col0" source="B" column="0" use_tap="true">
+                <Fill target="of_in_b_col0" source="b_in" data_ref="B" column="0" use_tap="true">
                     <placement>Tile(0, 0)</placement>
                 </Fill>
-                <Fill target="of_in_b_col1" source="B" column="1" use_tap="true">
+                <Fill target="of_in_b_col1" source="b_in" data_ref="B" column="1" use_tap="true">
                     <placement>Tile(1, 0)</placement>
                 </Fill>
-                <Fill target="of_in_b_col2" source="B" column="2" use_tap="true">
+                <Fill target="of_in_b_col2" source="b_in" data_ref="B" column="2" use_tap="true">
                     <placement>Tile(2, 0)</placement>
                 </Fill>
-                <Fill target="of_in_b_col3" source="B" column="3" use_tap="true">
+                <Fill target="of_in_b_col3" source="b_in" data_ref="B" column="3" use_tap="true">
                     <placement>Tile(3, 0)</placement>
                 </Fill>
-                <Drain source="of_out_d_col0" target="D" column="0" use_tap="true">
+                <Drain source="of_out_d_col0" target="d_out" data_ref="D" column="0" use_tap="true">
                     <placement>Tile(0, 0)</placement>
                     <wait>true</wait>
                 </Drain>
-                <Drain source="of_out_d_col1" target="D" column="1" use_tap="true">
+                <Drain source="of_out_d_col1" target="d_out" data_ref="D" column="1" use_tap="true">
                     <placement>Tile(1, 0)</placement>
                     <wait>true</wait>
                 </Drain>
-                <Drain source="of_out_d_col2" target="D" column="2" use_tap="true">
+                <Drain source="of_out_d_col2" target="d_out" data_ref="D" column="2" use_tap="true">
                     <placement>Tile(2, 0)</placement>
                     <wait>true</wait>
                 </Drain>
-                <Drain source="of_out_d_col3" target="D" column="3" use_tap="true">
+                <Drain source="of_out_d_col3" target="d_out" data_ref="D" column="3" use_tap="true">
                     <placement>Tile(3, 0)</placement>
                     <wait>true</wait>
                 </Drain>
@@ -438,16 +446,15 @@
     </Function>
     <Function name="main_function" entry="main">
         <body>
-            <Assign name="datatype" value="bfloat16"/>
             <Assign name="data_size" value="128"/>
             <Tensor name="A">
-                <init>iron.arange(data_size, dtype=datatype, device=&quot;npu&quot;)</init>
+                <init>iron.arange(data_size, dtype=bfloat16, device=&quot;npu&quot;)</init>
             </Tensor>
             <Tensor name="B">
-                <init>iron.arange(data_size, dtype=datatype, device=&quot;npu&quot;)</init>
+                <init>iron.arange(data_size, dtype=bfloat16, device=&quot;npu&quot;)</init>
             </Tensor>
             <Tensor name="D">
-                <init>iron.zeros(data_size, dtype=datatype, device=&quot;npu&quot;)</init>
+                <init>iron.zeros(data_size, dtype=bfloat16, device=&quot;npu&quot;)</init>
             </Tensor>
             <Call function="jit_function" args="A, B, D"/>
         </body>

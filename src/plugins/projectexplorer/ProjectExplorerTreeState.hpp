@@ -19,7 +19,7 @@ namespace ProjectExplorer::Internal {
 
 class ProjectExplorerService;
 
-class ProjectExplorerTreeState final : public QObject
+class PROJECTEXPLORER_EXPORT ProjectExplorerTreeState final : public QObject
 {
     Q_OBJECT
 

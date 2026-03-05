@@ -1,0 +1,151 @@
+<?xml version="1.0" ?>
+<Module name="dual_path_forward_test">
+    <Symbols>
+        <Const name="N" type="int">64</Const>
+        <TypeAbstraction name="data_ty">
+            <ndarray>
+                <shape>N</shape>
+                <dtype>int32</dtype>
+            </ndarray>
+        </TypeAbstraction>
+    </Symbols>
+    <DataFlow>
+        <ExternalFunction name="copy2_kernel">
+            <kernel>copy_two_fifos</kernel>
+            <source>copy2.cc</source>
+            <arg_types>
+                <type>data_ty</type>
+                <type>data_ty</type>
+                <type>data_ty</type>
+                <type>data_ty</type>
+            </arg_types>
+        </ExternalFunction>
+        <CoreFunction name="corefunc_copy2">
+            <parameters>
+                <param name="kernel" role="external_function"/>
+                <param name="fifo_a" role="consumer"/>
+                <param name="fifo_b" role="consumer"/>
+                <param name="fifo_c" role="consumer"/>
+                <param name="fifo_d" role="consumer"/>
+            </parameters>
+            <body>
+                <Acquire source="fifo_a" count="1" name="elem_a"/>
+                <Acquire source="fifo_b" count="1" name="elem_b"/>
+                <Acquire source="fifo_c" count="1" name="elem_c"/>
+                <Acquire source="fifo_d" count="1" name="elem_d"/>
+                <Call function="kernel" args="elem_a, elem_b, elem_c, elem_d"/>
+                <Release source="fifo_a" count="1"/>
+                <Release source="fifo_b" count="1"/>
+                <Release source="fifo_c" count="1"/>
+                <Release source="fifo_d" count="1"/>
+            </body>
+        </CoreFunction>
+        <ObjectFifo name="in1">
+            <type>data_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="in2">
+            <type>data_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="out1">
+            <type>data_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="out2">
+            <type>data_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="out3">
+            <type>data_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="out4">
+            <type>data_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifoForward name="out5" source="out3" placement="Tile(0, 1)"/>
+        <ObjectFifoForward name="out6" source="out4" placement="Tile(0, 1)"/>
+        <Worker name="worker1">
+            <core_function>corefunc_copy2</core_function>
+            <arguments>
+                <arg ref="copy2_kernel"/>
+                <arg ref="in1" mode="consumer"/>
+                <arg ref="in2" mode="consumer"/>
+                <arg ref="out1" mode="producer"/>
+                <arg ref="out2" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 3)</placement>
+        </Worker>
+        <Worker name="worker2">
+            <core_function>corefunc_copy2</core_function>
+            <arguments>
+                <arg ref="copy2_kernel"/>
+                <arg ref="out1" mode="consumer"/>
+                <arg ref="out2" mode="consumer"/>
+                <arg ref="out3" mode="producer"/>
+                <arg ref="out4" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 2)</placement>
+        </Worker>
+        <Runtime name="runtime">
+            <Sequence inputs="data_ty, data_ty, data_ty, data_ty" as="inputa_in, inputb_in, outputa_out, outputb_out">
+                <Start>worker1, worker2</Start>
+                <Fill target="in1" source="inputa_in" data_ref="inputA" use_tap="false">
+                    <placement>Tile(0, 0)</placement>
+                </Fill>
+                <Fill target="in2" source="inputb_in" data_ref="inputB" use_tap="false">
+                    <placement>Tile(0, 0)</placement>
+                </Fill>
+                <Drain source="out5" target="outputa_out" data_ref="outputA" use_tap="false">
+                    <placement>Tile(0, 0)</placement>
+                    <wait>true</wait>
+                </Drain>
+                <Drain source="out6" target="outputb_out" data_ref="outputB" use_tap="false">
+                    <placement>Tile(0, 0)</placement>
+                    <wait>true</wait>
+                </Drain>
+            </Sequence>
+        </Runtime>
+        <Program name="program">
+            <device>current_device</device>
+            <runtime>runtime</runtime>
+            <placer>SequentialPlacer</placer>
+        </Program>
+    </DataFlow>
+    <Function name="jit_function" decorator="iron.jit" entry="dual_path_forward_test_jit">
+        <parameters>
+            <param name="inputA" type="data_ty"/>
+            <param name="inputB" type="data_ty"/>
+            <param name="outputA" type="data_ty"/>
+            <param name="outputB" type="data_ty"/>
+        </parameters>
+        <body>
+            <UseDataFlow/>
+            <Return>program</Return>
+        </body>
+    </Function>
+    <Function name="main_function" entry="main">
+        <body>
+            <Assign name="N" value="64"/>
+            <Tensor name="inputA">
+                <init>iron.arange(N, dtype=np.int32, device="npu")</init>
+            </Tensor>
+            <Tensor name="inputB">
+                <init>iron.arange(N, dtype=np.int32, device="npu")</init>
+            </Tensor>
+            <Tensor name="outputA">
+                <init>iron.zeros(N, dtype=np.int32, device="npu")</init>
+            </Tensor>
+            <Tensor name="outputB">
+                <init>iron.zeros(N, dtype=np.int32, device="npu")</init>
+            </Tensor>
+            <Call function="jit_function" args="inputA, inputB, outputA, outputB"/>
+        </body>
+    </Function>
+    <EntryPoint>
+        <If condition="__name__ == '__main__'">
+            <Call function="main_function"/>
+        </If>
+    </EntryPoint>
+</Module>

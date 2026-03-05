@@ -83,20 +83,23 @@ class ForwardOperation(FifoOperation):
     """
     Forward operation: Simple passthrough from consumer to producer.
 
-    Represents the pattern: base_fifo.cons().forward()
+    Represents the pattern: base_fifo.cons().forward(placement=Tile(x, y))
 
     Attributes:
         name: Name of the resulting forwarded FIFO
         source: Source ObjectFifo to forward
+        placement: Optional tile where the forward occurs (e.g., a mem tile)
         metadata: Additional properties
     """
     name: str
     source: Union[ObjectFifo, str]
+    placement: Optional["Tile"] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __str__(self):
         src = self.source if isinstance(self.source, str) else self.source.name
-        return f"Forward({self.name}: {src}.cons().forward())"
+        placement_str = f" @ {self.placement}" if self.placement else ""
+        return f"Forward({self.name}: {src}.cons().forward(){placement_str})"
 
 
 @dataclass
@@ -129,6 +132,50 @@ class TensorAccessPattern:
                 f"offset={self.offset}, "
                 f"sizes=[{sizes_str}], "
                 f"strides=[{strides_str}])")
+
+
+@dataclass
+class TensorTiler2DSpec:
+    """
+    Represents a TensorTiler2D.group_tiler() call for DMA access pattern generation.
+
+    Captures the parameters for TensorTiler2D.group_tiler():
+        TensorTiler2D.group_tiler(
+            tensor_dims, tile_dims, tile_counts,
+            pattern_repeat=<value>,  # optional
+            prune_step=<bool>
+        )[index]
+
+    Example (matrix_vector_mul A tensor):
+        TensorTiler2D.group_tiler(
+            (n_fifo_elems, A_elem_size), (1, 512),
+            (n_fifo_elems, A_elem_size // 512),
+            prune_step=False,
+        )[0]
+
+    Attributes:
+        name: Variable name for this tiler (e.g., "a_tap")
+        tensor_dims: Full tensor dimensions (2 elements)
+        tile_dims: Tile dimensions (2 elements)
+        tile_counts: Number of tiles per dimension (2 elements)
+        pattern_repeat: Optional repeat count (e.g., rows_per_core)
+        prune_step: Whether to prune steps (usually False)
+        index: Index into the returned list (usually 0)
+        metadata: Additional properties
+    """
+    name: str
+    tensor_dims: List[Union[int, str]]
+    tile_dims: List[Union[int, str]]
+    tile_counts: List[Union[int, str]]
+    pattern_repeat: Optional[Union[int, str]] = None
+    prune_step: bool = False
+    index: int = 0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def __str__(self):
+        dims_str = ", ".join(str(d) for d in self.tensor_dims)
+        return (f"TensorTiler2DSpec({self.name}: "
+                f"dims=[{dims_str}], index={self.index})")
 
 
 @dataclass

@@ -30,9 +30,9 @@ def passthrough_hlir_example_jit(inputA, outputC):
 
     # Runtime operations to move data to/from the AIE-array
     rt = Runtime()
-    with rt.sequence(vector_ty, vector_ty) as (inputA, outputC):
-        rt.fill(of_in.prod(), inputA)
-        rt.drain(of_out.cons(), outputC, wait=True)
+    with rt.sequence(vector_ty, vector_ty) as (inputa_in, outputc_out):
+        rt.fill(of_in.prod(), inputa_in)
+        rt.drain(of_out.cons(), outputc_out, wait=True)
 
     # Create the program from the current device and runtime
     my_program = Program(iron.get_current_device(), rt)
