@@ -12,7 +12,7 @@
 
 namespace CodeEditor::Internal {
 
-class CodeEditorWorkspaceState final
+class CODEEDITOR_EXPORT CodeEditorWorkspaceState final
 {
 public:
     struct Snapshot final {
