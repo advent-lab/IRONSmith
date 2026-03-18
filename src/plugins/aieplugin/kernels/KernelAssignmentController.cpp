@@ -37,6 +37,8 @@ namespace {
 
 const QRegularExpression kTileSpecIdPattern(QStringLiteral("^(aie|shim|mem)\\d+_\\d+$"),
                                             QRegularExpression::CaseInsensitiveOption);
+const QRegularExpression kComputeTileSpecIdPattern(QStringLiteral("^aie\\d+_\\d+$"),
+                                                   QRegularExpression::CaseInsensitiveOption);
 const QRegularExpression kKernelAnnotationPattern(
     QStringLiteral("<<\\s*kernel\\s*:\\s*([A-Za-z0-9_.-]+)\\s*>>"),
     QRegularExpression::CaseInsensitiveOption);
@@ -478,7 +480,8 @@ void KernelAssignmentController::applyLabelOverrides()
 
 bool KernelAssignmentController::isAssignableTile(const QString& tileSpecId) const
 {
-    return kTileSpecIdPattern.match(tileSpecId).hasMatch();
+    // Only AIE compute tiles (prefix "aie") accept kernel assignments.
+    return kComputeTileSpecIdPattern.match(tileSpecId).hasMatch();
 }
 
 QString KernelAssignmentController::stereotypeLabelFor(const QString& kernelId) const

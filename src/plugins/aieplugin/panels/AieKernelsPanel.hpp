@@ -33,6 +33,7 @@ class ICodeEditorService;
 
 namespace Aie::Internal {
 
+class AieOutputLog;
 class KernelAssignmentController;
 class KernelRegistryService;
 
@@ -44,9 +45,11 @@ public:
     explicit AieKernelsPanel(KernelRegistryService* registry,
                              KernelAssignmentController* assignments,
                              CodeEditor::Api::ICodeEditorService* codeEditorService,
+                             AieOutputLog* outputLog,
                              QWidget* parent = nullptr);
 
     void setCodeEditorService(CodeEditor::Api::ICodeEditorService* service);
+    void setOutputLog(AieOutputLog* log);
 
 private:
     struct CardRefs final {
@@ -82,6 +85,7 @@ private:
     QPointer<KernelRegistryService> m_registry;
     QPointer<KernelAssignmentController> m_assignments;
     QPointer<CodeEditor::Api::ICodeEditorService> m_codeEditorService;
+    QPointer<AieOutputLog> m_outputLog;
     AieKernelsPanelState m_persistedState;
 
     QPointer<QLineEdit> m_searchField;

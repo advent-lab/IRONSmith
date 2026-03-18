@@ -187,6 +187,16 @@ Utils::Result parseKernel(const QFileInfo& directory,
     kernel.directoryPath = directory.absoluteFilePath();
     kernel.metadata = metadata;
 
+    // Build include dirs: always start with the kernel's own directory,
+    // then append any extra dirs declared in kernel.json under "include_dirs".
+    kernel.includeDirs.append(directory.absoluteFilePath());
+    const QJsonArray extraDirs = metadata.value(QStringLiteral("include_dirs")).toArray();
+    for (const QJsonValue& v : extraDirs) {
+        const QString dir = v.toString().trimmed();
+        if (!dir.isEmpty())
+            kernel.includeDirs.append(dir);
+    }
+
     outKernel = std::move(kernel);
     return Utils::Result::success();
 }

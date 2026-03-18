@@ -593,6 +593,15 @@ class BuilderWrapper:
         except Exception as e:
             return error_response("PYTHON_EXCEPTION", str(e))
 
+    def clear_runtime(self) -> str:
+        """Clear the current runtime so worker dependencies can be removed."""
+        try:
+            self.builder.program.runtime = None
+            self.runtime = None
+            return success_response()
+        except Exception as e:
+            return error_response("PYTHON_EXCEPTION", str(e))
+
     def create_runtime(self, name: str) -> str:
         """Create a runtime sequence."""
         try:

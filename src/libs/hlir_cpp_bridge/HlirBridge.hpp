@@ -380,6 +380,11 @@ public:
     // Runtime operations
     // ========================================================================
 
+    /// Clear the current runtime so that worker dependencies can be removed.
+    /// Must be called before removing workers when a runtime from a prior run exists.
+    /// @return Success or errors
+    HlirResult<void> clearRuntime();
+
     /// Create a runtime sequence
     /// @param name Runtime name
     /// @return ComponentId on success, errors on failure

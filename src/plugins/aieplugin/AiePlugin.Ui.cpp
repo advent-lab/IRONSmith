@@ -27,6 +27,7 @@
 #include "extensionsystem/PluginManager.hpp"
 #include "projectexplorer/api/IProjectExplorer.hpp"
 
+#include <QtCore/QTimer>
 #include <QtGui/QAction>
 #include <QtGui/QIcon>
 #include <QtWidgets/QMessageBox>
@@ -114,7 +115,9 @@ void AiePlugin::registerKernelsSidebarTool(const RuntimeDependencies& deps)
     const auto factory =
         [this, codeEditor = QPointer<CodeEditor::Api::ICodeEditorService>(deps.codeEditorService)](QWidget* parent)
         -> QWidget* {
-        return new AieKernelsPanel(m_kernelRegistry, m_kernelAssignments, codeEditor, parent);
+        auto* panel = new AieKernelsPanel(m_kernelRegistry, m_kernelAssignments, codeEditor, m_outputLog, parent);
+        m_kernelsPanel = panel;
+        return panel;
     };
 
     QString error;
@@ -238,6 +241,15 @@ void AiePlugin::connectHeaderInfo(const RuntimeDependencies& deps)
                 m_outputLog = m_logsByDesign.value(bundlePath);
                 if (auto* panel = qobject_cast<AieLogPanel*>(m_logPanel.data()))
                     panel->setLog(m_outputLog);
+                if (auto* panel = qobject_cast<AieKernelsPanel*>(m_kernelsPanel.data()))
+                    panel->setOutputLog(m_outputLog);
+                if (m_outputLog && m_sidebarRegistry) {
+                    connect(m_outputLog, &AieOutputLog::entryAdded, this,
+                            [this](bool success, const QString&) {
+                                if (!success && m_sidebarRegistry)
+                                    m_sidebarRegistry->requestShowTool(kLogSidebarToolId);
+                            });
+                }
             });
 
     connect(m_designOpenController, &DesignOpenController::designOpened, this,
@@ -306,15 +318,25 @@ void AiePlugin::connectRibbonActions(const RuntimeDependencies& deps,
     auto* actCodeGen = new QAction(tr("Generate\nCode"), this);
     actCodeGen->setIcon(QIcon(QStringLiteral(":/ui/icons/svg/generate_code.svg")));
     connect(actCodeGen, &QAction::triggered, this, [this]() {
-        if (m_hlirSync)
-            m_hlirSync->generateCode();
+        // Open the log panel immediately so its slide-in animation plays before
+        // generateCode() starts blocking the main thread (animation is ~140 ms).
+        if (m_sidebarRegistry)
+            m_sidebarRegistry->requestShowTool(kLogSidebarToolId);
+        QTimer::singleShot(200, this, [this]() {
+            if (m_hlirSync)
+                m_hlirSync->generateCode();
+        });
     });
 
     auto* actVerify = new QAction(tr("Verify\nDesign"), this);
     actVerify->setIcon(QIcon(QStringLiteral(":/ui/icons/svg/verify_design.svg")));
     connect(actVerify, &QAction::triggered, this, [this]() {
-        if (m_hlirSync)
-            m_hlirSync->verifyDesign();
+        if (m_sidebarRegistry)
+            m_sidebarRegistry->requestShowTool(kLogSidebarToolId);
+        QTimer::singleShot(200, this, [this]() {
+            if (m_hlirSync)
+                m_hlirSync->verifyDesign();
+        });
     });
 
     auto* actExecute = new QAction(tr("Execute\nCode"), this);

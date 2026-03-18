@@ -3,6 +3,7 @@
 
 #include "aieplugin/hlir_sync/HlirSyncService.hpp"
 #include "aieplugin/hlir_sync/DesignVerifier.hpp"
+#include "aieplugin/kernels/KernelRegistryService.hpp"
 
 #include "canvas/CanvasBlock.hpp"
 #include "canvas/CanvasDocument.hpp"
@@ -16,6 +17,7 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
 #include <QtCore/QLoggingCategory>
+#include <QtCore/QRegularExpression>
 #include <QtCore/QSet>
 #include <QtCore/QThread>
 
@@ -31,6 +33,11 @@ HlirSyncService::HlirSyncService(QObject* parent)
 }
 
 HlirSyncService::~HlirSyncService() = default;
+
+void HlirSyncService::setKernelRegistry(KernelRegistryService* registry)
+{
+    m_kernelRegistry = registry;
+}
 
 void HlirSyncService::attachDocument(Canvas::CanvasDocument* doc, const QString& outputBaseDir)
 {
@@ -95,6 +102,19 @@ void HlirSyncService::syncCanvas()
     currentIds.reserve(static_cast<int>(items.size()));
     for (const auto& item : items)
         currentIds.insert(item->id());
+
+    // Workers, core functions, and kernels are always rebuilt from scratch by buildWorkers().
+    // Clear them first so they never block FIFO or split/join removal below.
+    m_bridge->clearRuntime();
+    for (const hlir::ComponentId& id : std::as_const(m_workerMap))
+        m_bridge->remove(id);
+    m_workerMap.clear();
+    for (const hlir::ComponentId& id : std::as_const(m_coreFuncMap))
+        m_bridge->remove(id);
+    m_coreFuncMap.clear();
+    for (const hlir::ComponentId& id : std::as_const(m_kernelMap))
+        m_bridge->remove(id);
+    m_kernelMap.clear();
 
     // Remove stale components in dependency order: split/join → FIFOs → tiles
     for (auto it = m_splitJoinMap.begin(); it != m_splitJoinMap.end(); ) {
@@ -647,6 +667,7 @@ void HlirSyncService::generateCode()
 
     // Step 2: Sync canvas → HLIR (specIds assigned lazily by grid host)
     syncCanvas();
+    buildWorkers();
     buildRuntime();
     emitStep(tr("Syncing canvas to HLIR"), true);
 
@@ -799,6 +820,301 @@ HlirSyncService::ensureTensorType(const QString& dimensions, const QString& valu
     return hlir::ComponentId{};
 }
 
+void HlirSyncService::buildWorkers()
+{
+    // For each COMPUTE tile with a <<kernel: id>> stereotype:
+    //   - One external kernel declaration per unique kernel ID (shared across tiles).
+    //   - One core body function per unique kernel ID (shared across tiles).
+    //   - One worker per tile, referencing the shared kernel and core function.
+    if (!m_document || !m_bridge || !m_kernelRegistry)
+        return;
+
+    // Workers, kernels, and core functions were already cleared by syncCanvas() which
+    // always runs before buildWorkers() in generateCode(). Maps are empty here.
+
+    static const QRegularExpression kKernelAnnotationPattern(
+        QStringLiteral("<<\\s*kernel\\s*:\\s*([A-Za-z0-9_.-]+)\\s*>>"),
+        QRegularExpression::CaseInsensitiveOption);
+
+    const hlir::ComponentId defaultTypeId = ensureTensorType(
+        QStringLiteral("1024"), QStringLiteral("int32"));
+
+    const auto& items = m_document->items();
+
+    // Return the tensor type ID to use for a wire's FIFO argument.
+    auto typeIdForWire = [&](Canvas::CanvasWire* wire) -> hlir::ComponentId {
+        if (wire && wire->hasObjectFifo()) {
+            const auto& cfg = wire->objectFifo().value();
+            if (!cfg.type.dimensions.isEmpty()) {
+                const QString vt = (cfg.type.valueType == QStringLiteral("i32"))
+                                       ? QStringLiteral("int32") : cfg.type.valueType;
+                return ensureTensorType(cfg.type.dimensions, vt);
+            }
+        }
+        return defaultTypeId;
+    };
+
+    // Return the port role for portId on block, Dynamic if not found.
+    auto portRoleFor = [](const Canvas::CanvasBlock* block,
+                          Canvas::PortId portId) -> Canvas::PortRole {
+        for (const auto& port : block->ports()) {
+            if (port.id == portId)
+                return port.role;
+        }
+        return Canvas::PortRole::Dynamic;
+    };
+
+    // 0-based position of portId among ports of the given role on hub (in port order).
+    auto armIndexFor = [](const Canvas::CanvasBlock* hub,
+                          Canvas::PortId portId,
+                          Canvas::PortRole role) -> int {
+        int idx = 0;
+        for (const auto& port : hub->ports()) {
+            if (port.role != role)
+                continue;
+            if (port.id == portId)
+                return idx;
+            ++idx;
+        }
+        return 0;
+    };
+
+    // True when the hub block is a broadcast (uses FifoForward).
+    auto isBroadcastHub = [](const Canvas::CanvasBlock* hub) -> bool {
+        const auto* sym = dynamic_cast<const Canvas::BlockContentSymbol*>(hub->content());
+        return sym && sym->symbol().trimmed()
+               == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Broadcast).symbol;
+    };
+
+    // ---- Phase 1: collect per-tile FIFO endpoints, grouped by kernel ID ----
+
+    struct FifoEndpoint {
+        hlir::HlirBridge::FunctionArg arg;
+        hlir::ComponentId typeId;
+    };
+
+    struct TileWorkerSpec {
+        Canvas::ObjectId blockId;
+        std::string      tileName;
+        hlir::ComponentId tileId;
+        QList<FifoEndpoint> inputs;
+        QList<FifoEndpoint> outputs;
+    };
+
+    QHash<QString, QList<TileWorkerSpec>> specsByKernelId;
+
+    for (const auto& item : items) {
+        auto* block = dynamic_cast<Canvas::CanvasBlock*>(item.get());
+        if (!block || block->specId().isEmpty())
+            continue;
+
+        const auto parsed = parseTileSpecId(block->specId());
+        if (!parsed || parsed->kind != hlir::TileKind::COMPUTE)
+            continue;
+
+        // Extract kernel ID from stereotype, then label as fallback.
+        QString kernelId;
+        {
+            QRegularExpressionMatch m = kKernelAnnotationPattern.match(block->stereotype());
+            if (!m.hasMatch())
+                m = kKernelAnnotationPattern.match(block->label());
+            if (!m.hasMatch())
+                continue;
+            kernelId = m.captured(1).trimmed();
+        }
+
+        const hlir::ComponentId tileId = m_tileMap.value(block->id());
+        if (tileId.empty()) {
+            qCWarning(hlirSyncLog) << "HlirSyncService: tile not tracked for" << block->specId();
+            continue;
+        }
+
+        // Classify each wire connected to this tile as an input or output endpoint.
+        QList<FifoEndpoint> inputs;
+        QList<FifoEndpoint> outputs;
+
+        for (const auto& wItem : items) {
+            auto* wire = dynamic_cast<Canvas::CanvasWire*>(wItem.get());
+            if (!wire)
+                continue;
+
+            const auto& epA = wire->a();
+            const auto& epB = wire->b();
+            if (!epA.attached.has_value() || !epB.attached.has_value())
+                continue;
+
+            const bool tileIsA = (epA.attached->itemId == block->id());
+            const bool tileIsB = (epB.attached->itemId == block->id());
+            if (!tileIsA && !tileIsB)
+                continue;
+
+            if (tileIsB) {
+                // Tile is at the consumer endpoint of the wire.
+                auto* blockA = dynamic_cast<Canvas::CanvasBlock*>(
+                    m_document->findItem(epA.attached->itemId));
+                if (!blockA)
+                    continue;
+
+                if (!blockA->isLinkHub()) {
+                    // Direct FIFO: tile consumes → input.
+                    const hlir::ComponentId fifoId = m_fifoMap.value(wire->id());
+                    if (!fifoId.empty())
+                        inputs.append({hlir::HlirBridge::FunctionArg::fifoConsumer(fifoId, 0),
+                                       typeIdForWire(wire)});
+                } else {
+                    // Arm wire with hub at A — direction depends on hub port role.
+                    const hlir::ComponentId hubId = m_splitJoinMap.value(blockA->id());
+                    if (hubId.empty())
+                        continue;
+
+                    if (isBroadcastHub(blockA)) {
+                        inputs.append({hlir::HlirBridge::FunctionArg::forwardConsumer(hubId),
+                                       typeIdForWire(wire)});
+                    } else {
+                        const Canvas::PortRole role =
+                            portRoleFor(blockA, epA.attached->portId);
+                        if (role == Canvas::PortRole::Producer) {
+                            const int idx = armIndexFor(
+                                blockA, epA.attached->portId, Canvas::PortRole::Producer);
+                            inputs.append({hlir::HlirBridge::FunctionArg::splitConsumer(hubId, idx),
+                                           typeIdForWire(wire)});
+                        } else if (role == Canvas::PortRole::Consumer) {
+                            const int idx = armIndexFor(
+                                blockA, epA.attached->portId, Canvas::PortRole::Consumer);
+                            outputs.append({hlir::HlirBridge::FunctionArg::joinProducer(hubId, idx),
+                                            typeIdForWire(wire)});
+                        }
+                    }
+                }
+            } else { // tileIsA
+                // Tile is at the producer endpoint of the wire.
+                auto* blockB = dynamic_cast<Canvas::CanvasBlock*>(
+                    m_document->findItem(epB.attached->itemId));
+                if (!blockB || blockB->isLinkHub())
+                    continue;
+
+                // Direct FIFO: tile produces → output.
+                const hlir::ComponentId fifoId = m_fifoMap.value(wire->id());
+                if (!fifoId.empty())
+                    outputs.append({hlir::HlirBridge::FunctionArg::fifoProducer(fifoId),
+                                    typeIdForWire(wire)});
+            }
+        }
+
+        specsByKernelId[kernelId].append({
+            block->id(),
+            block->specId().toStdString(),
+            tileId,
+            std::move(inputs),
+            std::move(outputs)
+        });
+    }
+
+    // ---- Phase 2: one external kernel + core function per unique kernel ID ----
+
+    for (auto it = specsByKernelId.begin(); it != specsByKernelId.end(); ++it) {
+        const QString& kernelId   = it.key();
+        auto&          tileSpecs  = it.value();
+
+        if (tileSpecs.isEmpty())
+            continue;
+
+        const KernelAsset* kernel = m_kernelRegistry->kernelById(kernelId);
+        if (!kernel) {
+            qCWarning(hlirSyncLog) << "HlirSyncService: kernel not found:" << kernelId;
+            continue;
+        }
+
+        // Use the first tile's endpoint counts to define the shared function signature.
+        // All tiles using the same kernel are expected to have the same number of
+        // inputs and outputs (matching the kernel's C++ parameter list).
+        const auto& firstSpec = tileSpecs.first();
+        const int numInputs  = firstSpec.inputs.size();
+        const int numOutputs = firstSpec.outputs.size();
+
+        // ---- External kernel declaration (once per kernel ID) ----
+        std::vector<hlir::ComponentId> argTypes;
+        for (const auto& ep : firstSpec.inputs)  argTypes.push_back(ep.typeId);
+        for (const auto& ep : firstSpec.outputs) argTypes.push_back(ep.typeId);
+
+        std::vector<std::string> includeDirs;
+        for (const QString& dir : kernel->includeDirs)
+            includeDirs.push_back(dir.toStdString());
+
+        auto kernelResult = m_bridge->addExternalKernel(
+            "kernel_" + kernel->id.toStdString(),
+            kernel->id.toStdString(),
+            kernel->absoluteEntryPath().toStdString(),
+            argTypes,
+            includeDirs,
+            {});
+
+        if (!kernelResult) {
+            qCWarning(hlirSyncLog) << "HlirSyncService: failed to add external kernel for"
+                                   << kernelId;
+            continue;
+        }
+        m_kernelMap[kernelId] = kernelResult.value();
+
+        // ---- Core body function (once per kernel ID) ----
+        // Parameters: ["kernel", "in0", ..., "out0", ...]
+        std::vector<std::string> params = {"kernel"};
+        for (int i = 0; i < numInputs;  ++i) params.push_back("in"  + std::to_string(i));
+        for (int i = 0; i < numOutputs; ++i) params.push_back("out" + std::to_string(i));
+
+        std::vector<hlir::HlirBridge::AcquireSpec> acquires;
+        for (int i = 0; i < numInputs;  ++i)
+            acquires.push_back({"in"  + std::to_string(i), 1, "buf_in"  + std::to_string(i)});
+        for (int i = 0; i < numOutputs; ++i)
+            acquires.push_back({"out" + std::to_string(i), 1, "buf_out" + std::to_string(i)});
+
+        std::vector<std::string> kernelArgVars;
+        for (int i = 0; i < numInputs;  ++i) kernelArgVars.push_back("buf_in"  + std::to_string(i));
+        for (int i = 0; i < numOutputs; ++i) kernelArgVars.push_back("buf_out" + std::to_string(i));
+
+        std::vector<hlir::HlirBridge::ReleaseSpec> releases;
+        for (int i = 0; i < numInputs;  ++i) releases.push_back({"in"  + std::to_string(i), 1});
+        for (int i = 0; i < numOutputs; ++i) releases.push_back({"out" + std::to_string(i), 1});
+
+        auto coreFuncResult = m_bridge->addCoreFunction(
+            "core_" + kernel->id.toStdString(),
+            params,
+            acquires,
+            {"kernel", kernelArgVars},
+            releases,
+            {});
+
+        if (!coreFuncResult) {
+            qCWarning(hlirSyncLog) << "HlirSyncService: failed to add core function for"
+                                   << kernelId;
+            continue;
+        }
+        m_coreFuncMap[kernelId] = coreFuncResult.value();
+
+        // ---- Phase 3: one worker per tile using this kernel ----
+        for (const auto& spec : tileSpecs) {
+            std::vector<hlir::HlirBridge::FunctionArg> fnArgs;
+            fnArgs.push_back(hlir::HlirBridge::FunctionArg::kernel(kernelResult.value()));
+            for (const auto& ep : spec.inputs)  fnArgs.push_back(ep.arg);
+            for (const auto& ep : spec.outputs) fnArgs.push_back(ep.arg);
+
+            auto workerResult = m_bridge->addWorker(
+                "worker_" + spec.tileName,
+                coreFuncResult.value(),
+                fnArgs,
+                spec.tileId,
+                {});
+
+            if (!workerResult) {
+                qCWarning(hlirSyncLog) << "HlirSyncService: failed to add worker for"
+                                       << QString::fromStdString(spec.tileName);
+                continue;
+            }
+            m_workerMap[spec.blockId] = workerResult.value();
+        }
+    }
+}
+
 void HlirSyncService::buildRuntime()
 {
     // Create a runtime sequence with Fill/Drain ops driven by DDR↔SHIM wires.
@@ -908,6 +1224,12 @@ void HlirSyncService::buildRuntime()
         return;
     }
 
+    // Register each tracked worker with the runtime (StartWorkers).
+    for (const hlir::ComponentId& workerId : std::as_const(m_workerMap)) {
+        if (!workerId.empty())
+            m_bridge->runtimeAddWorker(workerId);
+    }
+
     // Input types: use the FIFO wire's configured tensor type; fall back to defaultTypeId
     for (int i = 0; i < fillEntries.size(); ++i) {
         hlir::ComponentId typeId = defaultTypeId;
@@ -975,9 +1297,26 @@ void HlirSyncService::buildRuntime()
 
 void HlirSyncService::resetTrackedComponents()
 {
-    // Remove all tracked HLIR components in dependency order: split/join → FIFOs → types → tiles
+    // Remove all tracked HLIR components in dependency order:
+    // workers → coreFuncs → kernels → split/join → FIFOs → types → tiles
     if (!m_bridge)
         return;
+
+    // Clear the runtime first so workers can be removed without dependency errors.
+    m_bridge->clearRuntime();
+
+    for (const hlir::ComponentId& id : std::as_const(m_workerMap))
+        m_bridge->remove(id);
+    m_workerMap.clear();
+
+    for (const hlir::ComponentId& id : std::as_const(m_coreFuncMap))
+        m_bridge->remove(id);
+    m_coreFuncMap.clear();
+
+    for (const hlir::ComponentId& id : std::as_const(m_kernelMap))
+        m_bridge->remove(id);
+    m_kernelMap.clear();
+
     for (const hlir::ComponentId& id : std::as_const(m_splitJoinMap))
         m_bridge->remove(id);
     m_splitJoinMap.clear();

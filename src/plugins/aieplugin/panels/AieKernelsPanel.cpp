@@ -3,6 +3,7 @@
 
 #include "aieplugin/panels/AieKernelsPanel.hpp"
 
+#include "aieplugin/hlir_sync/AieOutputLog.hpp"
 #include "aieplugin/kernels/KernelAssignmentController.hpp"
 #include "aieplugin/kernels/KernelRegistryService.hpp"
 #include "aieplugin/panels/KernelPreviewDialog.hpp"
@@ -59,10 +60,12 @@ QString fallbackSnippet(const KernelAsset& kernel)
 AieKernelsPanel::AieKernelsPanel(KernelRegistryService* registry,
                                  KernelAssignmentController* assignments,
                                  CodeEditor::Api::ICodeEditorService* codeEditorService,
+                                 AieOutputLog* outputLog,
                                  QWidget* parent)
     : QWidget(parent)
     , m_registry(registry)
     , m_assignments(assignments)
+    , m_outputLog(outputLog)
     , m_codeEditorService(codeEditorService)
 {
     setObjectName(QStringLiteral("AieKernelsPanel"));
@@ -91,11 +94,8 @@ AieKernelsPanel::AieKernelsPanel(KernelRegistryService* registry,
                 });
         connect(m_assignments, &KernelAssignmentController::assignmentFailed, this,
                 [this](const QString& message) {
-                    if (!message.trimmed().isEmpty()) {
-                        QMessageBox::warning(this,
-                                             QStringLiteral("Kernel Assignment"),
-                                             message);
-                    }
+                    if (!message.trimmed().isEmpty() && m_outputLog)
+                        m_outputLog->addEntry(false, message);
                 });
     }
 
@@ -107,6 +107,11 @@ AieKernelsPanel::AieKernelsPanel(KernelRegistryService* registry,
 void AieKernelsPanel::setCodeEditorService(CodeEditor::Api::ICodeEditorService* service)
 {
     m_codeEditorService = service;
+}
+
+void AieKernelsPanel::setOutputLog(AieOutputLog* log)
+{
+    m_outputLog = log;
 }
 
 void AieKernelsPanel::buildUi()
