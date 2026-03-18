@@ -6,7 +6,9 @@
 #include "canvas/CanvasBlock.hpp"
 #include "canvas/CanvasDocument.hpp"
 #include "canvas/CanvasPorts.hpp"
+#include "canvas/CanvasSymbolContent.hpp"
 #include "canvas/CanvasWire.hpp"
+#include "canvas/utils/CanvasLinkHubStyle.hpp"
 
 #include <QtCore/QHash>
 #include <QtCore/QList>
@@ -142,6 +144,14 @@ QList<ParsedWire> collectWires(const Canvas::CanvasDocument& doc)
     return result;
 }
 
+/// Returns true if a hub block is a broadcast (symbol "B"), as opposed to split/join.
+bool isBroadcastHub(const Canvas::CanvasBlock* block)
+{
+    auto* sym = dynamic_cast<const Canvas::BlockContentSymbol*>(block->content());
+    return sym && sym->symbol().trimmed()
+               == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Broadcast).symbol;
+}
+
 /// Extra incoming/outgoing FIFO connections contributed by split/join hub blocks.
 /// These are not visible as direct tile-to-tile wires but represent real DMA
 /// channel usage that must be counted in connectivity and channel-limit checks.
@@ -227,8 +237,16 @@ HubConnections collectHubConnections(const Canvas::CanvasDocument& doc)
         if (!pivotBlock || armTiles.isEmpty())
             continue;
 
-        if (pivotRole == Canvas::PortRole::Consumer) {
-            // SPLIT: placement tile gains outgoing connections; arm tiles gain incoming.
+        if (pivotRole == Canvas::PortRole::Consumer && isBroadcastHub(hubBlock)) {
+            // BROADCAST: placement tile gains 1 outgoing (one forward op); arm tiles gain incoming.
+            result.blockSpec.insert(pivotBlock, pivotSpec);
+            result.extraOut[pivotBlock] += 1;
+            for (const auto& arm : armTiles) {
+                result.blockSpec.insert(arm.block, arm.spec);
+                result.extraIn[arm.block]++;
+            }
+        } else if (pivotRole == Canvas::PortRole::Consumer) {
+            // SPLIT: placement tile gains N outgoing connections; arm tiles gain incoming.
             result.blockSpec.insert(pivotBlock, pivotSpec);
             result.extraOut[pivotBlock] += armTiles.size();
             for (const auto& arm : armTiles) {
@@ -262,6 +280,7 @@ class RuntimeSequenceCheck : public IVerificationCheck
 {
 public:
     QString name() const override { return QStringLiteral("RuntimeSequenceDefined"); }
+    QString displayName() const override { return QStringLiteral("Checking runtime I/O sequence"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -302,6 +321,7 @@ class ShimFillCheck : public IVerificationCheck
 {
 public:
     QString name() const override { return QStringLiteral("ShimFillConnectivity"); }
+    QString displayName() const override { return QStringLiteral("Checking SHIM fill connectivity"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -346,6 +366,7 @@ class ShimDrainCheck : public IVerificationCheck
 {
 public:
     QString name() const override { return QStringLiteral("ShimDrainConnectivity"); }
+    QString displayName() const override { return QStringLiteral("Checking SHIM drain connectivity"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -392,6 +413,7 @@ class DisconnectedDataflowCheck : public IVerificationCheck
 {
 public:
     QString name() const override { return QStringLiteral("DisconnectedDataflow"); }
+    QString displayName() const override { return QStringLiteral("Checking connected dataflow"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -479,6 +501,7 @@ class DmaChannelLimitCheck : public IVerificationCheck
 
 public:
     QString name() const override { return QStringLiteral("DmaChannelLimit"); }
+    QString displayName() const override { return QStringLiteral("Checking DMA channel limits"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -550,6 +573,7 @@ class SplitJoinDivisibilityCheck : public IVerificationCheck
 
 public:
     QString name() const override { return QStringLiteral("SplitJoinDivisibility"); }
+    QString displayName() const override { return QStringLiteral("Checking split/join divisibility"); }
 
     QList<VerificationIssue> run(const VerificationContext& ctx) const override
     {
@@ -562,6 +586,10 @@ public:
         for (const auto& item : items) {
             auto* hubBlock = dynamic_cast<Canvas::CanvasBlock*>(item.get());
             if (!hubBlock || !hubBlock->isLinkHub() || !hubBlock->specId().isEmpty())
+                continue;
+
+            // Broadcasts forward the whole FIFO unchanged — divisibility does not apply.
+            if (isBroadcastHub(hubBlock))
                 continue;
 
             // Build port-role lookup for this hub.
@@ -685,6 +713,16 @@ QList<VerificationIssue> DesignVerifier::verify(const VerificationContext& ctx) 
     return all;
 }
 
+QList<CheckResult> DesignVerifier::verifyDetailed(const VerificationContext& ctx) const
+{
+    // Run every check individually and return per-check results for progress logging.
+    QList<CheckResult> results;
+    results.reserve(static_cast<int>(m_checks.size()));
+    for (const auto& check : m_checks)
+        results.append({check->displayName(), check->run(ctx)});
+    return results;
+}
+
 bool DesignVerifier::hasErrors(const QList<VerificationIssue>& issues)
 {
     for (const auto& issue : issues) {
@@ -730,7 +768,12 @@ DesignStats collectStats(const VerificationContext& ctx)
         for (const auto& port : hubBlock->ports())
             portRoles[port.id] = port.role;
 
-        // Determine hub type from the pivot wire's port role (hub at endpoint B).
+        // Determine hub type: broadcasts first (also have Consumer pivot role), then split/join.
+        if (isBroadcastHub(hubBlock)) {
+            ++stats.broadcasts;
+            continue;
+        }
+
         for (const auto& wItem : ctx.document->items()) {
             auto* wire = dynamic_cast<Canvas::CanvasWire*>(wItem.get());
             if (!wire)

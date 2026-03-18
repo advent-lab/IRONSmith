@@ -13,6 +13,8 @@
 #include "aieplugin/kernels/KernelToolboxController.hpp"
 #include "aieplugin/state/AieSidebarState.hpp"
 #include "aieplugin/state/AieWorkspaceState.hpp"
+#include "aieplugin/hlir_sync/AieOutputLog.hpp"
+#include "aieplugin/hlir_sync/HlirDirectExecution.hpp"
 #include "aieplugin/hlir_sync/HlirSyncService.hpp"
 #include "aieplugin/AiePlugin.ForwardDecls.cpp"
 
@@ -23,6 +25,7 @@
 #include "core/ui/IUiHost.hpp"
 #include "extensionsystem/PluginManager.hpp"
 
+#include <QtCore/QHash>
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QPointer>
 #include <QtCore/QString>
@@ -37,9 +40,10 @@ namespace Aie::Internal {
 
 Q_LOGGING_CATEGORY(aiepluginlog, "ironsmith.aie")
 
-const QString kLayoutSidebarToolId = QStringLiteral("IRONSmith.AieGridTools");
-const QString kKernelsSidebarToolId = QStringLiteral("IRONSmith.Kernels");
+const QString kLayoutSidebarToolId    = QStringLiteral("IRONSmith.AieGridTools");
+const QString kKernelsSidebarToolId   = QStringLiteral("IRONSmith.Kernels");
 const QString kPropertiesSidebarToolId = QStringLiteral("IRONSmith.AieProperties");
+const QString kLogSidebarToolId       = QStringLiteral("IRONSmith.AieLog");
 
 class AiePlugin final : public ExtensionSystem::IPlugin {
     Q_OBJECT
@@ -78,6 +82,7 @@ private:
     void registerLayoutSidebarTool(const RuntimeDependencies& deps);
     void registerKernelsSidebarTool(const RuntimeDependencies& deps);
     void registerPropertiesSidebarTool(const RuntimeDependencies& deps);
+    void registerLogSidebarTool(const RuntimeDependencies& deps);
     void persistSidebarOpenState();
     void restoreSidebarOpenState();
     void connectHeaderInfo(const RuntimeDependencies& deps);
@@ -99,11 +104,16 @@ private:
     QPointer<KernelRegistryService> m_kernelRegistry;
     QPointer<KernelAssignmentController> m_kernelAssignments;
     QPointer<KernelToolboxController> m_kernelToolboxController;
+    QPointer<AieOutputLog>  m_outputLog;
+    QHash<QString, AieOutputLog*> m_logsByDesign;
+    QPointer<QWidget>       m_logPanel;
     QPointer<HlirSyncService> m_hlirSync;
+    QPointer<HlirDirectExecution> m_directExec;
     QString m_workspaceRoot;
     bool m_layoutToolRegistered = false;
     bool m_kernelsToolRegistered = false;
     bool m_propertiesToolRegistered = false;
+    bool m_logToolRegistered = false;
 };
 
 AiePlugin::~AiePlugin() = default;
@@ -119,7 +129,9 @@ Utils::Result AiePlugin::initialize(const QStringList& arguments, ExtensionSyste
     m_kernelRegistry = new KernelRegistryService(this);
     m_kernelAssignments = new KernelAssignmentController(this);
     m_kernelToolboxController = new KernelToolboxController(this);
+    m_outputLog = new AieOutputLog(this);
     m_hlirSync = new HlirSyncService(this);
+    m_directExec = new HlirDirectExecution(this);
 
     if (m_kernelAssignments)
         m_kernelAssignments->setRegistry(m_kernelRegistry);
@@ -199,6 +211,13 @@ ExtensionSystem::IPlugin::ShutdownFlag AiePlugin::aboutToShutdown()
         QString error;
         if (!m_sidebarRegistry->unregisterTool(kPropertiesSidebarToolId, &error)) {
             qCWarning(aiepluginlog) << "AiePlugin: unregister properties panel failed:" << error;
+        }
+    }
+
+    if (m_sidebarRegistry && m_logToolRegistered) {
+        QString error;
+        if (!m_sidebarRegistry->unregisterTool(kLogSidebarToolId, &error)) {
+            qCWarning(aiepluginlog) << "AiePlugin: unregister log panel failed:" << error;
         }
     }
 

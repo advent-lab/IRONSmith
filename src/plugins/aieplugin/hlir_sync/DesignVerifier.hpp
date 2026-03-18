@@ -31,8 +31,11 @@ class IVerificationCheck {
 public:
     virtual ~IVerificationCheck() = default;
 
-    /// Human-readable name used in diagnostics.
+    /// Internal identifier used in diagnostics.
     virtual QString name() const = 0;
+
+    /// Short user-visible label shown in the log while verification runs.
+    virtual QString displayName() const = 0;
 
     /// Run the check and return all issues found (empty = passed).
     virtual QList<VerificationIssue> run(const VerificationContext& ctx) const = 0;
@@ -46,12 +49,19 @@ struct DesignStats {
     int fifos     = 0;
     int fills     = 0;
     int drains    = 0;
-    int splits    = 0;
-    int joins     = 0;
+    int splits      = 0;
+    int joins       = 0;
+    int broadcasts  = 0;
 };
 
 /// Collect tile and FIFO counts from the canvas without running checks.
 DesignStats collectStats(const VerificationContext& ctx);
+
+/// Per-check result returned by verifyDetailed().
+struct CheckResult {
+    QString displayName;
+    QList<VerificationIssue> issues;
+};
 
 /// Runs all registered checks and aggregates their results.
 class DesignVerifier {
@@ -61,6 +71,9 @@ public:
 
     /// Run every registered check and return all issues found.
     QList<VerificationIssue> verify(const VerificationContext& ctx) const;
+
+    /// Run every check individually and return per-check results (for progress logging).
+    QList<CheckResult> verifyDetailed(const VerificationContext& ctx) const;
 
     /// Returns true if the list contains at least one Error-severity issue.
     static bool hasErrors(const QList<VerificationIssue>& issues);

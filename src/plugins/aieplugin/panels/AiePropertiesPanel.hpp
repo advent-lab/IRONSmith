@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "canvas/CanvasTypes.hpp"
+
 #include <QtCore/QPointer>
 #include <QtWidgets/QWidget>
 
@@ -44,6 +46,7 @@ private:
         None,
         Tile,
         FifoWire,
+        DdrBlock,
         Unsupported
     };
 
@@ -58,6 +61,9 @@ private:
     void applyTileLabel();
     void applyTileStereotype();
     void applyFifoProperties();
+    void rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock);
+    void applyDdrEntry(Canvas::ObjectId wireId, const QString& name,
+                       const QString& dims, const QString& type);
 
     QPointer<AieService> m_service;
     QPointer<Canvas::Api::ICanvasHost> m_canvasHost;
@@ -81,6 +87,9 @@ private:
     QPointer<QSpinBox> m_fifoDepthSpin;
     QPointer<QComboBox> m_fifoTypeCombo;
     QPointer<QLineEdit> m_fifoDimensionsEdit;
+
+    QPointer<QGroupBox> m_ddrGroup;
+    QPointer<QWidget>   m_ddrContent;
 
     bool m_updatingUi = false;
 };

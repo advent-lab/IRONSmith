@@ -11,7 +11,7 @@
 
 namespace Aie::Internal {
 
-class AieSidebarState final
+class AIEPLUGIN_EXPORT AieSidebarState final
 {
 public:
     AieSidebarState();

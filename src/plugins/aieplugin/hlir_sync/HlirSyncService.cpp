@@ -7,14 +7,17 @@
 #include "canvas/CanvasBlock.hpp"
 #include "canvas/CanvasDocument.hpp"
 #include "canvas/CanvasPorts.hpp"
+#include "canvas/CanvasSymbolContent.hpp"
 #include "canvas/CanvasWire.hpp"
+#include "canvas/utils/CanvasLinkHubStyle.hpp"
 #include "hlir_cpp_bridge/HlirBridge.hpp"
 #include "code_gen_bridge/CodeGenBridge.hpp"
 
+#include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QSet>
-#include <QtWidgets/QMessageBox>
+#include <QtCore/QThread>
 
 #include <filesystem>
 
@@ -143,8 +146,8 @@ void HlirSyncService::syncCanvas()
     }
 
     // Default type for plain wires with no explicit ObjectFifoConfig
-    const hlir::ComponentId defaultTypeId = ensureNamedTensorType(
-        QStringLiteral("data_ty"), QStringLiteral("1024"), QStringLiteral("int32"));
+    const hlir::ComponentId defaultTypeId = ensureTensorType(
+        QStringLiteral("1024"), QStringLiteral("int32"));
 
     // Sync FIFOs — two-pass to handle colliding base names.
     // When multiple wires share the same base name all are suffixed _a, _b, _c…
@@ -274,7 +277,8 @@ void HlirSyncService::syncSplitsAndJoins()
     QHash<Canvas::ObjectId, FifoInfo> consumerBlockFifo; // tile is consumer of this FIFO
     QHash<Canvas::ObjectId, FifoInfo> producerBlockFifo; // tile is producer of this FIFO
 
-    const hlir::ComponentId defaultTypeId = m_typeMap.value(QStringLiteral("data_ty"));
+    const hlir::ComponentId defaultTypeId = ensureTensorType(
+        QStringLiteral("1024"), QStringLiteral("int32"));
 
     // Compute total element count from "1024" → 1024, "32x4" → 128, "" → 1024 (data_ty default).
     auto elementCountFromDims = [](const QString& dims) -> int {
@@ -324,9 +328,10 @@ void HlirSyncService::syncSplitsAndJoins()
         consumerBlockFifo[blockB->id()] = {fifoId, typeId, baseName, elemCount};
     }
 
-    // Process each hub block (split or join). Sequential counters provide stable names.
+    // Process each hub block (split, join, or broadcast). Sequential counters provide stable names.
     int splitIdx = 0;
     int joinIdx  = 0;
+    int bcastIdx = 0;
 
     for (const auto& item : items) {
         auto* hubBlock = dynamic_cast<Canvas::CanvasBlock*>(item.get());
@@ -393,7 +398,42 @@ void HlirSyncService::syncSplitsAndJoins()
 
         const hlir::ComponentId existingId = m_splitJoinMap.value(hubBlock->id());
 
-        if (pivotRole == Canvas::PortRole::Consumer) {
+        // Detect hub kind from block symbol content ("S"=split, "J"=join, "B"=broadcast).
+        const bool isBroadcast = [&] {
+            auto* sym = dynamic_cast<Canvas::BlockContentSymbol*>(hubBlock->content());
+            return sym && sym->symbol().trimmed()
+                       == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Broadcast).symbol;
+        }();
+
+        if (isBroadcast) {
+            // ----- BROADCAST -----
+            // Pivot wire enters hub via consumer port → hub forwards the same FIFO to other consumers.
+            const auto srcIt = consumerBlockFifo.constFind(pivotBlock->id());
+            if (srcIt == consumerBlockFifo.constEnd() || srcIt->fifoId.empty()) {
+                qCWarning(hlirSyncLog) << "HlirSyncService: broadcast has no source FIFO for tile"
+                                       << pivotBlock->specId();
+                continue;
+            }
+
+            ++bcastIdx;
+            const QString bcastName = QStringLiteral("bcast") + QString::number(bcastIdx);
+            const std::map<std::string, std::string> metadata = {
+                {"placement", pivotBlock->specId().toStdString()}
+            };
+
+            auto result = m_bridge->addFifoForward(
+                bcastName.toStdString(),
+                srcIt->fifoId,
+                existingId,
+                metadata);
+
+            if (result) {
+                m_splitJoinMap[hubBlock->id()] = result.value();
+            } else {
+                qCWarning(hlirSyncLog) << "HlirSyncService: failed to sync broadcast" << bcastName;
+            }
+
+        } else if (pivotRole == Canvas::PortRole::Consumer) {
             // ----- SPLIT -----
             // Pivot wire enters hub via consumer port → hub distributes to multiple outputs.
             const auto srcIt = consumerBlockFifo.constFind(pivotBlock->id());
@@ -514,35 +554,52 @@ QList<VerificationIssue> HlirSyncService::runVerification() const
 
 void HlirSyncService::verifyDesign()
 {
-    // Run verification and emit verificationFinished() with a pass/fail summary.
+    // Run verification and emit per-step progress, then a final summary.
     if (!m_document) {
         emit verificationFinished(false, tr("No design is open."));
         return;
     }
 
-    const auto issues = runVerification();
+    emit runStarted();
+    QCoreApplication::processEvents();
 
-    if (DesignVerifier::hasErrors(issues)) {
+    const auto results = DesignVerifier().verifyDetailed({m_document});
+
+    QList<VerificationIssue> allErrors;
+    for (const auto& result : results) {
+        const bool passed = !DesignVerifier::hasErrors(result.issues);
+        emit stepLogged(passed, result.displayName);
+        QCoreApplication::processEvents();
+        QThread::msleep(250);
+        if (!passed) {
+            for (const auto& issue : result.issues)
+                if (issue.severity == VerificationIssue::Severity::Error)
+                    allErrors.append(issue);
+        }
+    }
+
+    if (!allErrors.isEmpty()) {
         QString msg = tr("Verification failed:\n\n");
-        for (const auto& issue : issues)
-            if (issue.severity == VerificationIssue::Severity::Error)
-                msg += QStringLiteral("• ") + issue.message + u'\n';
+        for (const auto& issue : allErrors)
+            msg += QStringLiteral("\u2022 ") + issue.message + u'\n';
         emit verificationFinished(false, msg);
     } else {
         const DesignStats stats = collectStats({m_document});
-        const QString msg = tr("Design verification passed.\n\n"
-                               "Design summary:\n"
-                               "  \u2022 SHIM tiles: %1\n"
-                               "  \u2022 MEM tiles:  %2\n"
-                               "  \u2022 AIE tiles:  %3\n"
-                               "  \u2022 FIFOs:      %4\n"
-                               "  \u2022 Splits:     %5\n"
-                               "  \u2022 Joins:      %6\n"
-                               "  \u2022 Fills:      %7\n"
-                               "  \u2022 Drains:     %8")
+        const QString msg =
+            tr("Design verification passed.\n\n"
+               "Design summary:\n"
+               "  \u2022 SHIM tiles:  %1\n"
+               "  \u2022 MEM tiles:   %2\n"
+               "  \u2022 AIE tiles:   %3\n"
+               "  \u2022 FIFOs:       %4\n"
+               "  \u2022 Splits:      %5\n"
+               "  \u2022 Joins:       %6\n"
+               "  \u2022 Broadcasts:  %7\n"
+               "  \u2022 Fills:       %8\n"
+               "  \u2022 Drains:      %9")
             .arg(stats.shimTiles).arg(stats.memTiles).arg(stats.aieTiles)
             .arg(stats.fifos).arg(stats.splits).arg(stats.joins)
-            .arg(stats.fills).arg(stats.drains);
+            .arg(stats.broadcasts).arg(stats.fills).arg(stats.drains);
         emit verificationFinished(true, msg);
     }
 }
@@ -550,28 +607,52 @@ void HlirSyncService::verifyDesign()
 void HlirSyncService::generateCode()
 {
     // Sync canvas, build HLIR, export to GUI XML, and run code generation.
+    // Each step emits stepLogged() + processEvents() so the log updates in real time.
     if (!m_bridge || !m_document) {
         emit codeGenFinished(false, tr("No design is open."));
         return;
     }
 
-    // Verify the design before generating code
-    const auto issues = runVerification();
-    if (DesignVerifier::hasErrors(issues)) {
+    emit runStarted();
+    QCoreApplication::processEvents();
+
+    const auto emitStep = [this](const QString& label, bool ok) {
+        emit stepLogged(ok, label);
+        QCoreApplication::processEvents();
+        QThread::msleep(250);
+    };
+
+    // Step 1: Verify the design before generating code
+    const auto verifyResults = DesignVerifier().verifyDetailed({m_document});
+    bool verifyPassed = true;
+    QList<VerificationIssue> verifyErrors;
+    for (const auto& result : verifyResults) {
+        const bool passed = !DesignVerifier::hasErrors(result.issues);
+        emitStep(result.displayName, passed);
+        if (!passed) {
+            verifyPassed = false;
+            for (const auto& issue : result.issues)
+                if (issue.severity == VerificationIssue::Severity::Error)
+                    verifyErrors.append(issue);
+        }
+    }
+
+    if (!verifyPassed) {
         QString msg = tr("Cannot generate code — design verification failed.\n\nIssues:\n");
-        for (const auto& issue : issues)
-            if (issue.severity == VerificationIssue::Severity::Error)
-                msg += QStringLiteral("• ") + issue.message + u'\n';
+        for (const auto& issue : verifyErrors)
+            msg += QStringLiteral("\u2022 ") + issue.message + u'\n';
         emit codeGenFinished(false, msg);
         return;
     }
 
-    // specIds are assigned lazily by the grid host, so sync here to capture the current layout
+    // Step 2: Sync canvas → HLIR (specIds assigned lazily by grid host)
     syncCanvas();
     buildRuntime();
+    emitStep(tr("Syncing canvas to HLIR"), true);
 
-    // Validate the HLIR program
+    // Step 3: Build and validate the HLIR program
     auto buildResult = m_bridge->build();
+    emitStep(tr("Building HLIR program"), buildResult.has_value());
     if (!buildResult) {
         QStringList errors;
         for (const auto& diag : buildResult.error())
@@ -580,22 +661,24 @@ void HlirSyncService::generateCode()
         return;
     }
 
-    // Export to GUI XML — "_gui.xml" suffix triggers the XMLTransformer step in main.py
+    // Step 4: Export to GUI XML — "_gui.xml" suffix triggers the XMLTransformer step
     QDir().mkpath(m_outputDir);
     const QString xmlPath = m_outputDir + QStringLiteral("/design_gui.xml");
     auto exportResult = m_bridge->exportToGuiXml(xmlPath.toStdString());
+    emitStep(tr("Exporting design to XML"), exportResult.has_value());
     if (!exportResult) {
         emit codeGenFinished(false, tr("Failed to export HLIR to XML."));
         return;
     }
 
-    // Run Python code generation
+    // Step 5: Run Python code generation
     codegen::CodeGenBridge codegenBridge;
     codegen::CodeGenOptions options;
     options.outputDir = m_outputDir.toStdString();
 
     auto genResult = codegenBridge.runCodeGen(
         std::filesystem::path(xmlPath.toStdWString()), options);
+    emitStep(tr("Running code generator"), genResult.has_value());
 
     if (genResult) {
         emit codeGenFinished(true, tr("Code generated in %1").arg(m_outputDir));
@@ -722,7 +805,8 @@ void HlirSyncService::buildRuntime()
     if (!m_document || !m_bridge)
         return;
 
-    const hlir::ComponentId defaultTypeId = m_typeMap.value(QStringLiteral("data_ty"));
+    const hlir::ComponentId defaultTypeId = ensureTensorType(
+        QStringLiteral("1024"), QStringLiteral("int32"));
     const QLatin1StringView ddrSpecId{"ddr"};
 
     const auto& items = m_document->items();
@@ -769,8 +853,10 @@ void HlirSyncService::buildRuntime()
 
     // --- Pass 2: Match fill/drain SHIMs to their FIFO wires ---
     struct ShimFifoEntry {
-        hlir::ComponentId fifoId;
-        hlir::ComponentId shimTileId;
+        hlir::ComponentId   fifoId;
+        hlir::ComponentId   shimTileId;
+        Canvas::CanvasWire* wire      = nullptr;
+        std::string         paramName;
     };
 
     QList<ShimFifoEntry> fillEntries;
@@ -801,14 +887,14 @@ void HlirSyncService::buildRuntime()
         if (fillShimIds.contains(blockA->id())) {
             const hlir::ComponentId shimTileId = m_tileMap.value(blockA->id());
             if (!shimTileId.empty())
-                fillEntries.append({fifoId, shimTileId});
+                fillEntries.append({fifoId, shimTileId, wire});
         }
 
         // Consumer SHIM is a drain SHIM → Drain (array → SHIM → DDR)
         if (drainShimIds.contains(blockB->id())) {
             const hlir::ComponentId shimTileId = m_tileMap.value(blockB->id());
             if (!shimTileId.empty())
-                drainEntries.append({fifoId, shimTileId});
+                drainEntries.append({fifoId, shimTileId, wire});
         }
     }
 
@@ -822,27 +908,62 @@ void HlirSyncService::buildRuntime()
         return;
     }
 
+    // Input types: use the FIFO wire's configured tensor type; fall back to defaultTypeId
     for (int i = 0; i < fillEntries.size(); ++i) {
-        if (!defaultTypeId.empty())
-            m_bridge->runtimeAddInputType(defaultTypeId);
+        hlir::ComponentId typeId = defaultTypeId;
+        if (auto* w = fillEntries[i].wire; w && w->hasObjectFifo()) {
+            const auto& cfg = w->objectFifo().value();
+            if (!cfg.type.dimensions.isEmpty()) {
+                const QString vt = (cfg.type.valueType == QStringLiteral("i32"))
+                                       ? QStringLiteral("int32") : cfg.type.valueType;
+                typeId = ensureTensorType(cfg.type.dimensions, vt);
+            }
+        }
+        if (!typeId.empty())
+            m_bridge->runtimeAddInputType(typeId);
+    }
+
+    // Output types: same pattern
+    for (int i = 0; i < drainEntries.size(); ++i) {
+        hlir::ComponentId typeId = defaultTypeId;
+        if (auto* w = drainEntries[i].wire; w && w->hasObjectFifo()) {
+            const auto& cfg = w->objectFifo().value();
+            if (!cfg.type.dimensions.isEmpty()) {
+                const QString vt = (cfg.type.valueType == QStringLiteral("i32"))
+                                       ? QStringLiteral("int32") : cfg.type.valueType;
+                typeId = ensureTensorType(cfg.type.dimensions, vt);
+            }
+        }
+        if (!typeId.empty())
+            m_bridge->runtimeAddOutputType(typeId);
+    }
+
+    // Param names: use FIFO wire's configured name; fall back to "input_N"/"output_N"
+    for (int i = 0; i < fillEntries.size(); ++i) {
+        std::string name = "input_" + std::to_string(i);
+        if (auto* w = fillEntries[i].wire; w && w->hasObjectFifo()) {
+            const QString n = w->objectFifo().value().name;
+            if (!n.isEmpty()) name = n.toStdString();
+        }
+        fillEntries[i].paramName = name;
+        m_bridge->runtimeAddParam(name);
     }
     for (int i = 0; i < drainEntries.size(); ++i) {
-        if (!defaultTypeId.empty())
-            m_bridge->runtimeAddOutputType(defaultTypeId);
+        std::string name = "output_" + std::to_string(i);
+        if (auto* w = drainEntries[i].wire; w && w->hasObjectFifo()) {
+            const QString n = w->objectFifo().value().name;
+            if (!n.isEmpty()) name = n.toStdString();
+        }
+        drainEntries[i].paramName = name;
+        m_bridge->runtimeAddParam(name);
     }
 
-    // Fills first so the serialiser assigns _in/_out suffixes correctly
-    for (int i = 0; i < fillEntries.size(); ++i)
-        m_bridge->runtimeAddParam("input_" + std::to_string(i));
-    for (int i = 0; i < drainEntries.size(); ++i)
-        m_bridge->runtimeAddParam("output_" + std::to_string(i));
-
     for (int i = 0; i < fillEntries.size(); ++i) {
-        const std::string name = "input_" + std::to_string(i);
+        const std::string& name = fillEntries[i].paramName;
         m_bridge->runtimeAddFill(name, fillEntries[i].fifoId, name, fillEntries[i].shimTileId);
     }
     for (int i = 0; i < drainEntries.size(); ++i) {
-        const std::string name = "output_" + std::to_string(i);
+        const std::string& name = drainEntries[i].paramName;
         m_bridge->runtimeAddDrain(name, drainEntries[i].fifoId, name, drainEntries[i].shimTileId);
     }
 

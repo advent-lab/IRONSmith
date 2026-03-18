@@ -40,6 +40,9 @@ public:
     /// Detach from the current document and remove all tracked bridge components.
     void detachDocument();
 
+    /// The base output directory set by the most recent attachDocument() call.
+    const QString& outputDir() const { return m_outputDir; }
+
 public slots:
     /// Run all design rule checks and emit verificationFinished() with the result.
     void verifyDesign();
@@ -48,6 +51,10 @@ public slots:
     void generateCode();
 
 signals:
+    /// Emitted once when a multi-step operation begins (opens a new log entry).
+    void runStarted();
+    /// Emitted after each individual step completes (appended to the current log entry).
+    void stepLogged(bool ok, const QString& label);
     void verificationFinished(bool passed, const QString& message);
     void codeGenFinished(bool success, const QString& message);
 

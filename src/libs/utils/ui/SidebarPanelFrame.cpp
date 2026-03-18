@@ -267,6 +267,11 @@ void SidebarPanelFrame::addAction(const QString& id, const QIcon& icon, const QS
     m_actions.insert(id, button);
 }
 
+QToolButton* SidebarPanelFrame::actionButton(const QString& id) const
+{
+    return m_actions.value(id, nullptr);
+}
+
 void SidebarPanelFrame::setActionVisible(const QString& id, bool visible)
 {
     auto it = m_actions.find(id);

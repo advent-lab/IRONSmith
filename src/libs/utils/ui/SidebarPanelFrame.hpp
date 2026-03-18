@@ -61,6 +61,7 @@ public:
     QLineEdit* searchField() const;
 
     void addAction(const QString& id, const QIcon& icon, const QString& tooltip = QString());
+    QToolButton* actionButton(const QString& id) const;
     void setActionVisible(const QString& id, bool visible);
     void clearActions();
 

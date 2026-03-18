@@ -35,7 +35,7 @@ struct CODEEDITOR_EXPORT CodeEditorQuickViewRequest final {
 	QString languageHint;
 };
 
-enum class CODEEDITOR_EXPORT CodeEditorCloseReason : unsigned char {
+enum class CodeEditorCloseReason : unsigned char {
 	UserClosed,
 	FileDeleted,
 	WorkspaceChanged,
