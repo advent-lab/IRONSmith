@@ -900,7 +900,10 @@ class CodeGenerator:
             method_name = self._get_node_attr(method_id, 'label')
             if method_name:
                 # Check if method has kwargs
-                kwarg_nodes = self._get_children(method_id, 'has_kwarg')
+                kwarg_nodes = sorted(
+                    self._get_children(method_id, 'has_kwarg'),
+                    key=lambda k: self._get_node_attr(k, 'name') or ''
+                )
                 if kwarg_nodes:
                     # Reconstruct kwargs
                     kwargs = []

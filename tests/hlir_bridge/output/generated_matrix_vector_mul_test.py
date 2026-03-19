@@ -49,9 +49,9 @@ def matrix_vector_mul_test_jit(inputA, inputB, outputC):
     inA = ObjectFifo(obj_type=A_mem_ty, depth=2, name="inA")
     inB = ObjectFifo(obj_type=inB_ty, depth=2, name="inB")
     outC = ObjectFifo(obj_type=C_mem_ty, depth=2, name="outC")
-    MEM_L2_L1_A1A2A3A4_col0 = inA.cons().split(obj_types=[inA_ty, inA_ty, inA_ty, inA_ty], offsets=[0, 1024, 2048, 3072], names=["MEM_L2_L1_A1_col0", "MEM_L2_L1_A2_col0", "MEM_L2_L1_A3_col0", "MEM_L2_L1_A4_col0"], placement=Tile(0, 1))
+    MEM_L2_L1_A1A2A3A4_col0 = inA.cons().split(names=["MEM_L2_L1_A1_col0", "MEM_L2_L1_A2_col0", "MEM_L2_L1_A3_col0", "MEM_L2_L1_A4_col0"], obj_types=[inA_ty, inA_ty, inA_ty, inA_ty], offsets=[0, 1024, 2048, 3072], placement=Tile(0, 1))
     B_fwd = inB.cons().forward(placement=Tile(1, 1))
-    MEM_L1_L2_C9C10C11C12_col2 = outC.prod().join(obj_types=[outC_ty, outC_ty, outC_ty, outC_ty], names=["MEM_L1_L2_C9_col2", "MEM_L1_L2_C10_col2", "MEM_L1_L2_C11_col2", "MEM_L1_L2_C12_col2"], placement=Tile(2, 1), offsets=[0, 32, 64, 96])
+    MEM_L1_L2_C9C10C11C12_col2 = outC.prod().join(names=["MEM_L1_L2_C9_col2", "MEM_L1_L2_C10_col2", "MEM_L1_L2_C11_col2", "MEM_L1_L2_C12_col2"], obj_types=[outC_ty, outC_ty, outC_ty, outC_ty], offsets=[0, 32, 64, 96], placement=Tile(2, 1))
 
     #Define kernels here... ------------------------------------------------\/
     matvec_vectorized_i16_i32 = ExternalFunction(

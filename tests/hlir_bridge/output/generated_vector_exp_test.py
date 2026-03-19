@@ -31,8 +31,8 @@ def vector_exp_test_jit(inputA, outputC):
     # Data movement with ObjectFifos
     of_in_a = ObjectFifo(obj_type=memtile_ty, depth=2, name="of_in_a")
     of_out_c = ObjectFifo(obj_type=memtile_ty, depth=2, name="of_out_c")
-    MEM_L2_L1_A1A2A3A4_col0 = of_in_a.cons().split(obj_types=[tile_ty, tile_ty, tile_ty, tile_ty], offsets=[0, 1024, 2048, 3072], names=["MEM_L2_L1_A1_col0", "MEM_L2_L1_A2_col0", "MEM_L2_L1_A3_col0", "MEM_L2_L1_A4_col0"], placement=Tile(0, 1))
-    MEM_L1_L2_C1C2C3C4_col0 = of_out_c.prod().join(obj_types=[tile_ty, tile_ty, tile_ty, tile_ty], names=["MEM_L1_L2_C1_col0", "MEM_L1_L2_C2_col0", "MEM_L1_L2_C3_col0", "MEM_L1_L2_C4_col0"], placement=Tile(0, 1), offsets=[0, 1024, 2048, 3072])
+    MEM_L2_L1_A1A2A3A4_col0 = of_in_a.cons().split(names=["MEM_L2_L1_A1_col0", "MEM_L2_L1_A2_col0", "MEM_L2_L1_A3_col0", "MEM_L2_L1_A4_col0"], obj_types=[tile_ty, tile_ty, tile_ty, tile_ty], offsets=[0, 1024, 2048, 3072], placement=Tile(0, 1))
+    MEM_L1_L2_C1C2C3C4_col0 = of_out_c.prod().join(names=["MEM_L1_L2_C1_col0", "MEM_L1_L2_C2_col0", "MEM_L1_L2_C3_col0", "MEM_L1_L2_C4_col0"], obj_types=[tile_ty, tile_ty, tile_ty, tile_ty], offsets=[0, 1024, 2048, 3072], placement=Tile(0, 1))
 
     #Define kernels here... ------------------------------------------------\/
     exp_bf16_1024 = ExternalFunction(
