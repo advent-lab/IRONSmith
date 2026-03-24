@@ -33,9 +33,9 @@ def vector_vector_mul_test_jit(inputA, inputB, outputC):
     of_in_a = ObjectFifo(obj_type=memtile_ty, depth=2, name="of_in_a")
     of_in_b = ObjectFifo(obj_type=memtile_ty, depth=2, name="of_in_b")
     of_out_c = ObjectFifo(obj_type=memtile_ty, depth=2, name="of_out_c")
-    MEM_L2_L1_A1A2A3A4_col0 = of_in_a.cons().split(obj_types=[tile_ty, tile_ty, tile_ty, tile_ty], offsets=[0, 1024, 2048, 3072], names=["MEM_L2_L1_A1_col0", "MEM_L2_L1_A2_col0", "MEM_L2_L1_A3_col0", "MEM_L2_L1_A4_col0"], placement=Tile(0, 1))
-    MEM_L2_L1_B5B6B7B8_col1 = of_in_b.cons().split(obj_types=[tile_ty, tile_ty, tile_ty, tile_ty], offsets=[0, 1024, 2048, 3072], names=["MEM_L2_L1_B5_col1", "MEM_L2_L1_B6_col1", "MEM_L2_L1_B7_col1", "MEM_L2_L1_B8_col1"], placement=Tile(1, 1))
-    MEM_L1_L2_C9C10C11C12_col2 = of_out_c.prod().join(obj_types=[tile_ty, tile_ty, tile_ty, tile_ty], names=["MEM_L1_L2_C9_col2", "MEM_L1_L2_C10_col2", "MEM_L1_L2_C11_col2", "MEM_L1_L2_C12_col2"], placement=Tile(2, 1), offsets=[0, 1024, 2048, 3072])
+    MEM_L2_L1_A1A2A3A4_col0 = of_in_a.cons().split(names=["MEM_L2_L1_A1_col0", "MEM_L2_L1_A2_col0", "MEM_L2_L1_A3_col0", "MEM_L2_L1_A4_col0"], obj_types=[tile_ty, tile_ty, tile_ty, tile_ty], offsets=[0, 1024, 2048, 3072], placement=Tile(0, 1))
+    MEM_L2_L1_B5B6B7B8_col1 = of_in_b.cons().split(names=["MEM_L2_L1_B5_col1", "MEM_L2_L1_B6_col1", "MEM_L2_L1_B7_col1", "MEM_L2_L1_B8_col1"], obj_types=[tile_ty, tile_ty, tile_ty, tile_ty], offsets=[0, 1024, 2048, 3072], placement=Tile(1, 1))
+    MEM_L1_L2_C9C10C11C12_col2 = of_out_c.prod().join(names=["MEM_L1_L2_C9_col2", "MEM_L1_L2_C10_col2", "MEM_L1_L2_C11_col2", "MEM_L1_L2_C12_col2"], obj_types=[tile_ty, tile_ty, tile_ty, tile_ty], offsets=[0, 1024, 2048, 3072], placement=Tile(2, 1))
 
     #Define kernels here... ------------------------------------------------\/
     eltwise_mul_bf16_vector = ExternalFunction(

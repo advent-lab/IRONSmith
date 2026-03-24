@@ -312,6 +312,7 @@ class RuntimeSequence:
     input_types: List[Union[AnyType, str]] = field(default_factory=list)
     output_types: List[Union[AnyType, str]] = field(default_factory=list)
     param_names: List[str] = field(default_factory=list)
+    main_sizes: List[Optional[str]] = field(default_factory=list)
     workers: List[Union[Worker, str]] = field(default_factory=list)
     operations: List[Union[RuntimeFill, RuntimeDrain]] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)

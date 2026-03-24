@@ -11,6 +11,7 @@
 QT_BEGIN_NAMESPACE
 class QLabel;
 class QLineEdit;
+class QPushButton;
 class QSpinBox;
 class QComboBox;
 class QGroupBox;
@@ -46,6 +47,7 @@ private:
         None,
         Tile,
         FifoWire,
+        HubPivotWire,
         DdrBlock,
         Unsupported
     };
@@ -61,9 +63,10 @@ private:
     void applyTileLabel();
     void applyTileStereotype();
     void applyFifoProperties();
+    void applyHubPivotProperties();
     void rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock);
-    void applyDdrEntry(Canvas::ObjectId wireId, const QString& name,
-                       const QString& dims, const QString& type);
+    void applyDdrEntry(Canvas::ObjectId fifoWireId, Canvas::ObjectId ddrWireId,
+                       const QString& name, const QString& dims, const QString& type);
 
     QPointer<AieService> m_service;
     QPointer<Canvas::Api::ICanvasHost> m_canvasHost;
@@ -80,6 +83,9 @@ private:
     QPointer<QLabel> m_tileBoundsValue;
     QPointer<QLineEdit> m_tileLabelEdit;
     QPointer<QLineEdit> m_tileStereotypeEdit;
+    QPointer<QPushButton> m_tileStereotypeClearBtn;
+    QPointer<QWidget> m_tileKernelRow;
+    QPointer<QLabel> m_tileKernelRowLabel;
 
     QPointer<QGroupBox> m_fifoGroup;
     QPointer<QLabel> m_fifoWireIdValue;
@@ -87,6 +93,16 @@ private:
     QPointer<QSpinBox> m_fifoDepthSpin;
     QPointer<QComboBox> m_fifoTypeCombo;
     QPointer<QLineEdit> m_fifoDimensionsEdit;
+
+    QPointer<QGroupBox> m_hubPivotGroup;
+    QPointer<QLineEdit> m_hubPivotNameEdit;
+    QPointer<QLabel>    m_hubPivotFifoLabel;
+    QPointer<QLineEdit> m_hubPivotFifoEdit;
+    QPointer<QLabel>    m_hubBranchesValue;
+    QPointer<QLabel>    m_hubOffsetsValue;
+    QPointer<QLabel>    m_hubDepthValue;
+    QPointer<QLabel>    m_hubValueTypeValue;
+    QPointer<QLabel>    m_hubDimensionsValue;
 
     QPointer<QGroupBox> m_ddrGroup;
     QPointer<QWidget>   m_ddrContent;

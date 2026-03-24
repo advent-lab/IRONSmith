@@ -82,6 +82,11 @@ public:
                                                            ObjectId itemId,
                                                            PortId portId,
                                                            QString& outLabel);
+    bool resolveHubArmLabelForEndpoint(ObjectId itemId, PortId portId, QString& outLabel) const;
+    static bool resolveHubArmLabelForEndpointThunk(void* user,
+                                                   ObjectId itemId,
+                                                   PortId portId,
+                                                   QString& outLabel);
 
 	QString statusText() const;
 	void setStatusText(QString text);

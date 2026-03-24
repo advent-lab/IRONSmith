@@ -24,6 +24,7 @@
 #include <QtWidgets/QGroupBox>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
+#include <QtWidgets/QPushButton>
 #include <QtWidgets/QScrollArea>
 #include <QtWidgets/QSpinBox>
 #include <QtWidgets/QVBoxLayout>
@@ -131,12 +132,26 @@ void AiePropertiesPanel::buildUi()
     tileLabelEdit->setObjectName(QStringLiteral("AiePropertiesField"));
     auto* tileStereotypeEdit = new QLineEdit(tileGroup);
     tileStereotypeEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    tileStereotypeEdit->setReadOnly(true);
+    tileStereotypeEdit->setPlaceholderText(QStringLiteral("None"));
+
+    auto* tileStereotypeClearBtn = new QPushButton(QStringLiteral("Clear"), tileGroup);
+    tileStereotypeClearBtn->setObjectName(QStringLiteral("AiePropertiesClearButton"));
+    tileStereotypeClearBtn->setEnabled(false);
+
+    auto* kernelRow = new QWidget(tileGroup);
+    auto* kernelRowLayout = new QHBoxLayout(kernelRow);
+    kernelRowLayout->setContentsMargins(0, 0, 0, 0);
+    kernelRowLayout->setSpacing(6);
+    kernelRowLayout->addWidget(tileStereotypeEdit, 1);
+    kernelRowLayout->addWidget(tileStereotypeClearBtn);
 
     tileForm->addRow(makeKeyLabel(QStringLiteral("Item ID")), tileIdValue);
     tileForm->addRow(makeKeyLabel(QStringLiteral("Spec ID")), tileSpecIdValue);
     tileForm->addRow(makeKeyLabel(QStringLiteral("Bounds")), tileBoundsValue);
     tileForm->addRow(makeKeyLabel(QStringLiteral("Label")), tileLabelEdit);
-    tileForm->addRow(makeKeyLabel(QStringLiteral("Stereotype")), tileStereotypeEdit);
+    auto* kernelRowLabel = makeKeyLabel(QStringLiteral("Kernel"));
+    tileForm->addRow(kernelRowLabel, kernelRow);
 
     m_tileGroup = tileGroup;
     m_tileIdValue = tileIdValue;
@@ -144,6 +159,9 @@ void AiePropertiesPanel::buildUi()
     m_tileBoundsValue = tileBoundsValue;
     m_tileLabelEdit = tileLabelEdit;
     m_tileStereotypeEdit = tileStereotypeEdit;
+    m_tileStereotypeClearBtn = tileStereotypeClearBtn;
+    m_tileKernelRow = kernelRow;
+    m_tileKernelRowLabel = kernelRowLabel;
 
     auto* fifoGroup = new QGroupBox(QStringLiteral("FIFO Annotation"), fieldsHost);
     fifoGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
@@ -189,6 +207,62 @@ void AiePropertiesPanel::buildUi()
     m_fifoTypeCombo = fifoTypeCombo;
     m_fifoDimensionsEdit = fifoDimensionsEdit;
 
+    // --- Hub Pivot group (Split / Join wires) ---
+    auto* hubPivotGroup = new QGroupBox(QStringLiteral("Split / Join"), fieldsHost);
+    hubPivotGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
+    auto* hubPivotForm = new QFormLayout(hubPivotGroup);
+    hubPivotForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    hubPivotForm->setContentsMargins(12, 12, 12, 12);
+    hubPivotForm->setHorizontalSpacing(10);
+    hubPivotForm->setVerticalSpacing(8);
+    hubPivotForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    const auto makeHubKeyLabel = [hubPivotGroup](const QString& text) -> QLabel* {
+        auto* label = new QLabel(text, hubPivotGroup);
+        label->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+        return label;
+    };
+    const auto makeHubValueLabel = [hubPivotGroup]() -> QLabel* {
+        auto* label = new QLabel(hubPivotGroup);
+        label->setObjectName(QStringLiteral("AiePropertiesValueLabel"));
+        label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        return label;
+    };
+
+    auto* hubPivotNameEdit = new QLineEdit(hubPivotGroup);
+    hubPivotNameEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    hubPivotNameEdit->setPlaceholderText(QStringLiteral("e.g. split1"));
+
+    auto* hubPivotFifoLabel = new QLabel(QStringLiteral("Source FIFO"), hubPivotGroup);
+    hubPivotFifoLabel->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+    auto* hubPivotFifoEdit = new QLineEdit(hubPivotGroup);
+    hubPivotFifoEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    hubPivotFifoEdit->setPlaceholderText(QStringLiteral("e.g. A"));
+
+    auto* hubBranchesValue  = makeHubValueLabel();
+    auto* hubOffsetsValue   = makeHubValueLabel();
+    auto* hubDepthValue     = makeHubValueLabel();
+    auto* hubValueTypeValue = makeHubValueLabel();
+    auto* hubDimensionsValue = makeHubValueLabel();
+
+    hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Name")),       hubPivotNameEdit);
+    hubPivotForm->addRow(hubPivotFifoLabel,                              hubPivotFifoEdit);
+    hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Branches")),   hubBranchesValue);
+    hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Offsets")),    hubOffsetsValue);
+    hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Depth")),      hubDepthValue);
+    hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Value Type")), hubValueTypeValue);
+    hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Dimensions")), hubDimensionsValue);
+
+    m_hubPivotGroup      = hubPivotGroup;
+    m_hubPivotNameEdit   = hubPivotNameEdit;
+    m_hubPivotFifoLabel  = hubPivotFifoLabel;
+    m_hubPivotFifoEdit   = hubPivotFifoEdit;
+    m_hubBranchesValue   = hubBranchesValue;
+    m_hubOffsetsValue    = hubOffsetsValue;
+    m_hubDepthValue      = hubDepthValue;
+    m_hubValueTypeValue  = hubValueTypeValue;
+    m_hubDimensionsValue = hubDimensionsValue;
+
     auto* ddrGroup = new QGroupBox(QStringLiteral("DDR Runtime"), fieldsHost);
     ddrGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
     new QVBoxLayout(ddrGroup);
@@ -196,6 +270,7 @@ void AiePropertiesPanel::buildUi()
 
     fieldsLayout->addWidget(tileGroup);
     fieldsLayout->addWidget(fifoGroup);
+    fieldsLayout->addWidget(hubPivotGroup);
     fieldsLayout->addWidget(ddrGroup);
     fieldsLayout->addStretch(1);
 
@@ -210,8 +285,8 @@ void AiePropertiesPanel::buildUi()
 
     connect(tileLabelEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyTileLabel);
-    connect(tileStereotypeEdit, &QLineEdit::editingFinished,
-            this, &AiePropertiesPanel::applyTileStereotype);
+    connect(tileStereotypeClearBtn, &QPushButton::clicked, this,
+            &AiePropertiesPanel::applyTileStereotype);
 
     connect(fifoNameEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyFifoProperties);
@@ -221,6 +296,11 @@ void AiePropertiesPanel::buildUi()
             this, [this](int) { applyFifoProperties(); });
     connect(fifoDimensionsEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyFifoProperties);
+
+    connect(hubPivotNameEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyHubPivotProperties);
+    connect(hubPivotFifoEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyHubPivotProperties);
 }
 
 void AiePropertiesPanel::bindCanvasSignalsIfNeeded()
@@ -267,13 +347,16 @@ void AiePropertiesPanel::showSelectionState(SelectionKind kind,
         m_detailLabel->setText(detail);
     }
 
-    const bool showTile = (kind == SelectionKind::Tile);
-    const bool showFifo = (kind == SelectionKind::FifoWire);
-    const bool showDdr  = (kind == SelectionKind::DdrBlock);
+    const bool showTile     = (kind == SelectionKind::Tile);
+    const bool showFifo     = (kind == SelectionKind::FifoWire);
+    const bool showHubPivot = (kind == SelectionKind::HubPivotWire);
+    const bool showDdr      = (kind == SelectionKind::DdrBlock);
     if (m_tileGroup)
         m_tileGroup->setVisible(showTile);
     if (m_fifoGroup)
         m_fifoGroup->setVisible(showFifo);
+    if (m_hubPivotGroup)
+        m_hubPivotGroup->setVisible(showHubPivot);
     if (m_ddrGroup)
         m_ddrGroup->setVisible(showDdr);
 }
@@ -342,8 +425,23 @@ void AiePropertiesPanel::refreshSelection()
             m_tileBoundsValue->setText(formatBounds(block->boundsScene()));
         if (m_tileLabelEdit)
             m_tileLabelEdit->setText(block->label());
-        if (m_tileStereotypeEdit)
-            m_tileStereotypeEdit->setText(block->stereotype());
+        const bool isComputeTile = block->specId().trimmed().startsWith(u"aie");
+        if (m_tileKernelRow)
+            m_tileKernelRow->setVisible(isComputeTile);
+        if (m_tileKernelRowLabel)
+            m_tileKernelRowLabel->setVisible(isComputeTile);
+
+        if (isComputeTile && m_tileStereotypeEdit) {
+            // Strip UML stereotype decorators: <<kernel: name>> → name
+            QString kernelDisplay = block->stereotype();
+            if (kernelDisplay.startsWith(u"<<") && kernelDisplay.endsWith(u">>"))
+                kernelDisplay = kernelDisplay.sliced(2, kernelDisplay.size() - 4).trimmed();
+            if (kernelDisplay.startsWith(u"kernel:"))
+                kernelDisplay = kernelDisplay.sliced(7).trimmed();
+            m_tileStereotypeEdit->setText(kernelDisplay);
+            if (m_tileStereotypeClearBtn)
+                m_tileStereotypeClearBtn->setEnabled(!block->stereotype().isEmpty());
+        }
         m_updatingUi = false;
 
         showSelectionState(SelectionKind::Tile,
@@ -361,6 +459,80 @@ void AiePropertiesPanel::refreshSelection()
         }
 
         const auto fifo = wire->objectFifo().value();
+        const bool isPivot = (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Split ||
+                               fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Join);
+
+        if (isPivot) {
+            const bool isSplit = (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Split);
+
+            // Count arm branches: find the hub block at endpoint B, count ports by arm role.
+            int numBranches = 0;
+            if (wire->b().attached.has_value()) {
+                auto* hubBlock = dynamic_cast<Canvas::CanvasBlock*>(
+                    m_document->findItem(wire->b().attached->itemId));
+                if (hubBlock) {
+                    // Split arms are producer ports; join arms are consumer ports.
+                    const Canvas::PortRole armRole = isSplit
+                        ? Canvas::PortRole::Producer
+                        : Canvas::PortRole::Consumer;
+                    for (const auto& port : hubBlock->ports()) {
+                        if (port.role == armRole)
+                            ++numBranches;
+                    }
+                }
+            }
+
+            // Compute offsets string from mirrored dimensions.
+            QString offsetsStr;
+            if (numBranches > 0) {
+                int elemCount = 1024;
+                if (!fifo.type.dimensions.isEmpty()) {
+                    int count = 1;
+                    for (const QString& d : fifo.type.dimensions.split(u'x', Qt::SkipEmptyParts))
+                        count *= d.trimmed().toInt();
+                    if (count > 0)
+                        elemCount = count;
+                }
+                const int stride = elemCount / numBranches;
+                QStringList parts;
+                parts.reserve(numBranches);
+                for (int i = 0; i < numBranches; ++i)
+                    parts.append(QString::number(stride * i));
+                offsetsStr = parts.join(QStringLiteral(", "));
+            }
+
+            m_updatingUi = true;
+            if (m_hubPivotFifoLabel)
+                m_hubPivotFifoLabel->setText(isSplit
+                    ? QStringLiteral("Source FIFO")
+                    : QStringLiteral("Destination FIFO"));
+            if (m_hubPivotNameEdit)
+                m_hubPivotNameEdit->setText(fifo.hubName);
+            if (m_hubPivotFifoEdit)
+                m_hubPivotFifoEdit->setText(fifo.name);
+            if (m_hubBranchesValue)
+                m_hubBranchesValue->setText(numBranches > 0
+                    ? QString::number(numBranches) : QStringLiteral("-"));
+            if (m_hubOffsetsValue)
+                m_hubOffsetsValue->setText(offsetsStr.isEmpty()
+                    ? QStringLiteral("-") : offsetsStr);
+            if (m_hubDepthValue)
+                m_hubDepthValue->setText(QString::number(fifo.depth));
+            if (m_hubValueTypeValue)
+                m_hubValueTypeValue->setText(fifo.type.valueType.isEmpty()
+                    ? QStringLiteral("i32") : fifo.type.valueType);
+            if (m_hubDimensionsValue)
+                m_hubDimensionsValue->setText(fifo.type.dimensions.isEmpty()
+                    ? QStringLiteral("-") : fifo.type.dimensions);
+            m_updatingUi = false;
+
+            showSelectionState(SelectionKind::HubPivotWire,
+                               isSplit ? QStringLiteral("Split hub wire selected")
+                                       : QStringLiteral("Join hub wire selected"),
+                               QStringLiteral("Edit hub name and source/destination FIFO."));
+            return;
+        }
+
         m_updatingUi = true;
         if (m_fifoWireIdValue)
             m_fifoWireIdValue->setText(wire->id().toString());
@@ -411,15 +583,17 @@ void AiePropertiesPanel::applyTileStereotype()
         return;
 
     auto* block = selectedBlock();
-    if (!block)
+    if (!block || block->stereotype().isEmpty())
         return;
 
-    const QString next = m_tileStereotypeEdit->text().trimmed();
-    if (block->stereotype() == next)
-        return;
-
-    block->setStereotype(next);
+    block->setStereotype(QString{});
     m_document->notifyChanged();
+
+    m_updatingUi = true;
+    m_tileStereotypeEdit->clear();
+    if (m_tileStereotypeClearBtn)
+        m_tileStereotypeClearBtn->setEnabled(false);
+    m_updatingUi = false;
 }
 
 void AiePropertiesPanel::applyFifoProperties()
@@ -434,10 +608,88 @@ void AiePropertiesPanel::applyFifoProperties()
         return;
 
     Canvas::CanvasWire::ObjectFifoConfig config = wire->objectFifo().value();
-    config.name = m_fifoNameEdit->text().trimmed();
-    config.depth = m_fifoDepthSpin->value();
-    config.type.valueType = m_fifoTypeCombo->currentText().trimmed().toLower();
-    config.type.dimensions = m_fifoDimensionsEdit->text().trimmed();
+    config.name       = m_fifoNameEdit->text().trimmed();
+    config.depth      = m_fifoDepthSpin->value();
+    config.type.valueType  = m_fifoTypeCombo->currentText().trimmed().toLower();
+
+    // Validate new dimensions against the DDR total buffer size.
+    // The FIFO size must be a divisor of the total (element counts).
+    const QString newDims = m_fifoDimensionsEdit->text().trimmed();
+    if (!newDims.isEmpty()) {
+        // Find which endpoint is a SHIM, then find the DDR↔SHIM wire for it.
+        const auto findShimDdrWire = [&]() -> Canvas::CanvasWire* {
+            if (!wire->a().attached.has_value() || !wire->b().attached.has_value())
+                return nullptr;
+            auto* bkA = dynamic_cast<Canvas::CanvasBlock*>(
+                m_document->findItem(wire->a().attached->itemId));
+            auto* bkB = dynamic_cast<Canvas::CanvasBlock*>(
+                m_document->findItem(wire->b().attached->itemId));
+            if (!bkA || !bkB) return nullptr;
+            Canvas::CanvasBlock* shimBlock =
+                bkA->specId().startsWith(QLatin1StringView("shim")) ? bkA :
+                bkB->specId().startsWith(QLatin1StringView("shim")) ? bkB : nullptr;
+            if (!shimBlock) return nullptr;
+            for (const auto& item : m_document->items()) {
+                auto* w = dynamic_cast<Canvas::CanvasWire*>(item.get());
+                if (!w || !w->a().attached.has_value() || !w->b().attached.has_value())
+                    continue;
+                auto* wA = dynamic_cast<Canvas::CanvasBlock*>(
+                    m_document->findItem(w->a().attached->itemId));
+                auto* wB = dynamic_cast<Canvas::CanvasBlock*>(
+                    m_document->findItem(w->b().attached->itemId));
+                if (!wA || !wB) continue;
+                const bool aDdr = wA->specId() == QLatin1StringView("ddr");
+                const bool bDdr = wB->specId() == QLatin1StringView("ddr");
+                if ((aDdr && wB->id() == shimBlock->id()) ||
+                    (bDdr && wA->id() == shimBlock->id()))
+                    return w;
+            }
+            return nullptr;
+        };
+
+        // Helper: product of all 'x'-separated integer parts
+        const auto elemCount = [](const QString& dims) -> int {
+            int n = 1;
+            for (const QString& part : dims.split(u'x', Qt::SkipEmptyParts))
+                n *= part.trimmed().toInt();
+            return n;
+        };
+
+        auto* ddrWire = findShimDdrWire();
+        if (ddrWire && ddrWire->hasObjectFifo()) {
+            const QString totalDims = ddrWire->objectFifo().value().type.dimensions.trimmed();
+            if (!totalDims.isEmpty()) {
+                const int total = elemCount(totalDims);
+                const int fifo  = elemCount(newDims);
+                if (total > 0 && fifo > 0 && total % fifo != 0) {
+                    // Not a divisor — revert the field and bail
+                    m_updatingUi = true;
+                    m_fifoDimensionsEdit->setText(config.type.dimensions);
+                    m_updatingUi = false;
+                    return;
+                }
+            }
+        }
+    }
+
+    config.type.dimensions = newDims;
+
+    wire->setObjectFifo(config);
+    m_document->notifyChanged();
+}
+
+void AiePropertiesPanel::applyHubPivotProperties()
+{
+    if (m_updatingUi || !m_document || !m_hubPivotNameEdit || !m_hubPivotFifoEdit)
+        return;
+
+    auto* wire = selectedFifoWire();
+    if (!wire)
+        return;
+
+    Canvas::CanvasWire::ObjectFifoConfig config = wire->objectFifo().value();
+    config.hubName = m_hubPivotNameEdit->text().trimmed();
+    config.name    = m_hubPivotFifoEdit->text().trimmed();
 
     wire->setObjectFifo(config);
     m_document->notifyChanged();
@@ -456,9 +708,12 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
 
     const auto& items = m_document->items();
 
-    // Pass 1: find fill SHIMs (DDR→SHIM) and drain SHIMs (SHIM→DDR)
+    // Pass 1: find fill SHIMs (DDR→SHIM) and drain SHIMs (SHIM→DDR).
+    // Also keep the DDR↔SHIM wire itself — its ObjectFifo dimensions = total DDR buffer size.
     QSet<Canvas::ObjectId> fillShimIds;
     QSet<Canvas::ObjectId> drainShimIds;
+    QHash<Canvas::ObjectId, Canvas::CanvasWire*> fillShimDdrWires;
+    QHash<Canvas::ObjectId, Canvas::CanvasWire*> drainShimDdrWires;
 
     for (const auto& item : items) {
         auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
@@ -472,15 +727,21 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
         if (!blockA || !blockB) continue;
 
         if (blockA->id() == ddrBlock->id()
-                && blockB->specId().startsWith(QLatin1StringView("shim")))
+                && blockB->specId().startsWith(QLatin1StringView("shim"))) {
             fillShimIds.insert(blockB->id());
-        else if (blockB->id() == ddrBlock->id()
-                && blockA->specId().startsWith(QLatin1StringView("shim")))
+            fillShimDdrWires.insert(blockB->id(), wire);
+        } else if (blockB->id() == ddrBlock->id()
+                && blockA->specId().startsWith(QLatin1StringView("shim"))) {
             drainShimIds.insert(blockA->id());
+            drainShimDdrWires.insert(blockA->id(), wire);
+        }
     }
 
-    // Pass 2: find FIFO wires where the SHIM is producer (fill) or consumer (drain)
-    struct FifoEntry { Canvas::CanvasWire* wire; };
+    // Pass 2: find FIFO wires where the SHIM is producer (fill) or consumer (drain).
+    struct FifoEntry {
+        Canvas::CanvasWire* fifoWire;  // SHIM→compute (transfer size)
+        Canvas::CanvasWire* ddrWire;   // DDR→SHIM (total buffer size)
+    };
     QList<FifoEntry> fillEntries;
     QList<FifoEntry> drainEntries;
 
@@ -498,9 +759,9 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
             continue;
 
         if (fillShimIds.contains(blockA->id()))
-            fillEntries.append({wire});
+            fillEntries.append(FifoEntry{wire, fillShimDdrWires.value(blockA->id())});
         else if (drainShimIds.contains(blockB->id()))
-            drainEntries.append({wire});
+            drainEntries.append(FifoEntry{wire, drainShimDdrWires.value(blockB->id())});
     }
 
     // Build the dynamic content widget
@@ -518,18 +779,24 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
         return lbl;
     };
 
-    // Helper: one row of [name][dims][type] widgets for a FIFO wire
+    // Helper: one row of [name][totalDims][type] for a fill/drain param.
+    // fifoWire: SHIM→compute wire (name and valueType)
+    // ddrWire:  DDR→SHIM wire (total buffer dimensions for main())
     const auto makeRow = [this, content, contentLayout](
-            Canvas::CanvasWire* wire, const QString& defaultName)
+            Canvas::CanvasWire* fifoWire, Canvas::CanvasWire* ddrWire, const QString& defaultName)
     {
         QString name = defaultName;
         QString dims = QStringLiteral("1024");
         QString type = QStringLiteral("i32");
-        if (wire->hasObjectFifo()) {
-            const auto& cfg = wire->objectFifo().value();
-            if (!cfg.name.isEmpty())            name = cfg.name;
-            if (!cfg.type.dimensions.isEmpty()) dims = cfg.type.dimensions;
-            if (!cfg.type.valueType.isEmpty())  type = cfg.type.valueType;
+        if (fifoWire->hasObjectFifo()) {
+            const auto& cfg = fifoWire->objectFifo().value();
+            if (!cfg.name.isEmpty())           name = cfg.name;
+            if (!cfg.type.valueType.isEmpty()) type = cfg.type.valueType;
+        }
+        // Total buffer size lives on the DDR→SHIM wire
+        if (ddrWire && ddrWire->hasObjectFifo()) {
+            const QString d = ddrWire->objectFifo().value().type.dimensions.trimmed();
+            if (!d.isEmpty()) dims = d;
         }
 
         auto* row = new QWidget(content);
@@ -557,9 +824,10 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
         rowLayout->addWidget(typeCombo);
         contentLayout->addWidget(row);
 
-        const Canvas::ObjectId wireId = wire->id();
-        const auto applyFn = [this, wireId, nameEdit, dimsEdit, typeCombo]() {
-            applyDdrEntry(wireId, nameEdit->text(), dimsEdit->text(), typeCombo->currentText());
+        const Canvas::ObjectId fifoWireId = fifoWire->id();
+        const Canvas::ObjectId ddrWireId  = ddrWire ? ddrWire->id() : Canvas::ObjectId{};
+        const auto applyFn = [this, fifoWireId, ddrWireId, nameEdit, dimsEdit, typeCombo]() {
+            applyDdrEntry(fifoWireId, ddrWireId, nameEdit->text(), dimsEdit->text(), typeCombo->currentText());
         };
         connect(nameEdit,  &QLineEdit::editingFinished,  this, applyFn);
         connect(dimsEdit,  &QLineEdit::editingFinished,  this, applyFn);
@@ -575,7 +843,7 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
         contentLayout->addWidget(none);
     } else {
         for (int i = 0; i < fillEntries.size(); ++i)
-            makeRow(fillEntries[i].wire, QString(QChar(u'A' + i)));
+            makeRow(fillEntries[i].fifoWire, fillEntries[i].ddrWire, QString(QChar(u'A' + i)));
     }
 
     // Outputs section
@@ -586,13 +854,14 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
         contentLayout->addWidget(none);
     } else {
         for (int i = 0; i < drainEntries.size(); ++i)
-            makeRow(drainEntries[i].wire, QStringLiteral("out") + QString::number(i));
+            makeRow(drainEntries[i].fifoWire, drainEntries[i].ddrWire, QStringLiteral("out") + QString::number(i));
     }
 
     qobject_cast<QVBoxLayout*>(m_ddrGroup->layout())->addWidget(content);
 }
 
-void AiePropertiesPanel::applyDdrEntry(Canvas::ObjectId wireId,
+void AiePropertiesPanel::applyDdrEntry(Canvas::ObjectId fifoWireId,
+                                        Canvas::ObjectId ddrWireId,
                                         const QString& name,
                                         const QString& dims,
                                         const QString& type)
@@ -600,23 +869,32 @@ void AiePropertiesPanel::applyDdrEntry(Canvas::ObjectId wireId,
     if (m_updatingUi || !m_document)
         return;
 
-    auto* wire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(wireId));
-    if (!wire)
-        return;
+    // Write name and value type to the FIFO wire (SHIM→compute)
+    auto* fifoWire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(fifoWireId));
+    if (fifoWire) {
+        Canvas::CanvasWire::ObjectFifoConfig cfg;
+        if (fifoWire->hasObjectFifo())
+            cfg = fifoWire->objectFifo().value();
+        else
+            cfg.depth = 2;
+        cfg.name           = name.trimmed();
+        cfg.type.valueType = type.trimmed().toLower();
+        fifoWire->setObjectFifo(cfg);
+    }
 
-    Canvas::CanvasWire::ObjectFifoConfig cfg;
-    if (wire->hasObjectFifo())
-        cfg = wire->objectFifo().value();
-    else
-        cfg.depth = 2;
+    // Write total buffer dimensions to the DDR→SHIM wire
+    auto* ddrWire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(ddrWireId));
+    if (ddrWire) {
+        Canvas::CanvasWire::ObjectFifoConfig cfg;
+        if (ddrWire->hasObjectFifo())
+            cfg = ddrWire->objectFifo().value();
+        else
+            cfg.depth = 1;
+        cfg.type.dimensions = dims.trimmed();
+        ddrWire->setObjectFifo(cfg);
+    }
 
-    cfg.name            = name.trimmed();
-    cfg.type.dimensions = dims.trimmed();
-    cfg.type.valueType  = type.trimmed().toLower();
-
-    wire->setObjectFifo(cfg);
-
-    m_updatingUi = true;          // prevent rebuildDdrGroup during notifyChanged
+    m_updatingUi = true;  // prevent rebuildDdrGroup re-entry during notifyChanged
     m_document->notifyChanged();
     m_updatingUi = false;
 }

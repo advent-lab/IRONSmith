@@ -3,6 +3,7 @@
 
 #include "aieplugin/panels/AieKernelsPanel.hpp"
 
+#include "aieplugin/hlir_sync/AieOutputLog.hpp"
 #include "aieplugin/kernels/KernelAssignmentController.hpp"
 #include "aieplugin/kernels/KernelRegistryService.hpp"
 #include "aieplugin/panels/KernelPreviewDialog.hpp"
@@ -59,10 +60,12 @@ QString fallbackSnippet(const KernelAsset& kernel)
 AieKernelsPanel::AieKernelsPanel(KernelRegistryService* registry,
                                  KernelAssignmentController* assignments,
                                  CodeEditor::Api::ICodeEditorService* codeEditorService,
+                                 AieOutputLog* outputLog,
                                  QWidget* parent)
     : QWidget(parent)
     , m_registry(registry)
     , m_assignments(assignments)
+    , m_outputLog(outputLog)
     , m_codeEditorService(codeEditorService)
 {
     setObjectName(QStringLiteral("AieKernelsPanel"));
@@ -91,11 +94,8 @@ AieKernelsPanel::AieKernelsPanel(KernelRegistryService* registry,
                 });
         connect(m_assignments, &KernelAssignmentController::assignmentFailed, this,
                 [this](const QString& message) {
-                    if (!message.trimmed().isEmpty()) {
-                        QMessageBox::warning(this,
-                                             QStringLiteral("Kernel Assignment"),
-                                             message);
-                    }
+                    if (!message.trimmed().isEmpty() && m_outputLog)
+                        m_outputLog->addEntry(false, message);
                 });
     }
 
@@ -107,6 +107,11 @@ AieKernelsPanel::AieKernelsPanel(KernelRegistryService* registry,
 void AieKernelsPanel::setCodeEditorService(CodeEditor::Api::ICodeEditorService* service)
 {
     m_codeEditorService = service;
+}
+
+void AieKernelsPanel::setOutputLog(AieOutputLog* log)
+{
+    m_outputLog = log;
 }
 
 void AieKernelsPanel::buildUi()
@@ -122,6 +127,18 @@ void AieKernelsPanel::buildUi()
     frame->setSearchPlaceholder(QStringLiteral("Search kernels"));
     frame->setHeaderDividerVisible(true);
     m_searchField = frame->searchField();
+
+    QIcon listIcon(QStringLiteral(":/ui/icons/svg/list_view_icon.svg"));
+    if (listIcon.isNull())
+        listIcon = style()->standardIcon(QStyle::SP_FileDialogListView);
+    frame->addAction(QStringLiteral("toggleListView"), listIcon, QStringLiteral("Toggle list view"));
+    if (auto* btn = frame->actionButton(QStringLiteral("toggleListView"))) {
+        btn->setCheckable(true);
+        connect(btn, &QToolButton::toggled, this, [this](bool checked) {
+            m_listViewMode = checked;
+            refreshCards();
+        });
+    }
 
     auto* content = new QWidget(frame);
     content->setObjectName(QStringLiteral("AieKernelsPanelContent"));
@@ -197,6 +214,7 @@ void AieKernelsPanel::refreshCards()
         m_selectionGroup->removeButton(button);
 
     m_cards.clear();
+    m_cardsLayout->setSpacing(m_listViewMode ? 2 : 8);
 
     const QString filterText = cleanFilter(m_searchField ? m_searchField->text() : QString());
     const QVector<KernelAsset> kernels = m_registry ? m_registry->kernels() : QVector<KernelAsset>{};
@@ -205,7 +223,7 @@ void AieKernelsPanel::refreshCards()
         if (!kernelMatchesFilter(kernel, filterText))
             continue;
 
-        CardRefs refs = createCard(kernel);
+        CardRefs refs = m_listViewMode ? createListItem(kernel) : createCard(kernel);
         m_cards.push_back(refs);
         if (refs.frame)
             m_cardsLayout->addWidget(refs.frame);
@@ -349,6 +367,84 @@ AieKernelsPanel::CardRefs AieKernelsPanel::createCard(const KernelAsset& kernel)
     refs.frame = frame;
     refs.selectButton = selectButton;
     refs.previewButton = previewButton;
+    refs.menuButton = menuButton;
+    return refs;
+}
+
+AieKernelsPanel::CardRefs AieKernelsPanel::createListItem(const KernelAsset& kernel)
+{
+    CardRefs refs;
+    refs.kernelId = kernel.id;
+
+    QWidget* cardsHost = m_cardsLayout ? m_cardsLayout->parentWidget() : this;
+    auto* frame = new QFrame(cardsHost);
+    frame->setFrameShape(QFrame::StyledPanel);
+    frame->setObjectName(QStringLiteral("AieKernelCard"));
+    frame->setProperty("selected", false);
+
+    auto* rowLayout = new QHBoxLayout(frame);
+    rowLayout->setContentsMargins(10, 4, 6, 4);
+    rowLayout->setSpacing(4);
+
+    auto* selectButton = new QRadioButton(kernel.name, frame);
+    selectButton->setObjectName(QStringLiteral("AieKernelSelectButton"));
+    selectButton->setProperty("kernelId", kernel.id);
+
+    auto* menuButton = new QToolButton(frame);
+    menuButton->setObjectName(QStringLiteral("AieKernelMenuButton"));
+    menuButton->setText(QStringLiteral("⋮"));
+    menuButton->setAutoRaise(true);
+    menuButton->setPopupMode(QToolButton::InstantPopup);
+
+    rowLayout->addWidget(selectButton, 1);
+    rowLayout->addWidget(menuButton);
+
+    m_selectionGroup->addButton(selectButton);
+
+    connect(selectButton, &QRadioButton::toggled, this,
+            [this, kernelId = kernel.id](bool checked) {
+                if (checked)
+                    setSelectedKernel(kernelId);
+            });
+
+    QIcon previewIcon(QStringLiteral(":/ui/icons/svg/eye_icon.svg"));
+    if (previewIcon.isNull())
+        previewIcon = style()->standardIcon(QStyle::SP_DialogOpenButton);
+
+    auto* menu = new QMenu(menuButton);
+    menu->setObjectName(QStringLiteral("AieKernelCardMenu"));
+    QAction* previewAction = menu->addAction(QStringLiteral("Preview"));
+    previewAction->setIcon(previewIcon);
+    QAction* metadataAction = menu->addAction(QStringLiteral("View Metadata"));
+    QAction* openEditorAction = menu->addAction(QStringLiteral("Open In Code Editor"));
+    menu->addSeparator();
+    QAction* copyWorkspaceAction = menu->addAction(QStringLiteral("Create Workspace Copy"));
+    QAction* copyGlobalAction = menu->addAction(QStringLiteral("Create Global Copy"));
+
+    if (kernel.scope == KernelSourceScope::Workspace)
+        copyWorkspaceAction->setEnabled(false);
+    if (kernel.scope == KernelSourceScope::Global)
+        copyGlobalAction->setEnabled(false);
+
+    connect(previewAction, &QAction::triggered, this,
+            [this, kernelId = kernel.id]() { showPreviewDialog(kernelId); });
+    connect(metadataAction, &QAction::triggered, this,
+            [this, kernelId = kernel.id]() { showPreviewDialog(kernelId, true); });
+    connect(openEditorAction, &QAction::triggered, this,
+            [this, kernelId = kernel.id]() { openKernelInEditor(kernelId, false); });
+    connect(copyWorkspaceAction, &QAction::triggered, this,
+            [this, kernelId = kernel.id]() {
+                copyKernelToScope(kernelId, KernelSourceScope::Workspace, true);
+            });
+    connect(copyGlobalAction, &QAction::triggered, this,
+            [this, kernelId = kernel.id]() {
+                copyKernelToScope(kernelId, KernelSourceScope::Global, true);
+            });
+
+    menuButton->setMenu(menu);
+
+    refs.frame = frame;
+    refs.selectButton = selectButton;
     refs.menuButton = menuButton;
     return refs;
 }

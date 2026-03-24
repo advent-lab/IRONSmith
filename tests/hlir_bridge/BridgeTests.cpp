@@ -1881,8 +1881,7 @@ static bool testMatrixVectorMulExample() {
             return false;
         }
 
-        // Input types: A_ty (2D int16), B_ty (2D int16)
-        // Output type: C_ty (2D int32)
+        // A_ty/B_ty/C_ty = rt.sequence DMA types; runtimeAddMainSize overrides main() buffer sizes.
         auto addInA  = bridge.runtimeAddInputType(*aTy);
         auto addInB  = bridge.runtimeAddInputType(*bTy);
         auto addOutC = bridge.runtimeAddOutputType(*cTy);
@@ -1890,6 +1889,9 @@ static bool testMatrixVectorMulExample() {
             std::cerr << "FAILED (types)\n";
             return false;
         }
+        bridge.runtimeAddMainSize("n_fifo_elems");  // inputA
+        bridge.runtimeAddMainSize("n_fifo_elems");  // inputB
+        bridge.runtimeAddMainSize("n_fifo_elems");  // outputC
 
         // Parameters
         auto addParamA = bridge.runtimeAddParam("inputA");

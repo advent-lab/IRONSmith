@@ -593,6 +593,15 @@ class BuilderWrapper:
         except Exception as e:
             return error_response("PYTHON_EXCEPTION", str(e))
 
+    def clear_runtime(self) -> str:
+        """Clear the current runtime so worker dependencies can be removed."""
+        try:
+            self.builder.program.runtime = None
+            self.runtime = None
+            return success_response()
+        except Exception as e:
+            return error_response("PYTHON_EXCEPTION", str(e))
+
     def create_runtime(self, name: str) -> str:
         """Create a runtime sequence."""
         try:
@@ -632,6 +641,21 @@ class BuilderWrapper:
             if not self.runtime.runtime.param_names:
                 self.runtime.runtime.param_names = []
             self.runtime.runtime.param_names.append(param_name)
+            return success_response()
+        except Exception as e:
+            return error_response("PYTHON_EXCEPTION", str(e))
+
+    def runtime_add_main_size(self, size_str: str) -> str:
+        """Add a main() allocation size for the next runtime param.
+
+        This decouples the host buffer size used in iron.arange/zeros() from the
+        rt.sequence() type used for DMA descriptors.  Call once per input/output type
+        in the same order as runtime_add_input_type / runtime_add_output_type.
+        """
+        try:
+            if not hasattr(self.runtime.runtime, 'main_sizes'):
+                self.runtime.runtime.main_sizes = []
+            self.runtime.runtime.main_sizes.append(size_str)
             return success_response()
         except Exception as e:
             return error_response("PYTHON_EXCEPTION", str(e))

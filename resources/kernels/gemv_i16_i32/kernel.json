@@ -1,0 +1,14 @@
+{
+  "id": "gemv_i16_i32",
+  "name": "GEMV (INT16 → INT32)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void matvec_vectorized_i16_i32(int16_t* a_in, int16_t* b_in, int32_t* c_out);",
+  "description": "General matrix-vector multiply (GEMV). INT16 inputs, INT32 accumulation. Tile sizes controlled by DIM_M/DIM_K defines (default 32x32). Matrix A must be in 32-bit word-transposed layout.",
+  "entry": "mv.cc",
+  "files": [
+    "mv.cc",
+    "zero.cc"
+  ],
+  "tags": ["gemv", "matvec", "i16", "i32", "aie2"]
+}

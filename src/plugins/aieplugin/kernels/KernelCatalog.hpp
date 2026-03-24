@@ -30,6 +30,7 @@ struct AIEPLUGIN_EXPORT KernelAsset final {
 
     QString entryFile;
     QStringList files;
+    QStringList includeDirs;
     QStringList tags;
 
     KernelSourceScope scope = KernelSourceScope::BuiltIn;

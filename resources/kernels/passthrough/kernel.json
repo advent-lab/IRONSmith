@@ -1,0 +1,13 @@
+{
+  "id": "passthrough",
+  "name": "Passthrough",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void passThroughTile(T* in, T* out, int32_t tileHeight, int32_t tileWidth);",
+  "description": "Copies input to output tile with no transformation. Supports uint8/int16/int32 via BIT_WIDTH define.",
+  "entry": "passThrough.cc",
+  "files": [
+    "passThrough.cc"
+  ],
+  "tags": ["passthrough", "generic", "copy", "identity"]
+}

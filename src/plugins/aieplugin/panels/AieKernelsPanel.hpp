@@ -33,6 +33,7 @@ class ICodeEditorService;
 
 namespace Aie::Internal {
 
+class AieOutputLog;
 class KernelAssignmentController;
 class KernelRegistryService;
 
@@ -44,9 +45,11 @@ public:
     explicit AieKernelsPanel(KernelRegistryService* registry,
                              KernelAssignmentController* assignments,
                              CodeEditor::Api::ICodeEditorService* codeEditorService,
+                             AieOutputLog* outputLog,
                              QWidget* parent = nullptr);
 
     void setCodeEditorService(CodeEditor::Api::ICodeEditorService* service);
+    void setOutputLog(AieOutputLog* log);
 
 private:
     struct CardRefs final {
@@ -62,6 +65,7 @@ private:
     bool kernelMatchesFilter(const KernelAsset& kernel, const QString& filterText) const;
 
     CardRefs createCard(const KernelAsset& kernel);
+    CardRefs createListItem(const KernelAsset& kernel);
     void showPreviewDialog(const QString& kernelId, bool openMetadataTab = false);
 
     void setSelectedKernel(const QString& kernelId);
@@ -82,12 +86,14 @@ private:
     QPointer<KernelRegistryService> m_registry;
     QPointer<KernelAssignmentController> m_assignments;
     QPointer<CodeEditor::Api::ICodeEditorService> m_codeEditorService;
+    QPointer<AieOutputLog> m_outputLog;
     AieKernelsPanelState m_persistedState;
 
     QPointer<QLineEdit> m_searchField;
     QPointer<QVBoxLayout> m_cardsLayout;
     QPointer<QButtonGroup> m_selectionGroup;
 
+    bool m_listViewMode = false;
     QVector<CardRefs> m_cards;
 };
 

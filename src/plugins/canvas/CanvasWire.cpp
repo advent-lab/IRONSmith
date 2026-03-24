@@ -151,6 +151,15 @@ int normalizedObjectFifoDepth(int depth)
 QString objectFifoAnnotationText(const CanvasWire::ObjectFifoConfig& config, bool compact)
 {
     const QString name = normalizedObjectFifoName(config.name);
+
+    // Pivot wire of a split/join: render as "SPLIT/JOIN: {hubName}, {fifoName}".
+    if (!config.hubName.trimmed().isEmpty()) {
+        const QString prefix = (config.operation == CanvasWire::ObjectFifoOperation::Join)
+            ? QStringLiteral("JOIN: ")
+            : QStringLiteral("SPLIT: ");
+        return prefix + QStringLiteral("%1, %2").arg(config.hubName.trimmed(), name);
+    }
+
     const int depth = normalizedObjectFifoDepth(config.depth);
     const QString valueType = normalizeObjectFifoType(config.type.valueType);
     const QString opPrefix =
@@ -513,6 +522,15 @@ QString CanvasWire::annotationText(AnnotationDetail detail, const CanvasRenderCo
 {
     if (detail == AnnotationDetail::Hidden)
         return {};
+
+    // Arm wire of a split/join hub: hub is always at endpoint A for arm wires.
+    // Only check m_a so pivot wires (hub at endpoint B) fall through to the ObjectFifo check.
+    QString hubArmLabel;
+    if (m_a.attached.has_value()) {
+        const auto& ref = m_a.attached.value();
+        if (ctx.hubArmLabelForEndpoint(ref.itemId, ref.portId, hubArmLabel))
+            return hubArmLabel;
+    }
 
     if (m_objectFifo.has_value())
         return objectFifoAnnotationText(*m_objectFifo, detail == AnnotationDetail::Compact);

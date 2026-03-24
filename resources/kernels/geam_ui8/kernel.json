@@ -1,0 +1,13 @@
+{
+  "id": "geam_ui8",
+  "name": "GEAM — Weighted Matrix Add (UINT8)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void addWeightedTile(uint8_t* in1, uint8_t* in2, uint8_t* out, int32_t tileHeight, int32_t tileWidth, int16_t alpha, int16_t beta, uint8_t gamma);",
+  "description": "Generalized matrix addition: out = saturate((alpha*A + beta*B) >> 14 + gamma). Supports uint8/int16/int32 via BIT_WIDTH define.",
+  "entry": "addWeighted.cc",
+  "files": [
+    "addWeighted.cc"
+  ],
+  "tags": ["geam", "addweighted", "matrix", "ui8", "aie2"]
+}

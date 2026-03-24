@@ -380,6 +380,11 @@ public:
     // Runtime operations
     // ========================================================================
 
+    /// Clear the current runtime so that worker dependencies can be removed.
+    /// Must be called before removing workers when a runtime from a prior run exists.
+    /// @return Success or errors
+    HlirResult<void> clearRuntime();
+
     /// Create a runtime sequence
     /// @param name Runtime name
     /// @return ComponentId on success, errors on failure
@@ -399,6 +404,11 @@ public:
     /// @param paramName Parameter name (string name for runtime parameter)
     /// @return Success or errors
     HlirResult<void> runtimeAddParam(const std::string& paramName);
+
+    /// Override the main() host buffer size for the next runtime param.
+    /// @param size Size expression (e.g. "n_fifo_elems"); empty = use type dims
+    /// @return Success or errors
+    HlirResult<void> runtimeAddMainSize(const std::string& size);
 
     /// Add worker to runtime for StartWorkers
     /// @param workerId Worker ID

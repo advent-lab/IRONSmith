@@ -1,0 +1,14 @@
+{
+  "id": "conv2d_k1",
+  "name": "CONV2D 1×1",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void conv2dk1_i8(int8_t* input, int8_t* kernels, uint8_t* output, int32_t input_width, int32_t input_channels, int32_t output_channels, int scale);",
+  "description": "Vectorized 2D convolution with 1×1 kernel. INT8 activations and weights, UINT8 output with right-shift scaling. Select INT8_ACT or UINT8_ACT (default) via define.",
+  "entry": "conv2dk1.cc",
+  "files": [
+    "conv2dk1.cc",
+    "conv2dk1.h"
+  ],
+  "tags": ["conv2d", "cnn", "i8", "ui8", "aie2"]
+}

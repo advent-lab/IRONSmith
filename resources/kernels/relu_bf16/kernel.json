@@ -1,0 +1,13 @@
+{
+  "id": "relu_bf16",
+  "name": "ReLU (BF16)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void bf16_relu(bfloat16* a_in, bfloat16* c_out);",
+  "description": "Vectorized BF16 ReLU activation over a 1024-element vector. Clamps each element to max(0, x).",
+  "entry": "relu.cc",
+  "files": [
+    "relu.cc"
+  ],
+  "tags": ["relu", "activation", "bf16", "unary", "aie2"]
+}

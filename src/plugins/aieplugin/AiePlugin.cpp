@@ -107,6 +107,7 @@ private:
     QPointer<AieOutputLog>  m_outputLog;
     QHash<QString, AieOutputLog*> m_logsByDesign;
     QPointer<QWidget>       m_logPanel;
+    QPointer<QWidget>       m_kernelsPanel;
     QPointer<HlirSyncService> m_hlirSync;
     QPointer<HlirDirectExecution> m_directExec;
     QString m_workspaceRoot;
@@ -135,6 +136,9 @@ Utils::Result AiePlugin::initialize(const QStringList& arguments, ExtensionSyste
 
     if (m_kernelAssignments)
         m_kernelAssignments->setRegistry(m_kernelRegistry);
+
+    if (m_hlirSync)
+        m_hlirSync->setKernelRegistry(m_kernelRegistry);
 
     if (m_kernelToolboxController) {
         m_kernelToolboxController->setRegistry(m_kernelRegistry);

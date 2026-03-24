@@ -74,6 +74,16 @@ struct CANVAS_EXPORT CanvasRenderContext final {
             : false;
     }
 
+    using ResolveHubArmLabelForEndpointFn = bool (*)(void*, ObjectId, PortId, QString& outLabel);
+    ResolveHubArmLabelForEndpointFn resolveHubArmLabelForEndpoint = nullptr;
+    void* resolveHubArmLabelForEndpointUser = nullptr;
+
+    bool hubArmLabelForEndpoint(ObjectId itemId, PortId portId, QString& outLabel) const {
+        return resolveHubArmLabelForEndpoint
+            ? resolveHubArmLabelForEndpoint(resolveHubArmLabelForEndpointUser, itemId, portId, outLabel)
+            : false;
+    }
+
     using IsFabricBlockedFn = bool (*)(const FabricCoord& coord, void* user);
     IsFabricBlockedFn isFabricBlocked = nullptr;
     void* isFabricBlockedUser = nullptr;

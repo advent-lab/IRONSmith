@@ -32,6 +32,8 @@ CanvasRenderContext buildRenderContext(const CanvasDocument* doc,
         ctx.resolveObjectFifoNameForEndpointUser = const_cast<CanvasDocument*>(doc);
         ctx.resolveConsumerHandleLabelForEndpoint = &CanvasDocument::resolveConsumerHandleLabelForEndpointThunk;
         ctx.resolveConsumerHandleLabelForEndpointUser = const_cast<CanvasDocument*>(doc);
+        ctx.resolveHubArmLabelForEndpoint = &CanvasDocument::resolveHubArmLabelForEndpointThunk;
+        ctx.resolveHubArmLabelForEndpointUser = const_cast<CanvasDocument*>(doc);
         ctx.isFabricBlocked = &CanvasDocument::isFabricPointBlockedThunk;
         ctx.isFabricBlockedUser = const_cast<CanvasDocument*>(doc);
         ctx.fabricStep = doc->fabric().config().step;

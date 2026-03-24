@@ -130,7 +130,9 @@ QString objectFifoOperationToString(DesignLink::ObjectFifo::Operation operation)
 {
     switch (operation) {
         case DesignLink::ObjectFifo::Operation::Forward: return u"forward"_s;
-        case DesignLink::ObjectFifo::Operation::Fifo: return u"fifo"_s;
+        case DesignLink::ObjectFifo::Operation::Split:   return u"split"_s;
+        case DesignLink::ObjectFifo::Operation::Join:    return u"join"_s;
+        case DesignLink::ObjectFifo::Operation::Fifo:    return u"fifo"_s;
     }
     return u"fifo"_s;
 }
@@ -140,6 +142,10 @@ DesignLink::ObjectFifo::Operation objectFifoOperationFromString(const QString& t
     const QString key = text.trimmed().toLower();
     if (key == u"forward"_s || key == u"fwd"_s || key == u"forward_fifo"_s || key == u"forward-fifo"_s)
         return DesignLink::ObjectFifo::Operation::Forward;
+    if (key == u"split"_s)
+        return DesignLink::ObjectFifo::Operation::Split;
+    if (key == u"join"_s)
+        return DesignLink::ObjectFifo::Operation::Join;
     return DesignLink::ObjectFifo::Operation::Fifo;
 }
 
@@ -248,6 +254,8 @@ QJsonObject serializeDesignState(const DesignState& state)
             objectFifo.insert(u"operation"_s, objectFifoOperationToString(link.objectFifo.operation));
             objectFifo.insert(u"dimensions"_s, link.objectFifo.type.dimensions);
             objectFifo.insert(u"valueType"_s, link.objectFifo.type.valueType);
+            if (!link.objectFifo.hubName.isEmpty())
+                objectFifo.insert(u"hubName"_s, link.objectFifo.hubName);
             obj.insert(u"objectFifo"_s, objectFifo);
         }
 
@@ -481,6 +489,7 @@ Utils::Result parseDesignState(const QJsonObject& json, DesignState& out)
                             objectFifoOperationFromString(objectFifoObject.value(u"operation"_s).toString());
                         link.objectFifo.type.dimensions = objectFifoObject.value(u"dimensions"_s).toString();
                         link.objectFifo.type.valueType = objectFifoObject.value(u"valueType"_s).toString();
+                        link.objectFifo.hubName = objectFifoObject.value(u"hubName"_s).toString();
                         link.hasObjectFifo = true;
                     }
                 }

@@ -66,13 +66,16 @@ struct DesignLink final {
     struct ObjectFifo final {
         enum class Operation : unsigned char {
             Fifo,
-            Forward
+            Forward,
+            Split,
+            Join
         };
 
         QString name = QStringLiteral("in");
         int depth = 2;
         Operation operation = Operation::Fifo;
         ObjectFifoType type;
+        QString hubName; // non-empty when this wire is the pivot wire of a split/join hub
     };
 
     QString id;

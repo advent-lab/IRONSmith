@@ -25,6 +25,8 @@ class HlirBridge;
 
 namespace Aie::Internal {
 
+class KernelRegistryService;
+
 /// Keeps an HlirBridge in sync with the active CanvasDocument (tiles + FIFOs).
 class HlirSyncService : public QObject
 {
@@ -42,6 +44,9 @@ public:
 
     /// The base output directory set by the most recent attachDocument() call.
     const QString& outputDir() const { return m_outputDir; }
+
+    /// Set the kernel registry used to look up kernel assets during code generation.
+    void setKernelRegistry(KernelRegistryService* registry);
 
 public slots:
     /// Run all design rule checks and emit verificationFinished() with the result.
@@ -83,7 +88,7 @@ private:
     /// Run all design rule checks and return the collected issues.
     QList<VerificationIssue> runVerification() const;
 
-    /// Remove all tracked HLIR components in dependency order (FIFOs → types → tiles).
+    /// Remove all tracked HLIR components in dependency order.
     void resetTrackedComponents();
 
     /// Diff the canvas against tracked state and update the bridge accordingly.
@@ -91,6 +96,10 @@ private:
 
     /// Register split and join hub blocks as HLIR split/join operations.
     void syncSplitsAndJoins();
+
+    /// For each COMPUTE tile with a kernel stereotype, generate an external kernel
+    /// declaration, a core body function, and a worker binding.
+    void buildWorkers();
 
     /// Build a Runtime: shim-producer wires → Fill, shim-consumer wires → Drain.
     void buildRuntime();
@@ -101,11 +110,17 @@ private:
     QHash<Canvas::ObjectId, hlir::ComponentId> m_tileMap;
     QHash<Canvas::ObjectId, hlir::ComponentId> m_fifoMap;
     QHash<Canvas::ObjectId, hlir::ComponentId> m_splitJoinMap;
+    QHash<Canvas::ObjectId, hlir::ComponentId> m_workerMap;
+
+    // One external kernel and core function per unique kernel ID (shared across all tiles).
+    QHash<QString, hlir::ComponentId> m_kernelMap;   // kernelId → external kernel ComponentId
+    QHash<QString, hlir::ComponentId> m_coreFuncMap; // kernelId → core function ComponentId
 
     // Maps "dimensions|valueType" → HLIR ComponentId (tensor type cache)
     QHash<QString, hlir::ComponentId> m_typeMap;
 
     QPointer<Canvas::CanvasDocument> m_document;
+    QPointer<KernelRegistryService> m_kernelRegistry;
     QString m_outputDir;
 };
 

@@ -363,6 +363,50 @@ bool CanvasDocument::resolveConsumerHandleLabelForEndpointThunk(void* user,
     return doc ? doc->resolveConsumerHandleLabelForEndpoint(itemId, portId, outLabel) : false;
 }
 
+bool CanvasDocument::resolveHubArmLabelForEndpoint(ObjectId itemId,
+                                                   PortId portId,
+                                                   QString& outLabel) const
+{
+    if (itemId.isNull() || portId.isNull())
+        return false;
+
+    const auto* block = dynamic_cast<const CanvasBlock*>(findItem(itemId));
+    if (!block || !block->isLinkHub())
+        return false;
+
+    // Find portId's 0-based position among ports of the same role on this hub block.
+    PortRole role = PortRole::Dynamic;
+    for (const auto& port : block->ports()) {
+        if (port.id == portId) {
+            role = port.role;
+            break;
+        }
+    }
+    if (role == PortRole::Dynamic)
+        return false;
+
+    int index = 0;
+    for (const auto& port : block->ports()) {
+        if (port.role != role)
+            continue;
+        if (port.id == portId) {
+            outLabel = QString::number(index);
+            return true;
+        }
+        ++index;
+    }
+    return false;
+}
+
+bool CanvasDocument::resolveHubArmLabelForEndpointThunk(void* user,
+                                                        ObjectId itemId,
+                                                        PortId portId,
+                                                        QString& outLabel)
+{
+    auto* doc = static_cast<const CanvasDocument*>(user);
+    return doc ? doc->resolveHubArmLabelForEndpoint(itemId, portId, outLabel) : false;
+}
+
 bool CanvasDocument::isFabricPointBlockedThunk(const FabricCoord& coord, void* user)
 {
 	auto* doc = static_cast<const CanvasDocument*>(user);

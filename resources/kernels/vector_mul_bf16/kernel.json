@@ -1,0 +1,13 @@
+{
+  "id": "vector_mul_bf16",
+  "name": "Vector Vector Mul (BF16)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void eltwise_mul_bf16_vector(bfloat16* a_in, bfloat16* b_in, bfloat16* c_out);",
+  "description": "Vectorized element-wise BF16 multiplication over 1024-element vectors.",
+  "entry": "mul.cc",
+  "files": [
+    "mul.cc"
+  ],
+  "tags": ["mul", "bf16", "eltwise", "vector", "aie2"]
+}

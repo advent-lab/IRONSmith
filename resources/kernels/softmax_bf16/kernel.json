@@ -1,0 +1,13 @@
+{
+  "id": "softmax_bf16",
+  "name": "Softmax (BF16)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void softmax_bf16(bfloat16* input, bfloat16* output, int32_t input_size);",
+  "description": "BF16 softmax over a 1D vector. Computes exp(x_i) / sum(exp(x)) using LUT-based exponential.",
+  "entry": "softmax.cc",
+  "files": [
+    "softmax.cc"
+  ],
+  "tags": ["softmax", "activation", "bf16", "unary", "aie2"]
+}

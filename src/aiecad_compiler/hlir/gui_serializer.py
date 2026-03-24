@@ -44,6 +44,11 @@ class GUIXMLSerializer:
             pretty_print: Whether to format output with indentation
         """
         self.pretty_print = pretty_print
+        self._param_names: set[str] = set()  # JIT function parameter names, set per-serialize
+
+    def _safe_fifo_var(self, name: str) -> str:
+        """Return the Python variable name for a fifo, prefixing with 'of_' if it conflicts with a JIT param."""
+        return f"of_{name}" if name in self._param_names else name
 
     def _get_type_name(self, type_ref: Any) -> str:
         """
@@ -133,6 +138,12 @@ class GUIXMLSerializer:
 
     def _build_xml(self, program: Program) -> Element:
         """Build GUI XML tree from Program."""
+        # Collect JIT param names so fifo vars that collide can be prefixed with 'of_'.
+        if program.runtime and program.runtime.param_names:
+            self._param_names = set(program.runtime.param_names)
+        else:
+            self._param_names = set()
+
         root = Element('Module')
         root.set('name', program.name)
         root.text = '\n'
@@ -374,7 +385,7 @@ class GUIXMLSerializer:
     def _add_gui_object_fifo(self, parent: Element, fifo: ObjectFifo):
         """Add ObjectFifo in GUI XML format."""
         fifo_elem = SubElement(parent, 'ObjectFifo')
-        fifo_elem.set('name', fifo.name)
+        fifo_elem.set('name', self._safe_fifo_var(fifo.name))
         fifo_elem.text = '\n'
         fifo_elem.tail = '\n'
 
@@ -393,7 +404,7 @@ class GUIXMLSerializer:
         forward_elem = SubElement(parent, 'ObjectFifoForward')
         forward_elem.set('name', forward_op.name)
         source_name = forward_op.source if isinstance(forward_op.source, str) else forward_op.source.name
-        forward_elem.set('source', source_name)
+        forward_elem.set('source', self._safe_fifo_var(source_name))
         if forward_op.placement is not None:
             forward_elem.set('placement', f"Tile({forward_op.placement.x}, {forward_op.placement.y})")
         forward_elem.tail = '\n'
@@ -413,7 +424,7 @@ class GUIXMLSerializer:
         # Source as child element
         source_name = split_op.source if isinstance(split_op.source, str) else split_op.source.name
         source_elem = SubElement(split_elem, 'source')
-        source_elem.text = source_name
+        source_elem.text = self._safe_fifo_var(source_name)
         source_elem.tail = '\n'
 
         # Number of outputs
@@ -452,7 +463,7 @@ class GUIXMLSerializer:
         # Dest as child element
         dest_name = join_op.dest if isinstance(join_op.dest, str) else join_op.dest.name
         dest_elem = SubElement(join_elem, 'dest')
-        dest_elem.text = dest_name
+        dest_elem.text = self._safe_fifo_var(dest_name)
         dest_elem.tail = '\n'
 
         # Number of inputs
@@ -505,7 +516,7 @@ class GUIXMLSerializer:
             if isinstance(arg, FifoBinding):
                 # It's a FIFO binding
                 fifo_name = arg.fifo if isinstance(arg.fifo, str) else arg.fifo.name
-                arg_elem.set('ref', fifo_name)
+                arg_elem.set('ref', self._safe_fifo_var(fifo_name))
                 if arg.index is not None:
                     arg_elem.set('index', str(arg.index))
                 # Map enum values to full words for GUI XML
@@ -584,7 +595,7 @@ class GUIXMLSerializer:
 
         # Target FIFO
         fifo_name = fill_op.fifo if isinstance(fill_op.fifo, str) else fill_op.fifo.name
-        fill_elem.set('target', fifo_name)
+        fill_elem.set('target', self._safe_fifo_var(fifo_name))
 
         # Source parameter - use binding name (lowercase with _in suffix)
         # to match the sequence binding names and avoid shadowing
@@ -628,7 +639,7 @@ class GUIXMLSerializer:
 
         # Source FIFO
         fifo_name = drain_op.fifo if isinstance(drain_op.fifo, str) else drain_op.fifo.name
-        drain_elem.set('source', fifo_name)
+        drain_elem.set('source', self._safe_fifo_var(fifo_name))
 
         # Target parameter - use binding name (lowercase with _out suffix)
         # to match the sequence binding names and avoid shadowing
@@ -874,16 +885,13 @@ class GUIXMLSerializer:
                     size_expr = "N"
                     break
 
-        # Fall back to runtime input type if still no size or dtype found
-        if (size_expr is None or dtype_value is None) and program.runtime and len(program.runtime.input_types) > 0:
+        # Dtype only — size is resolved per-param below so each param can differ.
+        if dtype_value is None and program.runtime and len(program.runtime.input_types) > 0:
             first_type_ref = program.runtime.input_types[0]
             if isinstance(first_type_ref, str) and first_type_ref in program.symbols:
                 tensor_type = program.symbols[first_type_ref].value
-                if isinstance(tensor_type, TensorType):
-                    if tensor_type.shape and len(tensor_type.shape) > 0:
-                        size_expr = str(tensor_type.shape[0])
-                    if dtype_value is None and tensor_type.dtype:
-                        dtype_value = str(tensor_type.dtype.value)
+                if isinstance(tensor_type, TensorType) and tensor_type.dtype:
+                    dtype_value = str(tensor_type.dtype.value)
 
         # Add variable assignments for constants used in size expression
         # Find all constant symbols
@@ -904,7 +912,14 @@ class GUIXMLSerializer:
         # Add blank line for readability
         body_elem.text = '\n'
 
-        # Add tensor initializations
+        # Add tensor initializations.
+        # If a program-level symbol (data_ty / vector_ty / N) provides a canonical buffer
+        # size, use it for every param (preserves backwards-compatibility with symbolic
+        # designs like vector_vector_mul or vector_exp where the FIFO carries sub-tiles but
+        # the main() buffer is the full logical size).
+        # When no such symbol exists (pure-canvas designs with concrete FIFO types), derive
+        # each param's size individually from its own runtime type so that params with
+        # different sizes (e.g. split/join designs) are allocated correctly.
         if program.runtime and program.runtime.param_names:
             for i, param_name in enumerate(program.runtime.param_names):
                 tensor_elem = SubElement(body_elem, 'Tensor')
@@ -913,17 +928,51 @@ class GUIXMLSerializer:
                 tensor_elem.tail = '\n'
 
                 init_elem = SubElement(tensor_elem, 'init')
-                # Use extracted size and dtype, or defaults
-                size_arg = size_expr if size_expr else 'data_size'
-                # Use dtype directly - bfloat16 comes from ml_dtypes, not numpy
-                # For numpy types like int32, float32, add np. prefix
-                if dtype_value:
-                    if dtype_value == 'bfloat16':
-                        dtype_arg = 'bfloat16'  # From ml_dtypes
+
+                # Check for explicit per-param main() size (set via runtimeAddMainSize).
+                # These override both global symbols and per-param type resolution.
+                main_sizes = getattr(program.runtime, 'main_sizes', [])
+                explicit_main_size = main_sizes[i] if i < len(main_sizes) else None
+
+                if explicit_main_size:
+                    size_arg = explicit_main_size
+                    if dtype_value:
+                        dtype_arg = 'bfloat16' if dtype_value == 'bfloat16' else f'np.{dtype_value}'
                     else:
-                        dtype_arg = f'np.{dtype_value}'  # numpy types
+                        dtype_arg = 'bfloat16'
+                elif size_expr:
+                    # Global symbol found — use it for every param (symbolic / legacy path).
+                    size_arg = size_expr
+                    if dtype_value:
+                        dtype_arg = 'bfloat16' if dtype_value == 'bfloat16' else f'np.{dtype_value}'
+                    else:
+                        dtype_arg = 'bfloat16'
                 else:
-                    dtype_arg = 'bfloat16'
+                    # No global symbol — resolve size and dtype per-param from its own
+                    # runtime type (canvas designs with concrete per-param FIFO types).
+                    if i < len(program.runtime.input_types):
+                        param_type_ref = str(program.runtime.input_types[i])
+                    elif i - len(program.runtime.input_types) < len(program.runtime.output_types):
+                        param_type_ref = str(program.runtime.output_types[i - len(program.runtime.input_types)])
+                    else:
+                        param_type_ref = None
+
+                    param_size = None
+                    param_dtype = None
+                    if param_type_ref and param_type_ref in program.symbols:
+                        pt = program.symbols[param_type_ref].value
+                        if isinstance(pt, TensorType):
+                            if pt.shape and len(pt.shape) > 0:
+                                param_size = str(pt.shape[0])
+                            if pt.dtype:
+                                param_dtype = str(pt.dtype.value)
+
+                    size_arg = param_size if param_size else 'data_size'
+                    resolved_dtype = param_dtype if param_dtype else dtype_value
+                    if resolved_dtype:
+                        dtype_arg = 'bfloat16' if resolved_dtype == 'bfloat16' else f'np.{resolved_dtype}'
+                    else:
+                        dtype_arg = 'bfloat16'
 
                 # Determine if input or output
                 if i < len(program.runtime.input_types):

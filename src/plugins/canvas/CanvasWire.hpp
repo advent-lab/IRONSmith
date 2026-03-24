@@ -35,7 +35,9 @@ class CANVAS_EXPORT CanvasWire final : public CanvasItem
 public:
     enum class ObjectFifoOperation : uint8_t {
         Fifo,
-        Forward
+        Forward,
+        Split,
+        Join
     };
 
     enum class AnnotationDetail : uint8_t {
@@ -54,6 +56,9 @@ public:
         int depth = 2;
         ObjectFifoOperation operation = ObjectFifoOperation::Fifo;
         ObjectFifoTypeAbstraction type;
+        // When non-empty this wire is the pivot wire of a split/join hub.
+        // Annotation renders as "{hubName}, {name}" instead of "FIFO<...>".
+        QString hubName;
     };
 
     struct Endpoint final {

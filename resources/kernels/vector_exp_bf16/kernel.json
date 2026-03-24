@@ -1,0 +1,13 @@
+{
+  "id": "vector_exp_bf16",
+  "name": "Vector Exp (BF16)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void exp_bf16_1024(bfloat16* a_in, bfloat16* c_out);",
+  "description": "Element-wise BF16 exponential over a 1024-element vector using LUT-based approximation.",
+  "entry": "bf16_exp.cc",
+  "files": [
+    "bf16_exp.cc"
+  ],
+  "tags": ["exp", "bf16", "unary", "vector", "aie2"]
+}
