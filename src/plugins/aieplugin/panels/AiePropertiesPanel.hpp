@@ -11,6 +11,7 @@
 QT_BEGIN_NAMESPACE
 class QLabel;
 class QLineEdit;
+class QPushButton;
 class QSpinBox;
 class QComboBox;
 class QGroupBox;
@@ -82,6 +83,9 @@ private:
     QPointer<QLabel> m_tileBoundsValue;
     QPointer<QLineEdit> m_tileLabelEdit;
     QPointer<QLineEdit> m_tileStereotypeEdit;
+    QPointer<QPushButton> m_tileStereotypeClearBtn;
+    QPointer<QWidget> m_tileKernelRow;
+    QPointer<QLabel> m_tileKernelRowLabel;
 
     QPointer<QGroupBox> m_fifoGroup;
     QPointer<QLabel> m_fifoWireIdValue;

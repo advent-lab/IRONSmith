@@ -24,6 +24,7 @@
 #include <QtWidgets/QGroupBox>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
+#include <QtWidgets/QPushButton>
 #include <QtWidgets/QScrollArea>
 #include <QtWidgets/QSpinBox>
 #include <QtWidgets/QVBoxLayout>
@@ -131,12 +132,26 @@ void AiePropertiesPanel::buildUi()
     tileLabelEdit->setObjectName(QStringLiteral("AiePropertiesField"));
     auto* tileStereotypeEdit = new QLineEdit(tileGroup);
     tileStereotypeEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    tileStereotypeEdit->setReadOnly(true);
+    tileStereotypeEdit->setPlaceholderText(QStringLiteral("None"));
+
+    auto* tileStereotypeClearBtn = new QPushButton(QStringLiteral("Clear"), tileGroup);
+    tileStereotypeClearBtn->setObjectName(QStringLiteral("AiePropertiesClearButton"));
+    tileStereotypeClearBtn->setEnabled(false);
+
+    auto* kernelRow = new QWidget(tileGroup);
+    auto* kernelRowLayout = new QHBoxLayout(kernelRow);
+    kernelRowLayout->setContentsMargins(0, 0, 0, 0);
+    kernelRowLayout->setSpacing(6);
+    kernelRowLayout->addWidget(tileStereotypeEdit, 1);
+    kernelRowLayout->addWidget(tileStereotypeClearBtn);
 
     tileForm->addRow(makeKeyLabel(QStringLiteral("Item ID")), tileIdValue);
     tileForm->addRow(makeKeyLabel(QStringLiteral("Spec ID")), tileSpecIdValue);
     tileForm->addRow(makeKeyLabel(QStringLiteral("Bounds")), tileBoundsValue);
     tileForm->addRow(makeKeyLabel(QStringLiteral("Label")), tileLabelEdit);
-    tileForm->addRow(makeKeyLabel(QStringLiteral("Stereotype")), tileStereotypeEdit);
+    auto* kernelRowLabel = makeKeyLabel(QStringLiteral("Kernel"));
+    tileForm->addRow(kernelRowLabel, kernelRow);
 
     m_tileGroup = tileGroup;
     m_tileIdValue = tileIdValue;
@@ -144,6 +159,9 @@ void AiePropertiesPanel::buildUi()
     m_tileBoundsValue = tileBoundsValue;
     m_tileLabelEdit = tileLabelEdit;
     m_tileStereotypeEdit = tileStereotypeEdit;
+    m_tileStereotypeClearBtn = tileStereotypeClearBtn;
+    m_tileKernelRow = kernelRow;
+    m_tileKernelRowLabel = kernelRowLabel;
 
     auto* fifoGroup = new QGroupBox(QStringLiteral("FIFO Annotation"), fieldsHost);
     fifoGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
@@ -267,8 +285,8 @@ void AiePropertiesPanel::buildUi()
 
     connect(tileLabelEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyTileLabel);
-    connect(tileStereotypeEdit, &QLineEdit::editingFinished,
-            this, &AiePropertiesPanel::applyTileStereotype);
+    connect(tileStereotypeClearBtn, &QPushButton::clicked, this,
+            &AiePropertiesPanel::applyTileStereotype);
 
     connect(fifoNameEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyFifoProperties);
@@ -407,8 +425,23 @@ void AiePropertiesPanel::refreshSelection()
             m_tileBoundsValue->setText(formatBounds(block->boundsScene()));
         if (m_tileLabelEdit)
             m_tileLabelEdit->setText(block->label());
-        if (m_tileStereotypeEdit)
-            m_tileStereotypeEdit->setText(block->stereotype());
+        const bool isComputeTile = block->specId().trimmed().startsWith(u"aie");
+        if (m_tileKernelRow)
+            m_tileKernelRow->setVisible(isComputeTile);
+        if (m_tileKernelRowLabel)
+            m_tileKernelRowLabel->setVisible(isComputeTile);
+
+        if (isComputeTile && m_tileStereotypeEdit) {
+            // Strip UML stereotype decorators: <<kernel: name>> → name
+            QString kernelDisplay = block->stereotype();
+            if (kernelDisplay.startsWith(u"<<") && kernelDisplay.endsWith(u">>"))
+                kernelDisplay = kernelDisplay.sliced(2, kernelDisplay.size() - 4).trimmed();
+            if (kernelDisplay.startsWith(u"kernel:"))
+                kernelDisplay = kernelDisplay.sliced(7).trimmed();
+            m_tileStereotypeEdit->setText(kernelDisplay);
+            if (m_tileStereotypeClearBtn)
+                m_tileStereotypeClearBtn->setEnabled(!block->stereotype().isEmpty());
+        }
         m_updatingUi = false;
 
         showSelectionState(SelectionKind::Tile,
@@ -550,15 +583,17 @@ void AiePropertiesPanel::applyTileStereotype()
         return;
 
     auto* block = selectedBlock();
-    if (!block)
+    if (!block || block->stereotype().isEmpty())
         return;
 
-    const QString next = m_tileStereotypeEdit->text().trimmed();
-    if (block->stereotype() == next)
-        return;
-
-    block->setStereotype(next);
+    block->setStereotype(QString{});
     m_document->notifyChanged();
+
+    m_updatingUi = true;
+    m_tileStereotypeEdit->clear();
+    if (m_tileStereotypeClearBtn)
+        m_tileStereotypeClearBtn->setEnabled(false);
+    m_updatingUi = false;
 }
 
 void AiePropertiesPanel::applyFifoProperties()
