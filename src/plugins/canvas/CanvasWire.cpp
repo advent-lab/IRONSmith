@@ -164,11 +164,9 @@ QString objectFifoAnnotationText(const CanvasWire::ObjectFifoConfig& config, boo
         return prefix + QStringLiteral("%1, %2").arg(config.hubName.trimmed(), name);
     }
 
-    // Arm wire of a broadcast hub: no annotation (arm names are never used in generated code).
-    if (config.operation == CanvasWire::ObjectFifoOperation::Forward)
-        return {};
-
     // Arm wire of a split/join hub: show only the sub-FIFO name (concise, near the tile port).
+    // Broadcast arm wires never reach here — they are suppressed in annotationText() before
+    // objectFifoAnnotationText() is called.
     if (config.operation == CanvasWire::ObjectFifoOperation::Split ||
         config.operation == CanvasWire::ObjectFifoOperation::Join)
         return name;
@@ -176,10 +174,14 @@ QString objectFifoAnnotationText(const CanvasWire::ObjectFifoConfig& config, boo
     const int depth = normalizedObjectFifoDepth(config.depth);
     const QString valueType = normalizeObjectFifoType(config.type.valueType);
 
-    if (compact)
-        return QStringLiteral("FIFO<\"%1\", D:%2>").arg(name).arg(depth);
+    const QString fwdPrefix = (config.operation == CanvasWire::ObjectFifoOperation::Forward)
+        ? QStringLiteral("FWD: ")
+        : QString();
 
-    QString text = QStringLiteral("FIFO<\"%1\", D:%2, T:%3>").arg(name).arg(depth).arg(valueType);
+    if (compact)
+        return fwdPrefix + QStringLiteral("FIFO<\"%1\", D:%2>").arg(name).arg(depth);
+
+    QString text = fwdPrefix + QStringLiteral("FIFO<\"%1\", D:%2, T:%3>").arg(name).arg(depth).arg(valueType);
     const QString dimensions = config.type.dimensions.trimmed();
     if (!dimensions.isEmpty()) {
         text.chop(1);

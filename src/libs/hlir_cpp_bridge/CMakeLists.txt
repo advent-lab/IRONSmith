@@ -35,6 +35,8 @@ target_include_directories(HlirCppBridge PRIVATE ${Python3_INCLUDE_DIRS})
 cmake_path(GET Python3_EXECUTABLE PARENT_PATH _python3_home)
 target_compile_definitions(HlirCppBridge PRIVATE
     PYTHON_HOME_DIR="${_python3_home}"
+    HLIR_AIECAD_DIR="${CMAKE_SOURCE_DIR}/src/aiecad_compiler"
+    HLIR_BRIDGE_PYTHON_DIR="${CMAKE_BINARY_DIR}/hlir_cpp_bridge/python"
 )
 
 # Copy Python wrapper module to build directory

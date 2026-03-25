@@ -18,6 +18,11 @@ target_include_directories(CodeGenBridge
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+# Bake the absolute path to main.py so it's found regardless of working directory.
+target_compile_definitions(CodeGenBridge PRIVATE
+    CODEGEN_MAIN_PY="${CMAKE_SOURCE_DIR}/src/aiecad_compiler/main.py"
+)
+
 # Platform-specific settings
 if(WIN32)
     target_compile_definitions(CodeGenBridge PRIVATE _WIN32)

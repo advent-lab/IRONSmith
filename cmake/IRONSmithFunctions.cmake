@@ -168,6 +168,11 @@ function(ironsmith_define_tests)
                             TEST_PREFIX "${cur_test_name}."
                             TEST_LIST test_cases)
                     set_tests_properties(${test_cases} PROPERTIES TIMEOUT 120)
+                    if (WIN32)
+                        set_tests_properties(${test_cases} PROPERTIES
+                                ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/lib/ironsmith/plugins"
+                        )
+                    endif()
                 else()
                     # Otherwise add each test executable as a single test.
                     add_test(
@@ -175,6 +180,11 @@ function(ironsmith_define_tests)
                             COMMAND ${cur_test_name}
                     )
                     set_tests_properties(${cur_test_name} PROPERTIES TIMEOUT 120)
+                    if (WIN32)
+                        set_tests_properties(${cur_test_name} PROPERTIES
+                                ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/lib/ironsmith/plugins"
+                        )
+                    endif()
                 endif()
             endif()
             if (NOT "x${test_${cur_test}_content_dir}" STREQUAL "x")

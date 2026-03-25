@@ -33,12 +33,20 @@ HlirBridge::HlirBridge(const std::string& programName)
 
     Py_Initialize();
 
-    // Add Python module paths
+    // Add Python module paths using absolute paths baked in at build time.
     PyRun_SimpleString("import sys");
+#ifdef HLIR_BRIDGE_PYTHON_DIR
+    PyRun_SimpleString("sys.path.insert(0, '" HLIR_BRIDGE_PYTHON_DIR "')");
+#else
     PyRun_SimpleString("sys.path.insert(0, 'src/libs/hlir_cpp_bridge/python')");
     PyRun_SimpleString("sys.path.insert(0, 'hlir_cpp_bridge/python')");
+#endif
+#ifdef HLIR_AIECAD_DIR
+    PyRun_SimpleString("sys.path.insert(0, '" HLIR_AIECAD_DIR "')");
+#else
     PyRun_SimpleString("sys.path.insert(0, 'src/aiecad_compiler')");
     PyRun_SimpleString("sys.path.insert(0, 'aiecad_compiler')");
+#endif
 
     // Import wrapper module
     PyObject* moduleName = PyUnicode_FromString("hlir_bridge_wrapper");
