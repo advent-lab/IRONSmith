@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
 #include "aieplugin/hlir_sync/DesignVerifier.hpp"
 #include "canvas/CanvasTypes.hpp"
 #include "canvas/CanvasWire.hpp"
@@ -29,7 +30,7 @@ namespace Aie::Internal {
 class KernelRegistryService;
 
 /// Keeps an HlirBridge in sync with the active CanvasDocument (tiles + FIFOs).
-class HlirSyncService : public QObject
+class AIEPLUGIN_EXPORT HlirSyncService : public QObject
 {
     Q_OBJECT
 
@@ -48,6 +49,10 @@ public:
 
     /// Set the kernel registry used to look up kernel assets during code generation.
     void setKernelRegistry(KernelRegistryService* registry);
+
+    /// Disable the per-step animation delay (250 ms sleep). Call in test fixtures.
+    static void setAnimateSteps(bool enabled) { s_animateSteps = enabled; }
+    static bool animateSteps() { return s_animateSteps; }
 
 public slots:
     /// Run all design rule checks and emit verificationFinished() with the result.
@@ -134,6 +139,8 @@ private:
     QPointer<KernelRegistryService> m_kernelRegistry;
     QString m_outputDir;
     bool m_syncInProgress = false;
+
+    static bool s_animateSteps;
 };
 
 } // namespace Aie::Internal

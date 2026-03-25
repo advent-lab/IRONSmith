@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
+
 #include <QtCore/QList>
 #include <QtCore/QString>
 
@@ -55,7 +57,7 @@ struct DesignStats {
 };
 
 /// Collect tile and FIFO counts from the canvas without running checks.
-DesignStats collectStats(const VerificationContext& ctx);
+AIEPLUGIN_EXPORT DesignStats collectStats(const VerificationContext& ctx);
 
 /// Per-check result returned by verifyDetailed().
 struct CheckResult {
@@ -64,7 +66,7 @@ struct CheckResult {
 };
 
 /// Runs all registered checks and aggregates their results.
-class DesignVerifier {
+class AIEPLUGIN_EXPORT DesignVerifier {
 public:
     DesignVerifier();
     ~DesignVerifier();

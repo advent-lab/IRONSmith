@@ -27,6 +27,8 @@ namespace Aie::Internal {
 
 Q_LOGGING_CATEGORY(hlirSyncLog, "ironsmith.aie.hlir")
 
+bool HlirSyncService::s_animateSteps = true;
+
 // Prefix Python keywords with "of_" so they are valid variable names.
 static QString sanitizePythonName(const QString& name)
 {
@@ -773,7 +775,7 @@ void HlirSyncService::verifyDesign()
         const bool passed = !DesignVerifier::hasErrors(result.issues);
         emit stepLogged(passed, result.displayName);
         QCoreApplication::processEvents();
-        QThread::msleep(250);
+        if (s_animateSteps) QThread::msleep(250);
         if (!passed) {
             for (const auto& issue : result.issues)
                 if (issue.severity == VerificationIssue::Severity::Error)
@@ -822,7 +824,7 @@ void HlirSyncService::generateCode()
     const auto emitStep = [this](const QString& label, bool ok) {
         emit stepLogged(ok, label);
         QCoreApplication::processEvents();
-        QThread::msleep(250);
+        if (s_animateSteps) QThread::msleep(250);
     };
 
     // Step 1: Verify the design before generating code

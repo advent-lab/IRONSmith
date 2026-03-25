@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include "aieplugin/hlir_sync/HlirDirectExecution.hpp"
+#include "aieplugin/hlir_sync/HlirSyncService.hpp"
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QFileInfo>
@@ -63,7 +64,7 @@ void HlirDirectExecution::execute(const QString& outputDir)
         success ? tr("Script exited successfully")
                 : tr("Script exited with code %1").arg(process.exitCode()));
     QCoreApplication::processEvents();
-    QThread::msleep(250);
+    if (HlirSyncService::animateSteps()) QThread::msleep(250);
 
     const QString header = success ? tr("Execution succeeded.") : tr("Execution failed.");
     emit executeFinished(success, output.isEmpty() ? header : header + u'\n' + output);

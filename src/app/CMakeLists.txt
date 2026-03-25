@@ -51,6 +51,16 @@ if (BUILD_WITH_TESTS)
                 $<TARGET_FILE_DIR:ironsmith>
         )
     endif()
+
+    # Register as a CTest test. WORKING_DIRECTORY is set to the build root so
+    # the relative "tests/hlir_bridge/output/" path the tests write to resolves
+    # inside the build tree instead of the source tree.
+    add_test(
+        NAME BridgeTests
+        COMMAND $<TARGET_FILE:ironsmith> --test-bridges
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    set_tests_properties(BridgeTests PROPERTIES TIMEOUT 120)
 endif()
 
 if (TARGET iron_sanitize_flags)

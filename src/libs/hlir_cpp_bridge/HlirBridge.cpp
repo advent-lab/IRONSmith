@@ -11,6 +11,25 @@ using json = nlohmann::json;
 namespace hlir {
 
 // ============================================================================
+// Python interpreter lifetime — reference-counted so multiple HlirBridge
+// instances in the same process share one interpreter session.
+// ============================================================================
+
+static int s_pyRefCount = 0;
+
+static void pyAddRef()
+{
+    if (s_pyRefCount++ == 0)
+        Py_Initialize();
+}
+
+static void pyRelease()
+{
+    if (--s_pyRefCount == 0)
+        Py_Finalize();
+}
+
+// ============================================================================
 // Constructor / Destructor
 // ============================================================================
 
@@ -31,7 +50,7 @@ HlirBridge::HlirBridge(const std::string& programName)
         Py_SetPythonHome(pythonHomePath.c_str());
     }
 
-    Py_Initialize();
+    pyAddRef();
 
     // Add Python module paths using absolute paths baked in at build time.
     PyRun_SimpleString("import sys");
@@ -80,7 +99,7 @@ HlirBridge::~HlirBridge() {
     Py_XDECREF(m_runtime);
     Py_XDECREF(m_builder);
     Py_XDECREF(m_hlirModule);
-    Py_Finalize();
+    pyRelease();
 }
 
 // ============================================================================

@@ -23,4 +23,6 @@ ironsmith_define_tests(
                 AieKernelsPanelStateTests.cpp
                 KernelCatalogTests.cpp
                 KernelRegistryServiceTests.cpp
+                DesignVerifierTests.cpp
+                HlirSyncServiceTests.cpp
 )
