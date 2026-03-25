@@ -94,5 +94,6 @@ if (QScintilla_FOUND AND NOT TARGET QScintilla::QScintilla)
     set_target_properties(QScintilla::QScintilla PROPERTIES
             IMPORTED_LOCATION "${QScintilla_LIBRARY}"
             INTERFACE_INCLUDE_DIRECTORIES "${QScintilla_INCLUDE_DIR}"
+            INTERFACE_COMPILE_DEFINITIONS "$<$<PLATFORM_ID:Windows>:QSCINTILLA_DLL>"
     )
 endif()
