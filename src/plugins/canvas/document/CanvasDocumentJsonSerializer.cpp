@@ -423,6 +423,19 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
                 fifoObject.insert(u"operation"_s, objectFifoOperationToString(fifo.operation));
                 fifoObject.insert(u"dimensions"_s, fifo.type.dimensions);
                 fifoObject.insert(u"valueType"_s, fifo.type.valueType);
+                fifoObject.insert(u"dimensionMode"_s,
+                    fifo.type.mode == CanvasWire::DimensionMode::Matrix
+                        ? u"matrix"_s : u"vector"_s);
+                if (fifo.type.tap.has_value()) {
+                    const auto& t = *fifo.type.tap;
+                    QJsonObject tapObj;
+                    tapObj.insert(u"tileDims"_s,      t.tileDims);
+                    tapObj.insert(u"tileCounts"_s,    t.tileCounts);
+                    tapObj.insert(u"pruneStep"_s,     t.pruneStep);
+                    tapObj.insert(u"index"_s,         t.index);
+                    tapObj.insert(u"patternRepeat"_s, t.patternRepeat);
+                    fifoObject.insert(u"tap"_s, tapObj);
+                }
                 obj.insert(u"objectFifo"_s, fifoObject);
             }
             if (wire->hasRouteOverride()) {
@@ -728,7 +741,20 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                 objectFifo.depth = objectFifoObject.value(u"depth"_s).toInt(2);
                 objectFifo.operation = objectFifoOperationFromString(objectFifoObject.value(u"operation"_s).toString());
                 objectFifo.type.dimensions = objectFifoObject.value(u"dimensions"_s).toString();
-                objectFifo.type.valueType = objectFifoObject.value(u"valueType"_s).toString();
+                objectFifo.type.valueType  = objectFifoObject.value(u"valueType"_s).toString();
+                objectFifo.type.mode = objectFifoObject.value(u"dimensionMode"_s).toString() == u"matrix"_s
+                    ? CanvasWire::DimensionMode::Matrix
+                    : CanvasWire::DimensionMode::Vector;
+                const QJsonObject tapObj = objectFifoObject.value(u"tap"_s).toObject();
+                if (!tapObj.isEmpty()) {
+                    CanvasWire::TensorTilerConfig tap;
+                    tap.tileDims      = tapObj.value(u"tileDims"_s).toString();
+                    tap.tileCounts    = tapObj.value(u"tileCounts"_s).toString();
+                    tap.pruneStep     = tapObj.value(u"pruneStep"_s).toBool(false);
+                    tap.index         = tapObj.value(u"index"_s).toInt(0);
+                    tap.patternRepeat = tapObj.value(u"patternRepeat"_s).toString();
+                    objectFifo.type.tap = tap;
+                }
                 wire.objectFifo = objectFifo;
             }
 

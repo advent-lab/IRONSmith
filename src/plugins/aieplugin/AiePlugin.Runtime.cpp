@@ -156,6 +156,8 @@ void AiePlugin::configurePanelState()
 
 void AiePlugin::configureKernelToolbox(const RuntimeDependencies& deps)
 {
+    m_codeEditorService = deps.codeEditorService;
+
     if (m_kernelAssignments)
         m_kernelAssignments->setCodeEditorService(deps.codeEditorService);
 

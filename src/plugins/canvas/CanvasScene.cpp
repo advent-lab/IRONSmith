@@ -479,6 +479,26 @@ void CanvasScene::drawOverlayLayer(QPainter& p, const QRectF& visibleScene, doub
         p.restore();
     }
 
+    // Draw matrix-mode X badges on top of all blocks and ports.
+    // Determine which endpoint touches the DDR block so the badge appears there.
+    for (const auto& item : m_document->items()) {
+        const auto* wire = dynamic_cast<const CanvasWire*>(item.get());
+        if (!wire || !wire->hasObjectFifo())
+            continue;
+        if (wire->objectFifo()->type.mode != CanvasWire::DimensionMode::Matrix)
+            continue;
+
+        // Check which endpoint attaches to the DDR block (specId == "ddr").
+        bool badgeAtB = false;
+        if (wire->b().attached.has_value()) {
+            const auto* blkB = dynamic_cast<const CanvasBlock*>(
+                m_document->findItem(wire->b().attached->itemId));
+            if (blkB && blkB->specId() == QStringLiteral("ddr"))
+                badgeAtB = true;
+        }
+        wire->drawPortBadge(p, wireOverlayCtx, badgeAtB);
+    }
+
     if (m_hasMarquee) {
         QColor stroke(Constants::kBlockSelectionColor);
         stroke.setAlphaF(0.8);

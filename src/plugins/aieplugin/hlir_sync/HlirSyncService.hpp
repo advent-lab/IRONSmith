@@ -5,6 +5,7 @@
 
 #include "aieplugin/hlir_sync/DesignVerifier.hpp"
 #include "canvas/CanvasTypes.hpp"
+#include "canvas/CanvasWire.hpp"
 #include "hlir_cpp_bridge/HlirTypes.hpp"
 
 #include <QtCore/QHash>
@@ -85,6 +86,12 @@ private:
     /// Name is derived from both (e.g. "type_int32_1024").
     hlir::ComponentId ensureTensorType(const QString& dimensions, const QString& valueType);
 
+    /// Register a TensorTiler2D (group_tiler) for the given TAP config.
+    /// Returns the ComponentId, or empty on failure.
+    hlir::ComponentId ensureTensorTiler2D(const QString& name,
+                                          const Canvas::CanvasWire::TensorTilerConfig& tap,
+                                          const QString& totalDims);
+
     /// Run all design rule checks and return the collected issues.
     QList<VerificationIssue> runVerification() const;
 
@@ -118,10 +125,15 @@ private:
 
     // Maps "dimensions|valueType" → HLIR ComponentId (tensor type cache)
     QHash<QString, hlir::ComponentId> m_typeMap;
+    // Maps tiler name → HLIR ComponentId (TensorTiler2D cache)
+    QHash<QString, hlir::ComponentId> m_tilerMap;
+    // Maps hub block ObjectId → branch type ComponentId (split/join/forward branch element type)
+    QHash<Canvas::ObjectId, hlir::ComponentId> m_branchTypeMap;
 
     QPointer<Canvas::CanvasDocument> m_document;
     QPointer<KernelRegistryService> m_kernelRegistry;
     QString m_outputDir;
+    bool m_syncInProgress = false;
 };
 
 } // namespace Aie::Internal

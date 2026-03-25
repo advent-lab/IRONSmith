@@ -230,7 +230,7 @@
                 <init>iron.arange(n_fifo_elems, dtype=np.int16, device="npu")</init>
             </Tensor>
             <Tensor name="outputC">
-                <init>iron.zeros(n_fifo_elems, dtype=np.int16, device="npu")</init>
+                <init>iron.zeros(n_fifo_elems, dtype=np.int32, device="npu")</init>
             </Tensor>
             <Call function="jit_function" args="inputA, inputB, outputC"/>
         </body>

@@ -46,13 +46,25 @@ public:
         Full
     };
 
+    enum class DimensionMode : uint8_t { Vector, Matrix };
+
+    struct TensorTilerConfig final {
+        QString tileDims;       // e.g. "1 x 512"
+        QString tileCounts;     // e.g. "n_fifo_elems x A_elem_size // 512"
+        bool    pruneStep    = false;
+        int     index        = 0;
+        QString patternRepeat;  // empty → omit (defaults to 1 in Python)
+    };
+
     struct ObjectFifoTypeAbstraction final {
         QString dimensions;
         QString valueType = QStringLiteral("i32");
+        DimensionMode mode = DimensionMode::Vector;
+        std::optional<TensorTilerConfig> tap; // DDR→SHIM matrix wires only
     };
 
     struct ObjectFifoConfig final {
-        QString name = QStringLiteral("in");
+        QString name = QStringLiteral("of");
         int depth = 2;
         ObjectFifoOperation operation = ObjectFifoOperation::Fifo;
         ObjectFifoTypeAbstraction type;
@@ -114,6 +126,10 @@ public:
     AnnotationDetail annotationDetail(const CanvasRenderContext& ctx) const;
     QString annotationText(AnnotationDetail detail, const CanvasRenderContext& ctx) const;
     QRectF annotationRect(const CanvasRenderContext& ctx, AnnotationDetail detail) const;
+
+    /// Draw the matrix-mode X badge on top of the port (called from the overlay layer).
+    /// Pass badgeAtB=true when the DDR block is at endpoint B instead of A.
+    void drawPortBadge(QPainter& p, const CanvasRenderContext& ctx, bool badgeAtB) const;
 
 private:
     Endpoint m_a;

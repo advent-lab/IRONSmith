@@ -50,6 +50,12 @@ ironsmith_add_library(Utils
             EnvironmentQtPolicy.hpp
             EnvironmentQtPolicy.cpp
 
+        PRIVATE_DEFINES
+            UTILS_LIBRARY
+
+        PUBLIC_DEFINES
+            "UTILS_BUILD_SHARED=1"
+
         PUBLIC_DEPENDS
 			${QT6_REQUIRED_COMPONENTS}
             Qt6::Core # cmake has to be aware of these targets before request to link (i.e., `find_package(...)`)

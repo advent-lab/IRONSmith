@@ -4,6 +4,7 @@
 #pragma once
 
 #include "canvas/CanvasTypes.hpp"
+#include "canvas/CanvasWire.hpp"
 
 #include <QtCore/QPointer>
 #include <QtWidgets/QWidget>
@@ -25,7 +26,6 @@ namespace Canvas {
 class CanvasBlock;
 class CanvasDocument;
 class CanvasView;
-class CanvasWire;
 namespace Api {
 class ICanvasHost;
 }
@@ -66,7 +66,9 @@ private:
     void applyHubPivotProperties();
     void rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock);
     void applyDdrEntry(Canvas::ObjectId fifoWireId, Canvas::ObjectId ddrWireId,
-                       const QString& name, const QString& dims, const QString& type);
+                       const QString& name, const QString& dims, const QString& type,
+                       bool isMatrix = false,
+                       const Canvas::CanvasWire::TensorTilerConfig& tap = {});
 
     QPointer<AieService> m_service;
     QPointer<Canvas::Api::ICanvasHost> m_canvasHost;

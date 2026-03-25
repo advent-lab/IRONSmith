@@ -367,6 +367,20 @@ void AiePlugin::connectRibbonActions(const RuntimeDependencies& deps,
                         ? QStringLiteral("Code generation succeeded.")
                         : QStringLiteral("Code generation failed.");
                     m_outputLog->finalizeRun(success, header + u'\n' + message);
+
+                    if (success && m_codeEditorService && !m_hlirSync->outputDir().isEmpty()) {
+                        const QString generatedFile =
+                            m_hlirSync->outputDir() + QStringLiteral("/generated_design.py");
+                        CodeEditor::Api::CodeEditorOpenRequest req;
+                        req.filePath   = generatedFile;
+                        req.languageHint = QStringLiteral("python");
+                        req.activate   = true;
+                        req.readOnly   = true;
+                        CodeEditor::Api::CodeEditorSessionHandle handle;
+                        const Utils::Result openResult = m_codeEditorService->openFile(req, handle);
+                        if (!openResult)
+                            qCWarning(aiepluginlog) << "AiePlugin: failed to open generated file:" << openResult.errors;
+                    }
                 });
 
         connect(m_hlirSync, &HlirSyncService::verificationFinished, this,

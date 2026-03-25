@@ -71,7 +71,7 @@ struct DesignLink final {
             Join
         };
 
-        QString name = QStringLiteral("in");
+        QString name = QStringLiteral("of");
         int depth = 2;
         Operation operation = Operation::Fifo;
         ObjectFifoType type;

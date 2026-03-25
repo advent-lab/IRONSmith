@@ -99,9 +99,9 @@ static QString normalizedBoundConsumerName(const QString& rawName)
 {
     const QString normalized = rawName.trimmed();
     if (normalized.isEmpty())
-        return QStringLiteral("in");
+        return QStringLiteral("of");
     if (Support::isPairedPortName(normalized) || Support::isLegacyPairedPortName(normalized))
-        return QStringLiteral("in");
+        return QStringLiteral("of");
     return normalized;
 }
 

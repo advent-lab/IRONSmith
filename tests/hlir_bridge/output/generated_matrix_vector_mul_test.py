@@ -108,7 +108,7 @@ def main():
     A_elem_size = n_cores * m * k
     inputA = iron.arange(n_fifo_elems, dtype=np.int16, device="npu")
     inputB = iron.arange(n_fifo_elems, dtype=np.int16, device="npu")
-    outputC = iron.zeros(n_fifo_elems, dtype=np.int16, device="npu")
+    outputC = iron.zeros(n_fifo_elems, dtype=np.int32, device="npu")
     matrix_vector_mul_test_jit(inputA, inputB, outputC)
 
 

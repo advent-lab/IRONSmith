@@ -1751,7 +1751,7 @@
   <data key="d1">VarRef</data>
 </node>
 <node id="VarRef_405">
-  <data key="d0">np.int16</data>
+  <data key="d0">np.int32</data>
   <data key="d1">VarRef</data>
 </node>
 <node id="Kwarg_406">

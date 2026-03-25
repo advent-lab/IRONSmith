@@ -24,16 +24,16 @@ QString resolveBoundConsumerName(const CanvasDocument& doc,
 
     const QString consumerName = consumerMeta.name.trimmed();
     if (consumerName.isEmpty())
-        return QStringLiteral("in");
+        return QStringLiteral("of");
     if (Support::isPairedPortName(consumerName) || Support::isLegacyPairedPortName(consumerName))
-        return QStringLiteral("in");
+        return QStringLiteral("of");
     return consumerName;
 }
 
 QString boundConsumerLabelText(const QString& consumerName)
 {
     const QString normalized = consumerName.trimmed();
-    const QString effectiveName = normalized.isEmpty() ? QStringLiteral("in") : normalized;
+    const QString effectiveName = normalized.isEmpty() ? QStringLiteral("of") : normalized;
     return QStringLiteral("C: \"%1\"").arg(effectiveName);
 }
 

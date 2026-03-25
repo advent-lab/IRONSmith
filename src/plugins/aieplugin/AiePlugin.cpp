@@ -110,6 +110,7 @@ private:
     QPointer<QWidget>       m_kernelsPanel;
     QPointer<HlirSyncService> m_hlirSync;
     QPointer<HlirDirectExecution> m_directExec;
+    CodeEditor::Api::ICodeEditorService* m_codeEditorService = nullptr;
     QString m_workspaceRoot;
     bool m_layoutToolRegistered = false;
     bool m_kernelsToolRegistered = false;

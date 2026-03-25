@@ -936,8 +936,23 @@ class GUIXMLSerializer:
 
                 if explicit_main_size:
                     size_arg = explicit_main_size
-                    if dtype_value:
-                        dtype_arg = 'bfloat16' if dtype_value == 'bfloat16' else f'np.{dtype_value}'
+                    # Resolve dtype per-param from its own runtime type symbol so that
+                    # inputs and outputs with different dtypes (e.g. int16 in / int32 out)
+                    # are initialised correctly.  Fall back to the global dtype_value if the
+                    # per-param symbol is missing or has no dtype.
+                    _ep_type_ref = None
+                    if i < len(program.runtime.input_types):
+                        _ep_type_ref = str(program.runtime.input_types[i])
+                    elif i - len(program.runtime.input_types) < len(program.runtime.output_types):
+                        _ep_type_ref = str(program.runtime.output_types[i - len(program.runtime.input_types)])
+                    _ep_dtype = None
+                    if _ep_type_ref and _ep_type_ref in program.symbols:
+                        _ep_pt = program.symbols[_ep_type_ref].value
+                        if isinstance(_ep_pt, TensorType) and _ep_pt.dtype:
+                            _ep_dtype = str(_ep_pt.dtype.value)
+                    _resolved = _ep_dtype if _ep_dtype else dtype_value
+                    if _resolved:
+                        dtype_arg = 'bfloat16' if _resolved == 'bfloat16' else f'np.{_resolved}'
                     else:
                         dtype_arg = 'bfloat16'
                 elif size_expr:
@@ -973,6 +988,11 @@ class GUIXMLSerializer:
                         dtype_arg = 'bfloat16' if resolved_dtype == 'bfloat16' else f'np.{resolved_dtype}'
                     else:
                         dtype_arg = 'bfloat16'
+
+                # For matrix (2D) sizes, convert "M x N" → "(M, N)" tuple shape.
+                if 'x' in size_arg.lower():
+                    parts = [p.strip() for p in size_arg.replace('x', ',').split(',') if p.strip()]
+                    size_arg = '(' + ', '.join(parts) + ')'
 
                 # Determine if input or output
                 if i < len(program.runtime.input_types):

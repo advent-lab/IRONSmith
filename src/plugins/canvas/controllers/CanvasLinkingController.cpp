@@ -61,15 +61,15 @@ std::optional<WireArrowPolicy> arrowPolicyFromPortRoles(const CanvasDocument* do
 QString defaultObjectFifoNameForPort(const CanvasDocument* doc, const PortRef& portRef)
 {
     if (!doc)
-        return QStringLiteral("in");
+        return QStringLiteral("of");
 
     CanvasPort meta;
     if (!doc->getPort(portRef.itemId, portRef.portId, meta))
-        return QStringLiteral("in");
+        return QStringLiteral("of");
 
     const QString name = meta.name.trimmed();
     if (name.isEmpty())
-        return QStringLiteral("in");
+        return QStringLiteral("of");
     return name.toLower();
 }
 
@@ -384,7 +384,7 @@ CanvasLinkingController::defaultObjectFifoConfig(const PortRef& start,
         return std::nullopt;
 
     CanvasWire::ObjectFifoConfig config;
-    config.name = QStringLiteral("in");
+    config.name = QStringLiteral("of");
     config.depth = 2;
     config.operation = CanvasWire::ObjectFifoOperation::Fifo;
     config.type.valueType = QStringLiteral("i32");

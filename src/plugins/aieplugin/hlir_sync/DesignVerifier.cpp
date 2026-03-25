@@ -688,6 +688,43 @@ public:
 };
 
 // ---------------------------------------------------------------------------
+// Check 7 — ObjectFifoDimensions
+//
+// Every ObjectFifo wire (between two non-DDR tiles) must have dimensions
+// specified. Without dimensions the tensor type cannot be determined and
+// code generation will silently skip the FIFO.
+// ---------------------------------------------------------------------------
+
+class ObjectFifoDimensionsCheck : public IVerificationCheck
+{
+public:
+    QString name() const override { return QStringLiteral("ObjectFifoDimensions"); }
+    QString displayName() const override { return QStringLiteral("Checking ObjectFifo dimensions"); }
+
+    QList<VerificationIssue> run(const VerificationContext& ctx) const override
+    {
+        QList<VerificationIssue> issues;
+        if (!ctx.document)
+            return issues;
+
+        for (const auto& w : collectWires(*ctx.document)) {
+            if (!w.isObjectFifo())
+                continue;
+            if (!w.wire->hasObjectFifo())
+                continue;
+            if (w.wire->objectFifo().value().type.dimensions.trimmed().isEmpty()) {
+                issues.append({VerificationIssue::Severity::Error,
+                    QStringLiteral("ObjectFifo \"%1\" (%2 \u2192 %3) has no dimensions — "
+                                   "set dimensions in the properties panel.")
+                    .arg(w.fifoName, tileName(w.producerSpec), tileName(w.consumerSpec))});
+            }
+        }
+
+        return issues;
+    }
+};
+
+// ---------------------------------------------------------------------------
 // DesignVerifier
 // ---------------------------------------------------------------------------
 
@@ -700,6 +737,7 @@ DesignVerifier::DesignVerifier()
     m_checks.push_back(std::make_unique<DisconnectedDataflowCheck>());
     m_checks.push_back(std::make_unique<DmaChannelLimitCheck>());
     m_checks.push_back(std::make_unique<SplitJoinDivisibilityCheck>());
+    m_checks.push_back(std::make_unique<ObjectFifoDimensionsCheck>());
 }
 
 DesignVerifier::~DesignVerifier() = default;

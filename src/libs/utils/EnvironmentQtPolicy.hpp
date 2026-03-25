@@ -4,6 +4,7 @@
 #pragma once
 
 #include "utils/Environment.hpp"
+#include "utils/UtilsGlobal.hpp"
 
 #include <QtCore/QSettings>
 
@@ -11,7 +12,7 @@
 
 namespace Utils {
 
-class QtEnvironmentPersistencePolicy final {
+class UTILS_EXPORT QtEnvironmentPersistencePolicy final {
 public:
 	struct SettingsHandle final {
 		std::unique_ptr<QSettings> settings;

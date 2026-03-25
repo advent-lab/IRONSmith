@@ -115,6 +115,7 @@ ironsmith_add_plugin(CanvasPlugin
         PRIVATE_DEPENDS
             IRONSmith::ExtensionSystem
             IRONSmith::CorePlugin
+            Qt6::Svg
 
         PRIVATE_DEFINES
             CANVAS_LIBRARY

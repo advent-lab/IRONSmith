@@ -931,7 +931,7 @@
                 <var>n_fifo_elems</var>
               </arg>
               <kwarg name="dtype">
-                <var>np.int16</var>
+                <var>np.int32</var>
               </kwarg>
               <kwarg name="device">
                 <string>npu</string>
