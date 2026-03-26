@@ -182,6 +182,8 @@ CodeGenResult<CodeGenOutput> CodeGenBridge::runPythonScript(
         command += " " + shellQuote(arg);
 #ifndef _WIN32
     command += " 2>&1";
+#else
+    command = "cmd /c \"" + command + "\"";
 #endif
 
     std::filesystem::path originalDir;
