@@ -40,7 +40,10 @@ if (BUILD_WITH_TESTS)
         HlirCppBridge
         CodeGenBridge
     )
-    target_compile_definitions(ironsmith PRIVATE IRONSMITH_WITH_BRIDGE_TESTS)
+    target_compile_definitions(ironsmith PRIVATE
+        IRONSMITH_WITH_BRIDGE_TESTS
+        IRONSMITH_BRIDGE_TEST_OUTPUT_DIR="${PROJECT_SOURCE_DIR}/tests/hlir_bridge/output"
+    )
 
     if (WIN32)
         # Copy bridge DLL dependencies to bin/ so --test-bridges works at runtime.

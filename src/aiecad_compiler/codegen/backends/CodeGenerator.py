@@ -1060,6 +1060,7 @@ class CodeGenerator:
         const_nodes = [c for c in self._get_children(symbols_sections[0], 'contains')
                        if self._get_node_attr(c, 'kind') == 'Const']
         if const_nodes:
+            self._emit("# Define constants")
             for child_id in const_nodes:
                 const_name = self._get_node_attr(child_id, 'label')
                 const_value = self._get_node_attr(child_id, 'value')

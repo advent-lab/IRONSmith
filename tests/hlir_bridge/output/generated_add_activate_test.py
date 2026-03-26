@@ -18,6 +18,7 @@ from aie.helpers.taplib import TensorAccessPattern
 
 @iron.jit(is_placed=False)
 def add_activate_test_jit(A, B, D):
+    # Define constants
     data_size = 128
 
     # Define tensor types

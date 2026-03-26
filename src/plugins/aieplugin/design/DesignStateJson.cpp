@@ -254,6 +254,8 @@ QJsonObject serializeDesignState(const DesignState& state)
             objectFifo.insert(u"operation"_s, objectFifoOperationToString(link.objectFifo.operation));
             objectFifo.insert(u"dimensions"_s, link.objectFifo.type.dimensions);
             objectFifo.insert(u"valueType"_s, link.objectFifo.type.valueType);
+            if (!link.objectFifo.type.symbolRef.isEmpty())
+                objectFifo.insert(u"symbolRef"_s, link.objectFifo.type.symbolRef);
             if (!link.objectFifo.hubName.isEmpty())
                 objectFifo.insert(u"hubName"_s, link.objectFifo.hubName);
             obj.insert(u"objectFifo"_s, objectFifo);
@@ -489,6 +491,7 @@ Utils::Result parseDesignState(const QJsonObject& json, DesignState& out)
                             objectFifoOperationFromString(objectFifoObject.value(u"operation"_s).toString());
                         link.objectFifo.type.dimensions = objectFifoObject.value(u"dimensions"_s).toString();
                         link.objectFifo.type.valueType = objectFifoObject.value(u"valueType"_s).toString();
+                        link.objectFifo.type.symbolRef = objectFifoObject.value(u"symbolRef"_s).toString();
                         link.objectFifo.hubName = objectFifoObject.value(u"hubName"_s).toString();
                         link.hasObjectFifo = true;
                     }

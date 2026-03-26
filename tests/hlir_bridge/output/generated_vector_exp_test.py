@@ -19,6 +19,7 @@ from aie.iron.controlflow import range_
 
 @iron.jit(is_placed=False)
 def vector_exp_test_jit(inputA, outputC):
+    # Define constants
     N = 65536
 
     # Define tensor types

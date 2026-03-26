@@ -4,6 +4,8 @@
 #include "aieplugin/panels/AiePropertiesPanel.hpp"
 
 #include "aieplugin/AieService.hpp"
+#include "aieplugin/symbol_table/SymbolsController.hpp"
+#include "aieplugin/symbol_table/SymbolTableTypes.hpp"
 
 #include "canvas/CanvasBlock.hpp"
 #include "canvas/CanvasDocument.hpp"
@@ -18,6 +20,7 @@
 #include <QtCore/QTimer>
 #include <QtCore/QtGlobal>
 #include <QtWidgets/QComboBox>
+#include <QtWidgets/QCompleter>
 #include <QtWidgets/QFrame>
 #include <QtWidgets/QFormLayout>
 #include <QtWidgets/QHBoxLayout>
@@ -44,6 +47,25 @@ QString formatBounds(const QRectF& bounds)
         .arg(normalized.height(), 0, 'f', 1);
 }
 
+// Convert long-form dtype (e.g. "int32", "float32") to the short-form used by type combos.
+QString shortValueType(const QString& dtype)
+{
+    static const QHash<QString, QString> map = {
+        { QStringLiteral("int8"),    QStringLiteral("i8")  },
+        { QStringLiteral("int16"),   QStringLiteral("i16") },
+        { QStringLiteral("int32"),   QStringLiteral("i32") },
+        { QStringLiteral("int64"),   QStringLiteral("i64") },
+        { QStringLiteral("uint8"),   QStringLiteral("ui8")  },
+        { QStringLiteral("uint16"),  QStringLiteral("ui16") },
+        { QStringLiteral("uint32"),  QStringLiteral("ui32") },
+        { QStringLiteral("bfloat16"),QStringLiteral("bf16") },
+        { QStringLiteral("float16"), QStringLiteral("f16")  },
+        { QStringLiteral("float32"), QStringLiteral("f32")  },
+        { QStringLiteral("float64"), QStringLiteral("f64")  },
+    };
+    return map.value(dtype.trimmed().toLower(), dtype.trimmed().toLower());
+}
+
 } // namespace
 
 AiePropertiesPanel::AiePropertiesPanel(AieService* service, QWidget* parent)
@@ -58,6 +80,48 @@ AiePropertiesPanel::AiePropertiesPanel(AieService* service, QWidget* parent)
     refreshSelection();
 
     QTimer::singleShot(0, this, [this]() { refreshSelection(); });
+}
+
+void AiePropertiesPanel::setSymbolsController(SymbolsController* controller)
+{
+    if (m_symbolsController)
+        disconnect(m_symbolsController, &SymbolsController::symbolsChanged,
+                   this, &AiePropertiesPanel::populateFifoSymbolCombo);
+    m_symbolsController = controller;
+    if (m_symbolsController)
+        connect(m_symbolsController, &SymbolsController::symbolsChanged,
+                this, &AiePropertiesPanel::populateFifoSymbolCombo);
+    populateFifoSymbolCombo();
+}
+
+void AiePropertiesPanel::populateFifoSymbolCombo()
+{
+    if (!m_fifoSymbolCombo)
+        return;
+
+    const QString current = m_fifoSymbolCombo->currentText();
+    m_fifoSymbolCombo->blockSignals(true);
+    m_fifoSymbolCombo->clear();
+    m_fifoSymbolCombo->addItem(QStringLiteral("None"));
+
+    if (m_symbolsController) {
+        for (const auto& sym : m_symbolsController->symbols()) {
+            if (sym.kind == SymbolKind::TypeAbstraction)
+                m_fifoSymbolCombo->addItem(sym.name);
+        }
+    }
+
+    const int idx = m_fifoSymbolCombo->findText(current);
+    m_fifoSymbolCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+    m_fifoSymbolCombo->blockSignals(false);
+
+    // Update FIFO dimensions completer with current constant names.
+    if (m_fifoDimensionsEdit && m_symbolsController) {
+        const QStringList candidates = m_symbolsController->dimensionReferenceCandidates();
+        auto* completer = new QCompleter(candidates, m_fifoDimensionsEdit);
+        completer->setCaseSensitivity(Qt::CaseInsensitive);
+        m_fifoDimensionsEdit->setCompleter(completer);
+    }
 }
 
 void AiePropertiesPanel::buildUi()
@@ -186,6 +250,9 @@ void AiePropertiesPanel::buildUi()
     auto* fifoDepthSpin = new QSpinBox(fifoGroup);
     fifoDepthSpin->setObjectName(QStringLiteral("AiePropertiesField"));
     fifoDepthSpin->setRange(1, 4096);
+    auto* fifoSymbolCombo = new QComboBox(fifoGroup);
+    fifoSymbolCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+    fifoSymbolCombo->addItem(QStringLiteral("None"));
     auto* fifoTypeCombo = new QComboBox(fifoGroup);
     fifoTypeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
     fifoTypeCombo->addItem(QStringLiteral("i8"));
@@ -197,6 +264,7 @@ void AiePropertiesPanel::buildUi()
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Wire ID")), fifoWireIdValue);
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Name")), fifoNameEdit);
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Depth")), fifoDepthSpin);
+    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Symbol")), fifoSymbolCombo);
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Value Type")), fifoTypeCombo);
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Dimensions")), fifoDimensionsEdit);
 
@@ -204,6 +272,7 @@ void AiePropertiesPanel::buildUi()
     m_fifoWireIdValue = fifoWireIdValue;
     m_fifoNameEdit = fifoNameEdit;
     m_fifoDepthSpin = fifoDepthSpin;
+    m_fifoSymbolCombo = fifoSymbolCombo;
     m_fifoTypeCombo = fifoTypeCombo;
     m_fifoDimensionsEdit = fifoDimensionsEdit;
 
@@ -292,6 +361,24 @@ void AiePropertiesPanel::buildUi()
             this, &AiePropertiesPanel::applyFifoProperties);
     connect(fifoDepthSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, [this](int) { applyFifoProperties(); });
+    connect(fifoSymbolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this, fifoSymbolCombo, fifoTypeCombo, fifoDimensionsEdit](int idx) {
+                const bool isSymbol = (idx > 0);
+                fifoTypeCombo->setEnabled(!isSymbol);
+                fifoDimensionsEdit->setEnabled(!isSymbol);
+                if (isSymbol && m_symbolsController) {
+                    const QString symName = fifoSymbolCombo->currentText();
+                    for (const auto& s : m_symbolsController->symbols()) {
+                        if (s.name == symName && s.kind == SymbolKind::TypeAbstraction) {
+                            fifoDimensionsEdit->setText(s.type.shapeTokens.join(u'x'));
+                            const int ti = fifoTypeCombo->findText(shortValueType(s.type.dtype));
+                            if (ti >= 0) fifoTypeCombo->setCurrentIndex(ti);
+                            break;
+                        }
+                    }
+                }
+                applyFifoProperties();
+            });
     connect(fifoTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int) { applyFifoProperties(); });
     connect(fifoDimensionsEdit, &QLineEdit::editingFinished,
@@ -548,13 +635,25 @@ void AiePropertiesPanel::refreshSelection()
             m_fifoNameEdit->setText(fifo.name);
         if (m_fifoDepthSpin)
             m_fifoDepthSpin->setValue(fifo.depth);
+
+        // Symbol combo
+        const QString currentSymbol = fifo.type.symbolRef.value_or(QString{});
+        if (m_fifoSymbolCombo) {
+            const int symIdx = currentSymbol.isEmpty() ? 0 : m_fifoSymbolCombo->findText(currentSymbol);
+            m_fifoSymbolCombo->setCurrentIndex(symIdx >= 0 ? symIdx : 0);
+        }
+        const bool usingSymbol = !currentSymbol.isEmpty() && (m_fifoSymbolCombo && m_fifoSymbolCombo->currentIndex() > 0);
+
         if (m_fifoTypeCombo) {
+            m_fifoTypeCombo->setEnabled(!usingSymbol);
             const QString valueType = fifo.type.valueType.trimmed().toLower();
             const int index = m_fifoTypeCombo->findText(valueType);
             m_fifoTypeCombo->setCurrentIndex(index >= 0 ? index : m_fifoTypeCombo->findText(QStringLiteral("i32")));
         }
-        if (m_fifoDimensionsEdit)
+        if (m_fifoDimensionsEdit) {
+            m_fifoDimensionsEdit->setEnabled(!usingSymbol);
             m_fifoDimensionsEdit->setText(fifo.type.dimensions);
+        }
         m_updatingUi = false;
 
         showSelectionState(SelectionKind::FifoWire,
@@ -607,7 +706,7 @@ void AiePropertiesPanel::applyTileStereotype()
 void AiePropertiesPanel::applyFifoProperties()
 {
     if (m_updatingUi || !m_document || !m_fifoNameEdit || !m_fifoDepthSpin ||
-        !m_fifoTypeCombo || !m_fifoDimensionsEdit) {
+        !m_fifoSymbolCombo || !m_fifoTypeCombo || !m_fifoDimensionsEdit) {
         return;
     }
 
@@ -616,9 +715,28 @@ void AiePropertiesPanel::applyFifoProperties()
         return;
 
     Canvas::CanvasWire::ObjectFifoConfig config = wire->objectFifo().value();
-    config.name       = m_fifoNameEdit->text().trimmed();
-    config.depth      = m_fifoDepthSpin->value();
-    config.type.valueType  = m_fifoTypeCombo->currentText().trimmed().toLower();
+    config.name  = m_fifoNameEdit->text().trimmed();
+    config.depth = m_fifoDepthSpin->value();
+
+    // Symbol reference takes precedence over literal type/dims
+    const bool usingSymbol = m_fifoSymbolCombo && m_fifoSymbolCombo->currentIndex() > 0;
+    if (usingSymbol) {
+        const QString symName = m_fifoSymbolCombo->currentText();
+        config.type.symbolRef = symName;
+        // Resolve and store concrete dims/valueType from the symbol so other code still works.
+        if (m_symbolsController) {
+            for (const auto& sym : m_symbolsController->symbols()) {
+                if (sym.name == symName && sym.kind == SymbolKind::TypeAbstraction) {
+                    config.type.dimensions = sym.type.shapeTokens.join(u'x');
+                    config.type.valueType  = sym.type.dtype;
+                    break;
+                }
+            }
+        }
+    } else {
+        config.type.symbolRef = std::nullopt;
+        config.type.valueType = m_fifoTypeCombo->currentText().trimmed().toLower();
+    }
 
     // Validate new dimensions against the DDR total buffer size.
     // The FIFO size must be a divisor of the total (element counts).
@@ -680,7 +798,8 @@ void AiePropertiesPanel::applyFifoProperties()
         }
     }
 
-    config.type.dimensions = newDims;
+    if (!usingSymbol)
+        config.type.dimensions = newDims;
 
     wire->setObjectFifo(config);
     m_document->notifyChanged();
@@ -787,21 +906,34 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
         return lbl;
     };
 
+    // Collect TypeAbstraction symbol names for DDR symbol combos.
+    QStringList typeSymbolNames;
+    QStringList dimsCandidates;
+    if (m_symbolsController) {
+        for (const auto& sym : m_symbolsController->symbols()) {
+            if (sym.kind == SymbolKind::TypeAbstraction)
+                typeSymbolNames.append(sym.name);
+        }
+        dimsCandidates = m_symbolsController->dimensionReferenceCandidates();
+    }
+
     // Helper: one row of [name][totalDims][type] for a fill/drain param.
     // fifoWire: SHIM→compute wire (name and valueType)
     // ddrWire:  DDR→SHIM wire (total buffer dimensions for main())
-    const auto makeRow = [this, content, contentLayout](
+    const auto makeRow = [this, content, contentLayout, typeSymbolNames, dimsCandidates](
             Canvas::CanvasWire* fifoWire, Canvas::CanvasWire* ddrWire, const QString& defaultName)
     {
         QString name = defaultName;
         QString dims = QStringLiteral("1024");
         QString type = QStringLiteral("i32");
         bool isMatrix = false;
+        QString ddrSymbol;
         Canvas::CanvasWire::TensorTilerConfig tapCfg;
         if (fifoWire->hasObjectFifo()) {
             const auto& cfg = fifoWire->objectFifo().value();
             if (!cfg.name.isEmpty())           name = cfg.name;
             if (!cfg.type.valueType.isEmpty()) type = cfg.type.valueType;
+            ddrSymbol = cfg.type.symbolRef.value_or(QString{});
         }
         // Total buffer size and TAP config live on the DDR→SHIM wire
         if (ddrWire && ddrWire->hasObjectFifo()) {
@@ -812,6 +944,26 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
             if (ddrCfg.type.tap.has_value())
                 tapCfg = *ddrCfg.type.tap;
         }
+
+        // ── Symbol row ───────────────────────────────────────────────────────
+        auto* symbolRow = new QWidget(content);
+        auto* symbolRowLayout = new QHBoxLayout(symbolRow);
+        symbolRowLayout->setContentsMargins(0, 0, 0, 0);
+        symbolRowLayout->setSpacing(4);
+        auto* symLbl = new QLabel(QStringLiteral("Symbol:"), symbolRow);
+        symLbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+        auto* ddrSymbolCombo = new QComboBox(symbolRow);
+        ddrSymbolCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+        ddrSymbolCombo->addItem(QStringLiteral("None"));
+        for (const QString& sn : typeSymbolNames)
+            ddrSymbolCombo->addItem(sn);
+        {
+            const int si = ddrSymbol.isEmpty() ? 0 : ddrSymbolCombo->findText(ddrSymbol);
+            ddrSymbolCombo->setCurrentIndex(si >= 0 ? si : 0);
+        }
+        symbolRowLayout->addWidget(symLbl);
+        symbolRowLayout->addWidget(ddrSymbolCombo, 1);
+        contentLayout->addWidget(symbolRow);
 
         // ── Top row: Name | Dims | Type | Mode ──────────────────────────────
         auto* row = new QWidget(content);
@@ -827,6 +979,11 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
         auto* dimsEdit = new QLineEdit(dims, row);
         dimsEdit->setObjectName(QStringLiteral("AiePropertiesField"));
         dimsEdit->setPlaceholderText(QStringLiteral("e.g. 1024 or MxN"));
+        if (!dimsCandidates.isEmpty()) {
+            auto* dimsCompleter = new QCompleter(dimsCandidates, dimsEdit);
+            dimsCompleter->setCaseSensitivity(Qt::CaseInsensitive);
+            dimsEdit->setCompleter(dimsCompleter);
+        }
 
         auto* typeCombo = new QComboBox(row);
         typeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
@@ -838,6 +995,10 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
         modeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
         modeCombo->addItems({QStringLiteral("Vector"), QStringLiteral("Matrix")});
         modeCombo->setCurrentIndex(isMatrix ? 1 : 0);
+
+        const bool ddrUsingSymbol = (ddrSymbolCombo->currentIndex() > 0);
+        dimsEdit->setEnabled(!ddrUsingSymbol);
+        typeCombo->setEnabled(!ddrUsingSymbol);
 
         rowLayout->addWidget(nameEdit);
         rowLayout->addWidget(dimsEdit, 1);
@@ -876,6 +1037,7 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
         const Canvas::ObjectId ddrWireId  = ddrWire ? ddrWire->id() : Canvas::ObjectId{};
         const auto applyFn = [this, fifoWireId, ddrWireId,
                                nameEdit, dimsEdit, typeCombo, modeCombo,
+                               ddrSymbolCombo,
                                tileDimsEdit, tileCountsEdit, repeatEdit]() {
             Canvas::CanvasWire::TensorTilerConfig tap;
             tap.tileDims      = tileDimsEdit->text().trimmed();
@@ -883,9 +1045,11 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
             tap.patternRepeat = repeatEdit->text().trimmed();
             tap.pruneStep     = false;
             tap.index         = 0;
+            const QString symName = (ddrSymbolCombo && ddrSymbolCombo->currentIndex() > 0)
+                ? ddrSymbolCombo->currentText() : QString{};
             applyDdrEntry(fifoWireId, ddrWireId,
                           nameEdit->text(), dimsEdit->text(), typeCombo->currentText(),
-                          modeCombo->currentIndex() == 1, tap);
+                          modeCombo->currentIndex() == 1, tap, symName);
         };
         connect(nameEdit,       &QLineEdit::editingFinished, this, applyFn);
         connect(dimsEdit,       &QLineEdit::editingFinished, this, applyFn);
@@ -896,6 +1060,24 @@ void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
                 this, [applyFn](int) { applyFn(); });
         connect(modeCombo,  QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, [applyFn](int) { applyFn(); });
+        connect(ddrSymbolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this, ddrSymbolCombo, dimsEdit, typeCombo, applyFn](int idx) {
+                    const bool sym = (idx > 0);
+                    dimsEdit->setEnabled(!sym);
+                    typeCombo->setEnabled(!sym);
+                    if (sym && m_symbolsController) {
+                        const QString symName = ddrSymbolCombo->currentText();
+                        for (const auto& s : m_symbolsController->symbols()) {
+                            if (s.name == symName && s.kind == SymbolKind::TypeAbstraction) {
+                                dimsEdit->setText(s.type.shapeTokens.join(u'x'));
+                                const int ti = typeCombo->findText(shortValueType(s.type.dtype));
+                                if (ti >= 0) typeCombo->setCurrentIndex(ti);
+                                break;
+                            }
+                        }
+                    }
+                    applyFn();
+                });
     };
 
     // Inputs section
@@ -929,7 +1111,8 @@ void AiePropertiesPanel::applyDdrEntry(Canvas::ObjectId fifoWireId,
                                         const QString& dims,
                                         const QString& type,
                                         bool isMatrix,
-                                        const Canvas::CanvasWire::TensorTilerConfig& tap)
+                                        const Canvas::CanvasWire::TensorTilerConfig& tap,
+                                        const QString& symbolRef)
 {
     if (m_updatingUi || !m_document)
         return;
@@ -944,10 +1127,11 @@ void AiePropertiesPanel::applyDdrEntry(Canvas::ObjectId fifoWireId,
             cfg.depth = 2;
         cfg.name           = name.trimmed();
         cfg.type.valueType = type.trimmed().toLower();
+        cfg.type.symbolRef = symbolRef.isEmpty() ? std::nullopt : std::optional<QString>(symbolRef);
         fifoWire->setObjectFifo(cfg);
     }
 
-    // Write total buffer dimensions, mode, and TAP to the DDR→SHIM wire
+    // Write total buffer dimensions, mode, TAP to the DDR→SHIM wire
     auto* ddrWire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(ddrWireId));
     if (ddrWire) {
         Canvas::CanvasWire::ObjectFifoConfig cfg;
@@ -955,7 +1139,20 @@ void AiePropertiesPanel::applyDdrEntry(Canvas::ObjectId fifoWireId,
             cfg = ddrWire->objectFifo().value();
         else
             cfg.depth = 1;
-        cfg.type.dimensions = dims.trimmed();
+        if (!symbolRef.isEmpty()) {
+            // Resolve concrete dims/type from the symbol for downstream code.
+            if (m_symbolsController) {
+                for (const auto& sym : m_symbolsController->symbols()) {
+                    if (sym.name == symbolRef && sym.kind == SymbolKind::TypeAbstraction) {
+                        cfg.type.dimensions = sym.type.shapeTokens.join(u'x');
+                        cfg.type.valueType  = sym.type.dtype;
+                        break;
+                    }
+                }
+            }
+        } else {
+            cfg.type.dimensions = dims.trimmed();
+        }
         cfg.type.mode = isMatrix
             ? Canvas::CanvasWire::DimensionMode::Matrix
             : Canvas::CanvasWire::DimensionMode::Vector;

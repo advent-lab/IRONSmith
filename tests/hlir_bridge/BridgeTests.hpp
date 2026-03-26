@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace BridgeTests {
 
 /**
@@ -11,6 +13,6 @@ namespace BridgeTests {
  *
  * @return true if all tests pass, false otherwise
  */
-bool runBridgeTests();
+bool runBridgeTests(const std::string& appDir = {});
 
 } // namespace BridgeTests

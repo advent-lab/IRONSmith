@@ -4,6 +4,8 @@
 #include "aieplugin/hlir_sync/HlirSyncService.hpp"
 #include "aieplugin/hlir_sync/DesignVerifier.hpp"
 #include "aieplugin/kernels/KernelRegistryService.hpp"
+#include "aieplugin/symbol_table/SymbolsController.hpp"
+#include "aieplugin/symbol_table/SymbolTableTypes.hpp"
 
 #include "canvas/CanvasBlock.hpp"
 #include "canvas/CanvasDocument.hpp"
@@ -98,6 +100,36 @@ void HlirSyncService::setKernelRegistry(KernelRegistryService* registry)
     m_kernelRegistry = registry;
 }
 
+void HlirSyncService::setSymbolsController(SymbolsController* controller)
+{
+    m_symbolsController = controller;
+}
+
+HlirSyncService::ResolvedType
+HlirSyncService::resolveType(const Canvas::CanvasWire::ObjectFifoTypeAbstraction& typeAbs,
+                              const QHash<QString, qint64>& /*constants*/) const
+{
+    if (typeAbs.symbolRef.has_value() && !typeAbs.symbolRef->isEmpty() && m_symbolsController) {
+        const auto& syms = m_symbolsController->symbols();
+        for (const auto& sym : syms) {
+            if (sym.name != *typeAbs.symbolRef || sym.kind != SymbolKind::TypeAbstraction)
+                continue;
+            QStringList parts;
+            parts.reserve(sym.type.shapeTokens.size());
+            for (const QString& token : sym.type.shapeTokens) {
+                const QString t = token.trimmed();
+                qint64 val = 0;
+                if (parseIntegralToken(t, val))
+                    parts.append(QString::number(val));
+                else
+                    parts.append(t); // constant name or unknown — keep symbolic for generated code
+            }
+            return {parts.join(u'x'), sym.type.dtype, *typeAbs.symbolRef};
+        }
+    }
+    return {typeAbs.dimensions, typeAbs.valueType, {}};
+}
+
 void HlirSyncService::attachDocument(Canvas::CanvasDocument* doc, const QString& outputBaseDir)
 {
     // Swap to a new document, resetting bridge state and starting a fresh sync.
@@ -163,6 +195,15 @@ void HlirSyncService::syncCanvas()
         return;
     }
 
+    // Build constant name → value map for resolving symbol shape tokens.
+    QHash<QString, qint64> constantsMap;
+    if (m_symbolsController) {
+        for (const auto& sym : m_symbolsController->symbols()) {
+            if (sym.kind == SymbolKind::Constant && !sym.name.isEmpty())
+                constantsMap.insert(sym.name, sym.constant.value);
+        }
+    }
+
     const auto& items = m_document->items();
 
     QSet<Canvas::ObjectId> currentIds;
@@ -203,6 +244,23 @@ void HlirSyncService::syncCanvas()
     for (const hlir::ComponentId& id : std::as_const(m_typeMap))
         m_bridge->remove(id);
     m_typeMap.clear();
+    m_typeNameByKey.clear();
+
+    // Re-add Constant symbols to the bridge (must precede tensor types so shape tokens resolve).
+    for (const hlir::ComponentId& id : std::as_const(m_constantMap))
+        m_bridge->remove(id);
+    m_constantMap.clear();
+    if (m_symbolsController) {
+        for (const auto& sym : m_symbolsController->symbols()) {
+            if (sym.kind != SymbolKind::Constant || sym.name.isEmpty())
+                continue;
+            const auto res = m_bridge->addConstant(sym.name.toStdString(),
+                                                   QString::number(sym.constant.value).toStdString(),
+                                                   "int");
+            if (res)
+                m_constantMap[sym.name] = res.value();
+        }
+    }
 
     // Tiles are not rebuilt every sync — only remove ones that are no longer on the canvas.
     for (auto it = m_tileMap.begin(); it != m_tileMap.end(); ) {
@@ -286,8 +344,14 @@ void HlirSyncService::syncCanvas()
             const auto& cfg = wire->objectFifo().value();
             baseName = sanitizePythonName(cfg.name);
             depth = cfg.depth;
-            if (!cfg.type.dimensions.isEmpty())
-                typeId = ensureTensorType(cfg.type.dimensions, normalizeValueType(cfg.type.valueType));
+            const auto resolved = resolveType(cfg.type, constantsMap);
+            if (!resolved.dimensions.isEmpty()) {
+                if (!resolved.symbolName.isEmpty())
+                    typeId = ensureNamedTensorType(resolved.symbolName, resolved.dimensions,
+                                                   normalizeValueType(resolved.valueType));
+                else
+                    typeId = ensureTensorType(resolved.dimensions, normalizeValueType(resolved.valueType));
+            }
             // else: dimensions unspecified → typeId stays empty → wire is skipped below
         } else {
             baseName = QStringLiteral("fifo_%1_to_%2").arg(producerSpecId, consumerSpecId);
@@ -348,6 +412,14 @@ void HlirSyncService::syncSplitsAndJoins()
     if (!m_document || !m_bridge)
         return;
 
+    QHash<QString, qint64> constantsMap;
+    if (m_symbolsController) {
+        for (const auto& sym : m_symbolsController->symbols()) {
+            if (sym.kind == SymbolKind::Constant && !sym.name.isEmpty())
+                constantsMap.insert(sym.name, sym.constant.value);
+        }
+    }
+
     const auto& items = m_document->items();
 
     // Build lookup: tile ObjectId → all FIFOs connected to that tile as consumer/producer.
@@ -402,12 +474,17 @@ void HlirSyncService::syncSplitsAndJoins()
             const auto& cfg = wire->objectFifo().value();
             baseName = cfg.name;
             fifoDepth = cfg.depth;
-            fifoValueType = cfg.type.valueType.isEmpty() ? QStringLiteral("i32") : cfg.type.valueType;
-            fifoDimensions = cfg.type.dimensions;
-            if (!cfg.type.dimensions.isEmpty())
-                typeId = ensureTensorType(cfg.type.dimensions, normalizeValueType(cfg.type.valueType));
-            // else: dimensions unspecified → keep defaultTypeId (shared data type)
-            elemCount = elementCountFromDims(cfg.type.dimensions);
+            const auto resolved = resolveType(cfg.type, constantsMap);
+            fifoValueType = resolved.valueType.isEmpty() ? QStringLiteral("i32") : resolved.valueType;
+            fifoDimensions = resolved.dimensions;
+            if (!resolved.dimensions.isEmpty()) {
+                if (!resolved.symbolName.isEmpty())
+                    typeId = ensureNamedTensorType(resolved.symbolName, resolved.dimensions,
+                                                   normalizeValueType(resolved.valueType));
+                else
+                    typeId = ensureTensorType(resolved.dimensions, normalizeValueType(resolved.valueType));
+            }
+            elemCount = elementCountFromDims(resolved.dimensions);
         }
 
         const hlir::ComponentId fifoId = m_fifoMap.value(wire->id());
@@ -972,12 +1049,18 @@ HlirSyncService::ensureNamedTensorType(const QString& name,
     auto result = m_bridge->addTensorType(name.toStdString(), shape, valueType.toStdString());
     if (result) {
         m_typeMap[name] = result.value();
+        // Register reverse mapping so ensureTensorType can reuse this named type
+        // instead of generating a duplicate anonymous one for the same dims+dtype.
+        const QString reverseKey = dimensions + u'|' + normalizeValueType(valueType);
+        m_typeNameByKey[reverseKey] = name;
         return result.value();
     }
 
     auto lookup = m_bridge->lookupByName(hlir::ComponentType::TENSOR_TYPE, name.toStdString());
     if (lookup) {
         m_typeMap[name] = lookup.value();
+        const QString reverseKey = dimensions + u'|' + normalizeValueType(valueType);
+        m_typeNameByKey[reverseKey] = name;
         return lookup.value();
     }
 
@@ -994,6 +1077,13 @@ HlirSyncService::ensureTensorType(const QString& dimensions, const QString& valu
     const QString key = dimensions + u'|' + vt;
     if (m_typeMap.contains(key))
         return m_typeMap.value(key);
+
+    // Reuse a named type that already covers the same dims+dtype to avoid duplicates.
+    if (m_typeNameByKey.contains(key)) {
+        const QString& namedKey = m_typeNameByKey[key];
+        if (m_typeMap.contains(namedKey))
+            return m_typeMap[namedKey];
+    }
 
     // Parse "1024" → {"1024"}, "1024x512" → {"1024","512"}
     const QStringList dimParts = dimensions.isEmpty()
@@ -1380,6 +1470,14 @@ void HlirSyncService::buildRuntime()
     if (!m_document || !m_bridge)
         return;
 
+    QHash<QString, qint64> constantsMap;
+    if (m_symbolsController) {
+        for (const auto& sym : m_symbolsController->symbols()) {
+            if (sym.kind == SymbolKind::Constant && !sym.name.isEmpty())
+                constantsMap.insert(sym.name, sym.constant.value);
+        }
+    }
+
     const QLatin1StringView ddrSpecId{"ddr"};
 
     const auto& items = m_document->items();
@@ -1504,25 +1602,33 @@ void HlirSyncService::buildRuntime()
         QString valueType = QStringLiteral("int32");
         // Prefer FIFO wire value type (the dtype flowing through the transfer)
         if (auto* w = fillEntries[i].wire; w && w->hasObjectFifo()) {
-            const QString vt = w->objectFifo().value().type.valueType;
-            if (!vt.isEmpty())
-                valueType = normalizeValueType(vt);
+            const auto resolved = resolveType(w->objectFifo().value().type, constantsMap);
+            if (!resolved.valueType.isEmpty())
+                valueType = normalizeValueType(resolved.valueType);
         }
         // Sequence type and main() size from DDR wire (2D host shape)
         if (auto* d = fillEntries[i].ddrWire; d && d->hasObjectFifo()) {
-            const auto& dc = d->objectFifo().value();
-            if (valueType == QStringLiteral("int32") && !dc.type.valueType.isEmpty())
-                valueType = normalizeValueType(dc.type.valueType);
-            mainSize = dc.type.dimensions.trimmed();
-            if (!mainSize.isEmpty())
-                typeId = ensureTensorType(mainSize, valueType);
+            const auto resolved = resolveType(d->objectFifo().value().type, constantsMap);
+            if (valueType == QStringLiteral("int32") && !resolved.valueType.isEmpty())
+                valueType = normalizeValueType(resolved.valueType);
+            mainSize = resolved.dimensions.trimmed();
+            if (!mainSize.isEmpty()) {
+                if (!resolved.symbolName.isEmpty())
+                    typeId = ensureNamedTensorType(resolved.symbolName, mainSize, valueType);
+                else
+                    typeId = ensureTensorType(mainSize, valueType);
+            }
         }
         // Fall back to FIFO transfer dims if DDR wire not yet configured
         if (typeId.empty()) {
             if (auto* w = fillEntries[i].wire; w && w->hasObjectFifo()) {
-                const QString dims = w->objectFifo().value().type.dimensions.trimmed();
-                if (!dims.isEmpty())
-                    typeId = ensureTensorType(dims, valueType);
+                const auto resolved = resolveType(w->objectFifo().value().type, constantsMap);
+                if (!resolved.dimensions.isEmpty()) {
+                    if (!resolved.symbolName.isEmpty())
+                        typeId = ensureNamedTensorType(resolved.symbolName, resolved.dimensions, valueType);
+                    else
+                        typeId = ensureTensorType(resolved.dimensions, valueType);
+                }
             }
         }
         if (!typeId.empty())
@@ -1536,23 +1642,31 @@ void HlirSyncService::buildRuntime()
         QString mainSize;
         QString valueType = QStringLiteral("int32");
         if (auto* w = drainEntries[i].wire; w && w->hasObjectFifo()) {
-            const QString vt = w->objectFifo().value().type.valueType;
-            if (!vt.isEmpty())
-                valueType = normalizeValueType(vt);
+            const auto resolved = resolveType(w->objectFifo().value().type, constantsMap);
+            if (!resolved.valueType.isEmpty())
+                valueType = normalizeValueType(resolved.valueType);
         }
         if (auto* d = drainEntries[i].ddrWire; d && d->hasObjectFifo()) {
-            const auto& dc = d->objectFifo().value();
-            if (valueType == QStringLiteral("int32") && !dc.type.valueType.isEmpty())
-                valueType = normalizeValueType(dc.type.valueType);
-            mainSize = dc.type.dimensions.trimmed();
-            if (!mainSize.isEmpty())
-                typeId = ensureTensorType(mainSize, valueType);
+            const auto resolved = resolveType(d->objectFifo().value().type, constantsMap);
+            if (valueType == QStringLiteral("int32") && !resolved.valueType.isEmpty())
+                valueType = normalizeValueType(resolved.valueType);
+            mainSize = resolved.dimensions.trimmed();
+            if (!mainSize.isEmpty()) {
+                if (!resolved.symbolName.isEmpty())
+                    typeId = ensureNamedTensorType(resolved.symbolName, mainSize, valueType);
+                else
+                    typeId = ensureTensorType(mainSize, valueType);
+            }
         }
         if (typeId.empty()) {
             if (auto* w = drainEntries[i].wire; w && w->hasObjectFifo()) {
-                const QString dims = w->objectFifo().value().type.dimensions.trimmed();
-                if (!dims.isEmpty())
-                    typeId = ensureTensorType(dims, valueType);
+                const auto resolved = resolveType(w->objectFifo().value().type, constantsMap);
+                if (!resolved.dimensions.isEmpty()) {
+                    if (!resolved.symbolName.isEmpty())
+                        typeId = ensureNamedTensorType(resolved.symbolName, resolved.dimensions, valueType);
+                    else
+                        typeId = ensureTensorType(resolved.dimensions, valueType);
+                }
             }
         }
         if (!typeId.empty())
@@ -1650,6 +1764,11 @@ void HlirSyncService::resetTrackedComponents()
     for (const hlir::ComponentId& id : std::as_const(m_typeMap))
         m_bridge->remove(id);
     m_typeMap.clear();
+    m_typeNameByKey.clear();
+
+    for (const hlir::ComponentId& id : std::as_const(m_constantMap))
+        m_bridge->remove(id);
+    m_constantMap.clear();
 
     for (const hlir::ComponentId& id : std::as_const(m_tileMap))
         m_bridge->remove(id);

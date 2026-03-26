@@ -428,6 +428,8 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
                 fifoObject.insert(u"dimensionMode"_s,
                     fifo.type.mode == CanvasWire::DimensionMode::Matrix
                         ? u"matrix"_s : u"vector"_s);
+                if (fifo.type.symbolRef.has_value() && !fifo.type.symbolRef->isEmpty())
+                    fifoObject.insert(u"symbolRef"_s, *fifo.type.symbolRef);
                 if (fifo.type.tap.has_value()) {
                     const auto& t = *fifo.type.tap;
                     QJsonObject tapObj;
@@ -744,6 +746,9 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                 objectFifo.operation = objectFifoOperationFromString(objectFifoObject.value(u"operation"_s).toString());
                 objectFifo.type.dimensions = objectFifoObject.value(u"dimensions"_s).toString();
                 objectFifo.type.valueType  = objectFifoObject.value(u"valueType"_s).toString();
+                const QString symbolRef = objectFifoObject.value(u"symbolRef"_s).toString();
+                if (!symbolRef.isEmpty())
+                    objectFifo.type.symbolRef = symbolRef;
                 objectFifo.type.mode = objectFifoObject.value(u"dimensionMode"_s).toString() == u"matrix"_s
                     ? CanvasWire::DimensionMode::Matrix
                     : CanvasWire::DimensionMode::Vector;

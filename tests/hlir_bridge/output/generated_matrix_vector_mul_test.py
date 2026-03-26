@@ -19,6 +19,7 @@ from aie.iron.controlflow import range_
 
 @iron.jit(is_placed=False)
 def matrix_vector_mul_test_jit(inputA, inputB, outputC):
+    # Define constants
     M = 256
     K = 256
     m = 32

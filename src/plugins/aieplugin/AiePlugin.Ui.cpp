@@ -157,7 +157,9 @@ void AiePlugin::registerPropertiesSidebarTool(const RuntimeDependencies& deps)
     spec.toolTip = QStringLiteral("Selection Properties");
 
     const auto factory = [this](QWidget* parent) -> QWidget* {
-        return new AiePropertiesPanel(m_service, parent);
+        auto* panel = new AiePropertiesPanel(m_service, parent);
+        panel->setSymbolsController(m_symbolsController);
+        return panel;
     };
 
     QString error;

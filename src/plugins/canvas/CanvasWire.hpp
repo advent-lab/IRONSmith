@@ -61,6 +61,7 @@ public:
         QString valueType = QStringLiteral("i32");
         DimensionMode mode = DimensionMode::Vector;
         std::optional<TensorTilerConfig> tap; // DDR→SHIM matrix wires only
+        std::optional<QString> symbolRef;     // TypeAbstraction symbol name, if type comes from symbol table
     };
 
     struct ObjectFifoConfig final {
