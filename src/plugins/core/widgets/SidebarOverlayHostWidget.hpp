@@ -31,13 +31,16 @@ public:
 	bool hasPanels() const noexcept { return m_hasPanels; }
 	int overlayWidth() const noexcept { return m_overlayWidth; }
 	int panelWidth() const noexcept { return m_panelWidth; }
+    int additiveDockedExtent() const noexcept;
 	void setOverlayWidth(int width);
 	void setPanelWidth(int width);
 	void setPanelWidthClamped(int w);
+    void setAdditiveDockedExtent(int extent, bool animate = false);
 
 signals:
 	void hasPanelsChanged(bool hasPanels);
     void panelWidthChanged(int width);
+    void additiveDockedExtentChanged(int extent);
 
 private slots:
 	void syncFromModel();

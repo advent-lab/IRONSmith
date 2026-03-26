@@ -262,6 +262,28 @@ Canvas::Api::CanvasDocumentHandle CanvasDocumentServiceImpl::activeDocument() co
     return m_activeHandle;
 }
 
+QJsonObject CanvasDocumentServiceImpl::activeMetadata() const
+{
+    return m_activeMetadata;
+}
+
+Utils::Result CanvasDocumentServiceImpl::updateActiveMetadata(const QJsonObject& metadata)
+{
+    if (!hasOpenDocument())
+        return Utils::Result::failure(QStringLiteral("No canvas document is active."));
+
+    if (m_activeMetadata == metadata)
+        return Utils::Result::success();
+
+    const bool wasDirty = hasPendingChanges();
+    ++m_changeRevision;
+    m_activeMetadata = metadata;
+    m_contentDirty = true;
+    emitDirtyStateIfChanged(wasDirty);
+    m_contentSaveDebounce.trigger();
+    return Utils::Result::success();
+}
+
 bool CanvasDocumentServiceImpl::hasOpenDocument() const
 {
     return m_activeHandle.isValid();

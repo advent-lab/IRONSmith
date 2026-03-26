@@ -817,6 +817,202 @@ QComboBox#AiePropertiesField QAbstractItemView {
     selection-color: #FFFFFF;
 }
 
+QLabel#AieSymbolsSummaryLabel {
+    color: #EAF0F7;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 2px 2px 0px 2px;
+}
+
+QLabel#AieSymbolsDetailLabel {
+    color: rgba(230, 234, 240, 0.72);
+    font-size: 12px;
+    padding: 0px 2px 4px 2px;
+}
+
+QLabel#AieSymbolsDetailLabel[severity="error"] {
+    color: #F0A2A2;
+}
+
+QWidget#AieSymbolsPanelContent,
+QFrame#AieSymbolsToolbarRow,
+QWidget#AieSymbolsEditorHost,
+QStackedWidget#AieSymbolsEditorStack,
+QWidget#AieSymbolsEmptyEditorPage,
+QScrollArea#AieSymbolsEditorScrollArea {
+    background: transparent;
+    border: none;
+}
+
+QFrame#AieSymbolsListSurface {
+    background: #1B2025;
+    border: 1px solid #313943;
+    border-radius: 8px;
+}
+
+QSplitter#AieSymbolsSplitter::handle {
+    background: transparent;
+    height: 10px;
+    margin: 0px 18px;
+}
+
+QSplitter#AieSymbolsSplitter::handle:vertical {
+    image: none;
+}
+
+QGroupBox#AieSymbolsSection {
+    background: transparent;
+    border: none;
+    border-top: 1px solid #2D353E;
+    margin-top: 12px;
+    padding-top: 12px;
+    color: #EAF0F7;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QGroupBox#AieSymbolsSection::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 0px;
+    top: 0px;
+    padding: 0px 0px 2px 0px;
+    color: #D5DEE8;
+    letter-spacing: 0.2px;
+}
+
+QPushButton#AieSymbolsPrimaryButton,
+QPushButton#AieSymbolsSecondaryButton,
+QPushButton#AieSymbolsDangerButton {
+    border-radius: 5px;
+    padding: 2px 10px;
+    min-height: 24px;
+    max-height: 24px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QPushButton#AieSymbolsPrimaryButton {
+    background: rgba(50, 112, 201, 0.18);
+    color: #EAF3FF;
+    border: 1px solid #3E6CA3;
+}
+
+QPushButton#AieSymbolsPrimaryButton:hover {
+    background: rgba(56, 127, 232, 0.26);
+    border-color: #4E84C6;
+}
+
+QPushButton#AieSymbolsSecondaryButton {
+    background: rgba(255, 255, 255, 0.03);
+    color: #DCE4ED;
+    border: 1px solid #39424C;
+}
+
+QPushButton#AieSymbolsSecondaryButton:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: #4A5663;
+}
+
+QPushButton#AieSymbolsDangerButton {
+    background: rgba(97, 49, 55, 0.16);
+    color: #E7C7CB;
+    border: 1px solid #654048;
+}
+
+QPushButton#AieSymbolsDangerButton:hover {
+    background: rgba(110, 53, 60, 0.24);
+    border-color: #7A4D56;
+}
+
+QPushButton#AieSymbolsPrimaryButton:disabled,
+QPushButton#AieSymbolsSecondaryButton:disabled,
+QPushButton#AieSymbolsDangerButton:disabled {
+    background: rgba(255, 255, 255, 0.02);
+    color: rgba(230, 234, 240, 0.36);
+    border-color: #31363C;
+}
+
+QComboBox#AieSymbolsFilterField {
+    background: #171B20;
+    color: #E4EAF1;
+    border: 1px solid #39424C;
+    border-radius: 5px;
+    padding: 2px 28px 2px 10px;
+    min-height: 24px;
+    max-height: 24px;
+    min-width: 108px;
+    font-size: 11px;
+}
+
+QComboBox#AieSymbolsFilterField:focus {
+    border-color: #4E84C6;
+}
+
+QComboBox#AieSymbolsFilterField::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 18px;
+    border: none;
+    background: transparent;
+}
+
+QComboBox#AieSymbolsFilterField::down-arrow {
+    image: url(:/ui/icons/svg/chevron_down.svg);
+    width: 9px;
+    height: 9px;
+}
+
+QComboBox#AieSymbolsFilterField QAbstractItemView {
+    background: #171B20;
+    color: #E6EAF0;
+    border: 1px solid #39424C;
+    selection-background-color: #28466F;
+    selection-color: #FFFFFF;
+}
+
+QTableView#AieSymbolsTable {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #EAF0F7;
+    selection-background-color: #214283;
+    selection-color: #FFFFFF;
+    gridline-color: transparent;
+}
+
+QTableView#AieSymbolsTable::item {
+    padding: 5px 8px;
+    border: none;
+}
+
+QTableView#AieSymbolsTable::item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+QTableView#AieSymbolsTable QHeaderView::section {
+    background: rgba(255, 255, 255, 0.02);
+    color: rgba(230, 234, 240, 0.72);
+    border: none;
+    border-bottom: 1px solid #38414B;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QLabel#AieSymbolsPreviewLabel {
+    color: #EAF0F7;
+    background: #161A1F;
+    border: 1px solid #2D353E;
+    border-radius: 6px;
+    padding: 7px 9px;
+}
+
+QLabel#AieSymbolsEmptyStateLabel {
+    color: rgba(230, 234, 240, 0.78);
+    font-size: 12px;
+}
+
 QScrollArea#AieKernelsScrollArea,
 QWidget#AieKernelCardsHost {
     background: transparent;

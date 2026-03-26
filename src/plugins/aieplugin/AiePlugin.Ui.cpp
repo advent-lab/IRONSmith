@@ -10,12 +10,9 @@
 #include "aieplugin/kernels/KernelAssignmentController.hpp"
 #include "aieplugin/kernels/KernelRegistryService.hpp"
 #include "aieplugin/panels/AieKernelsPanel.hpp"
-#include "aieplugin/panels/AieLogPanel.hpp"
 #include "aieplugin/panels/AieNewDesignDialog.hpp"
 #include "aieplugin/panels/AiePropertiesPanel.hpp"
 #include "aieplugin/panels/AieToolPanel.hpp"
-#include "aieplugin/hlir_sync/AieOutputLog.hpp"
-#include "aieplugin/hlir_sync/HlirDirectExecution.hpp"
 #include "aieplugin/hlir_sync/HlirSyncService.hpp"
 
 #include "codeeditor/api/ICodeEditorService.hpp"
@@ -27,9 +24,7 @@
 #include "extensionsystem/PluginManager.hpp"
 #include "projectexplorer/api/IProjectExplorer.hpp"
 
-#include <QtCore/QTimer>
 #include <QtGui/QAction>
-#include <QtGui/QIcon>
 #include <QtWidgets/QMessageBox>
 
 namespace Aie::Internal {
@@ -39,7 +34,6 @@ void AiePlugin::registerSidebarTools(const RuntimeDependencies& deps)
     registerLayoutSidebarTool(deps);
     registerPropertiesSidebarTool(deps);
     registerKernelsSidebarTool(deps);
-    registerLogSidebarTool(deps);
 
     if (!m_sidebarRegistry)
         return;
@@ -115,9 +109,7 @@ void AiePlugin::registerKernelsSidebarTool(const RuntimeDependencies& deps)
     const auto factory =
         [this, codeEditor = QPointer<CodeEditor::Api::ICodeEditorService>(deps.codeEditorService)](QWidget* parent)
         -> QWidget* {
-        auto* panel = new AieKernelsPanel(m_kernelRegistry, m_kernelAssignments, codeEditor, m_outputLog, parent);
-        m_kernelsPanel = panel;
-        return panel;
+        return new AieKernelsPanel(m_kernelRegistry, m_kernelAssignments, codeEditor, parent);
     };
 
     QString error;
@@ -163,42 +155,6 @@ void AiePlugin::registerPropertiesSidebarTool(const RuntimeDependencies& deps)
     m_propertiesToolRegistered = true;
 }
 
-void AiePlugin::registerLogSidebarTool(const RuntimeDependencies& deps)
-{
-    if (!deps.uiHost)
-        return;
-
-    if (!m_sidebarRegistry)
-        m_sidebarRegistry = deps.uiHost->sidebarRegistry();
-    if (!m_sidebarRegistry || m_logToolRegistered)
-        return;
-
-    Core::SidebarToolSpec spec;
-    spec.id       = kLogSidebarToolId;
-    spec.title    = QStringLiteral("Log");
-    spec.iconResource = QStringLiteral(":/ui/icons/svg/text_file_icon.svg");
-    spec.side     = Core::SidebarSide::Right;
-    spec.family   = Core::SidebarFamily::Vertical;
-    spec.region   = Core::SidebarRegion::Exclusive;
-    spec.rail     = Core::SidebarRail::Bottom;
-    spec.order    = 0;
-    spec.toolTip  = QStringLiteral("Build & Verification Log");
-
-    const auto factory = [this](QWidget* parent) -> QWidget* {
-        auto* panel = new AieLogPanel(m_outputLog, parent);
-        m_logPanel = panel;
-        return panel;
-    };
-
-    QString error;
-    if (!m_sidebarRegistry->registerTool(spec, factory, &error)) {
-        qCWarning(aiepluginlog) << "AiePlugin: register log panel failed:" << error;
-        return;
-    }
-
-    m_logToolRegistered = true;
-}
-
 void AiePlugin::persistSidebarOpenState()
 {
     if (!m_sidebarRegistry)
@@ -233,24 +189,6 @@ void AiePlugin::connectHeaderInfo(const RuntimeDependencies& deps)
 {
     if (!deps.headerInfo || !m_designOpenController)
         return;
-
-    connect(m_designOpenController, &DesignOpenController::designOpened, this,
-            [this](const QString& bundlePath, const QString&, const QString&) {
-                if (!m_logsByDesign.contains(bundlePath))
-                    m_logsByDesign.insert(bundlePath, new AieOutputLog(this));
-                m_outputLog = m_logsByDesign.value(bundlePath);
-                if (auto* panel = qobject_cast<AieLogPanel*>(m_logPanel.data()))
-                    panel->setLog(m_outputLog);
-                if (auto* panel = qobject_cast<AieKernelsPanel*>(m_kernelsPanel.data()))
-                    panel->setOutputLog(m_outputLog);
-                if (m_outputLog && m_sidebarRegistry) {
-                    connect(m_outputLog, &AieOutputLog::entryAdded, this,
-                            [this](bool success, const QString&) {
-                                if (!success && m_sidebarRegistry)
-                                    m_sidebarRegistry->requestShowTool(kLogSidebarToolId);
-                            });
-                }
-            });
 
     connect(m_designOpenController, &DesignOpenController::designOpened, this,
             [this, header = QPointer<Core::IHeaderInfo>(deps.headerInfo)]
@@ -316,114 +254,55 @@ void AiePlugin::connectRibbonActions(const RuntimeDependencies& deps,
                                    tr("Build"));
 
     auto* actCodeGen = new QAction(tr("Generate\nCode"), this);
-    actCodeGen->setIcon(QIcon(QStringLiteral(":/ui/icons/svg/generate_code.svg")));
     connect(actCodeGen, &QAction::triggered, this, [this]() {
-        // Open the log panel immediately so its slide-in animation plays before
-        // generateCode() starts blocking the main thread (animation is ~140 ms).
-        if (m_sidebarRegistry)
-            m_sidebarRegistry->requestShowTool(kLogSidebarToolId);
-        QTimer::singleShot(200, this, [this]() {
-            if (m_hlirSync)
-                m_hlirSync->generateCode();
-        });
+        if (m_hlirSync)
+            m_hlirSync->generateCode();
     });
 
     auto* actVerify = new QAction(tr("Verify\nDesign"), this);
-    actVerify->setIcon(QIcon(QStringLiteral(":/ui/icons/svg/verify_design.svg")));
     connect(actVerify, &QAction::triggered, this, [this]() {
-        if (m_sidebarRegistry)
-            m_sidebarRegistry->requestShowTool(kLogSidebarToolId);
-        QTimer::singleShot(200, this, [this]() {
-            if (m_hlirSync)
-                m_hlirSync->verifyDesign();
-        });
+        if (m_hlirSync)
+            m_hlirSync->verifyDesign();
     });
 
-    auto* actExecute = new QAction(tr("Execute\nCode"), this);
-    actExecute->setIcon(QIcon(QStringLiteral(":/ui/icons/svg/python_icon.svg")));
-    connect(actExecute, &QAction::triggered, this, [this]() {
-        if (m_directExec && m_hlirSync)
-            m_directExec->execute(m_hlirSync->outputDir());
-    });
-
-    // Route code generation and verification results to the Log panel.
-    if (m_hlirSync && m_outputLog) {
-        // Open the log panel when a new run begins, then forward steps and final result.
-        connect(m_hlirSync, &HlirSyncService::runStarted, this,
-                [this]() {
-                    if (m_sidebarRegistry)
-                        m_sidebarRegistry->requestShowTool(kLogSidebarToolId);
-                    m_outputLog->startRun();
-                });
-
-        connect(m_hlirSync, &HlirSyncService::stepLogged, this,
-                [this](bool ok, const QString& label) {
-                    m_outputLog->appendRunStep(ok, label);
-                });
-
+    // Show a message box when code generation or verification completes or fails
+    if (m_hlirSync) {
         connect(m_hlirSync, &HlirSyncService::codeGenFinished, this,
-                [this](bool success, const QString& message) {
-                    const QString header = success
-                        ? QStringLiteral("Code generation succeeded.")
-                        : QStringLiteral("Code generation failed.");
-                    m_outputLog->finalizeRun(success, header + u'\n' + message);
-
-                    if (success && m_codeEditorService && !m_hlirSync->outputDir().isEmpty()) {
-                        const QString generatedFile =
-                            m_hlirSync->outputDir() + QStringLiteral("/generated_design.py");
-                        CodeEditor::Api::CodeEditorOpenRequest req;
-                        req.filePath   = generatedFile;
-                        req.languageHint = QStringLiteral("python");
-                        req.activate   = true;
-                        req.readOnly   = true;
-                        CodeEditor::Api::CodeEditorSessionHandle handle;
-                        const Utils::Result openResult = m_codeEditorService->openFile(req, handle);
-                        if (!openResult)
-                            qCWarning(aiepluginlog) << "AiePlugin: failed to open generated file:" << openResult.errors;
-                    }
+                [this, uiHost = QPointer<Core::IUiHost>(deps.uiHost)]
+                (bool success, const QString& message) {
+                    const QString title = success
+                        ? QStringLiteral("Code Generation")
+                        : QStringLiteral("Code Generation Failed");
+                    QWidget* parent = resolveDialogParent(uiHost);
+                    if (success)
+                        QMessageBox::information(parent, title, message);
+                    else
+                        QMessageBox::critical(parent, title, message);
                 });
 
         connect(m_hlirSync, &HlirSyncService::verificationFinished, this,
-                [this](bool passed, const QString& message) {
-                    m_outputLog->finalizeRun(passed, message);
+                [this, uiHost = QPointer<Core::IUiHost>(deps.uiHost)]
+                (bool passed, const QString& message) {
+                    const QString title = passed
+                        ? QStringLiteral("Design Verification")
+                        : QStringLiteral("Verification Failed");
+                    QWidget* parent = resolveDialogParent(uiHost);
+                    if (passed)
+                        QMessageBox::information(parent, title, message);
+                    else
+                        QMessageBox::critical(parent, title, message);
                 });
     }
-
-    if (m_directExec && m_outputLog) {
-        connect(m_directExec, &HlirDirectExecution::runStarted, this,
-                [this]() {
-                    if (m_sidebarRegistry)
-                        m_sidebarRegistry->requestShowTool(kLogSidebarToolId);
-                    m_outputLog->startRun();
-                });
-
-        connect(m_directExec, &HlirDirectExecution::stepLogged, this,
-                [this](bool ok, const QString& label) {
-                    m_outputLog->appendRunStep(ok, label);
-                });
-
-        connect(m_directExec, &HlirDirectExecution::executeFinished, this,
-                [this](bool success, const QString& message) {
-                    m_outputLog->finalizeRun(success, message);
-                });
-    }
-
-    Core::RibbonPresentation codeGenPres;
-    codeGenPres.size = Core::RibbonVisualSize::Large;
-    codeGenPres.iconPlacement = Core::RibbonIconPlacement::AboveText;
-    codeGenPres.iconPx = 40;
 
     Core::RibbonPresentation btnPres;
     btnPres.size = Core::RibbonVisualSize::Large;
-    btnPres.iconPlacement = Core::RibbonIconPlacement::AboveText;
+    btnPres.iconPlacement = Core::RibbonIconPlacement::TextOnly;
 
     auto codeGenRoot = Core::RibbonNode::makeRow(QStringLiteral("codegen_root"));
     codeGenRoot->addCommand(QStringLiteral("output.codegen"),
-                            actCodeGen, Core::RibbonControlType::Button, codeGenPres);
+                            actCodeGen, Core::RibbonControlType::Button, btnPres);
     codeGenRoot->addCommand(QStringLiteral("output.verify"),
                             actVerify, Core::RibbonControlType::Button, btnPres);
-    codeGenRoot->addCommand(QStringLiteral("output.execute"),
-                            actExecute, Core::RibbonControlType::Button, btnPres);
 
     const auto ribbonResult = deps.uiHost->setRibbonGroupLayout(
         Core::Constants::RIBBON_TAB_OUTPUT,

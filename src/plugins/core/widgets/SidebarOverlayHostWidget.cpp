@@ -59,6 +59,9 @@ SidebarOverlayHostWidget::SidebarOverlayHostWidget(SidebarModel* model,
         root->addWidget(m_familyPanel, 1);
     }
 
+    connect(m_familyPanel, &SidebarFamilyPanelWidget::additiveDockedExtentChanged,
+            this, &SidebarOverlayHostWidget::additiveDockedExtentChanged);
+
     auto matchesThisHost = [this](const QString& id) -> bool {
         const SidebarToolSpec* s = m_model->toolSpec(id);
         return s && s->side == m_side && s->family == m_family;
@@ -199,6 +202,17 @@ void SidebarOverlayHostWidget::setPanelWidthClamped(int w)
 {
     w = std::clamp(w, kSidebarOverlayMinWidth, kSidebarOverlayMaxWidth);
     setPanelWidth(w);
+}
+
+int SidebarOverlayHostWidget::additiveDockedExtent() const noexcept
+{
+    return m_familyPanel ? m_familyPanel->additiveDockedExtent() : 0;
+}
+
+void SidebarOverlayHostWidget::setAdditiveDockedExtent(int extent, bool animate)
+{
+    if (m_familyPanel)
+        m_familyPanel->setAdditiveDockedHeight(extent, animate);
 }
 
 void SidebarOverlayHostWidget::updateRailExpandedProperty(bool expanded)
@@ -347,11 +361,7 @@ void SidebarOverlayHostWidget::syncFromModel()
     } else {
         m_familyPanel->setAdditiveFillMode(false);
         if (hasAdditive && hasExclusive) {
-            if (m_familyPanel->additiveInstallHost()->layout())
-                m_familyPanel->additiveInstallHost()->layout()->activate();
-            const QSize hint = m_familyPanel->additiveInstallHost()->sizeHint();
-            const int targetPx = (m_family == SidebarFamily::Horizontal) ? hint.width() : hint.height();
-            m_familyPanel->setAdditiveDockedHeight(targetPx, true);
+            m_familyPanel->setAdditiveDockedHeight(m_familyPanel->additiveDockedExtent(), true);
         }
     }
 

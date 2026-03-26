@@ -19,6 +19,7 @@
 #include "canvas/controllers/CanvasSelectionController.hpp"
 
 #include <QtCore/QString>
+#include <QtCore/QtGlobal>
 #include <algorithm>
 #include <utility>
 
@@ -37,6 +38,13 @@ QPointF wheelPanDeltaView(const QPoint& angleDelta, const QPoint& pixelDelta, Qt
     }
 
     return QPointF(delta);
+}
+
+bool isPropertiesShortcut(Qt::KeyboardModifiers mods)
+{
+    const Qt::KeyboardModifiers relevantModifiers =
+        mods & (Qt::ShiftModifier | Qt::ControlModifier | Qt::MetaModifier | Qt::AltModifier);
+    return relevantModifiers == (Qt::ControlModifier | Qt::ShiftModifier);
 }
 
 } // namespace
@@ -210,14 +218,15 @@ void CanvasController::syncBoundProducerPlacementUiState()
 {
     const bool active = m_contextMenuController &&
                         m_contextMenuController->hasPendingBoundProducerPlacement();
+    if (m_boundProducerPlacementActive == active)
+        return;
+
     if (m_view) {
         if (active)
             m_view->setCursor(Qt::CrossCursor);
         else
             m_view->unsetCursor();
     }
-    if (m_boundProducerPlacementActive == active)
-        return;
     m_boundProducerPlacementActive = active;
     emit boundProducerPlacementChanged(active);
 }
@@ -240,6 +249,8 @@ void CanvasController::onCanvasMousePressed(const QPointF& scenePos, Qt::MouseBu
 
     if (!buttons.testFlag(Qt::LeftButton) || !m_doc)
         return;
+
+    const bool propertiesShortcut = isPropertiesShortcut(mods);
 
     if (m_contextMenuController && m_contextMenuController->hasPendingBoundProducerPlacement()) {
         m_contextMenuController->tryPlacePendingBoundProducer(scenePos);
@@ -278,6 +289,8 @@ void CanvasController::onCanvasMousePressed(const QPointF& scenePos, Qt::MouseBu
     CanvasItem* hit = Services::hitTestItem(*m_doc, scenePos, ctxPtr);
 
     if (m_mode == Mode::Normal && !hit) {
+        if (propertiesShortcut)
+            return;
         if (m_selectionController)
             m_selectionController->beginMarqueeSelection(scenePos, mods);
         return;
@@ -286,7 +299,9 @@ void CanvasController::onCanvasMousePressed(const QPointF& scenePos, Qt::MouseBu
     if (hit) {
         if (m_selectionController) {
             m_selectionController->clearSelectedPort();
-            if (mods.testFlag(Qt::ControlModifier))
+            if (propertiesShortcut)
+                m_selectionController->selectItem(hit->id());
+            else if (mods.testFlag(Qt::ControlModifier))
                 m_selectionController->toggleSelection(hit->id());
             else if (mods.testFlag(Qt::ShiftModifier))
                 m_selectionController->addToSelection(hit->id());

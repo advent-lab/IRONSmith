@@ -5,9 +5,12 @@
 
 #include "canvas/CanvasConstants.hpp"
 
+#include <QtCore/Qt>
 #include <QtGui/QPainter>
+#include <QtGui/QAbstractTextDocumentLayout>
 #include <QtGui/QFont>
 #include <QtGui/QFontMetricsF>
+#include <QtGui/QTextDocument>
 #include <QtGui/QPolygonF>
 #include <cmath>
 
@@ -110,7 +113,7 @@ void CanvasStyle::drawBlockStereotype(QPainter& p,
                                       double zoom,
                                       const QString& text,
                                       const QColor& color,
-                                      bool underline)
+                                      bool hoverAsLink)
 {
     Q_UNUSED(zoom);
 
@@ -122,16 +125,31 @@ void CanvasStyle::drawBlockStereotype(QPainter& p,
     f.setPointSizeF(Constants::kBlockStereotypePointSize);
     f.setBold(false);
     f.setItalic(true);
-    f.setUnderline(underline);
     p.setFont(f);
-    p.setPen(color);
 
     QFontMetricsF metrics(p.font());
     const QSizeF size = metrics.size(Qt::TextSingleLine, normalized);
     const double x = boundsScene.center().x() - (size.width() * 0.5);
     const double y = boundsScene.top() - Constants::kBlockStereotypeOffsetY - size.height();
     const QRectF textRect(x, y, size.width(), size.height());
-    p.drawText(textRect, Qt::AlignCenter, normalized);
+
+    if (!hoverAsLink) {
+        p.setPen(color);
+        p.drawText(textRect, Qt::AlignCenter, normalized);
+        return;
+    }
+
+    QTextDocument document;
+    document.setDocumentMargin(0.0);
+    document.setDefaultFont(f);
+    document.setDefaultStyleSheet(QStringLiteral("a { color: %1; }").arg(color.name(QColor::HexRgb)));
+    document.setHtml(QStringLiteral("<a href=\"#\">%1</a>").arg(normalized.toHtmlEscaped()));
+
+    p.save();
+    p.translate(textRect.topLeft());
+    const QRectF clipRect(QPointF(0.0, 0.0), textRect.size());
+    document.drawContents(&p, clipRect);
+    p.restore();
 }
 
 void CanvasStyle::drawPort(QPainter& p, const QPointF& anchorScene, PortSide side, PortRole role, double zoom, bool hovered)

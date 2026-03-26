@@ -29,6 +29,8 @@ public:
                                         CanvasDocumentCloseReason reason) = 0;
 
     virtual CanvasDocumentHandle activeDocument() const = 0;
+    virtual QJsonObject activeMetadata() const = 0;
+    virtual Utils::Result updateActiveMetadata(const QJsonObject& metadata) = 0;
     virtual bool hasOpenDocument() const = 0;
     virtual bool isDirty() const = 0;
 
@@ -41,4 +43,3 @@ signals:
 };
 
 } // namespace Canvas::Api
-

@@ -13,6 +13,8 @@ ironsmith_add_plugin(AiePlugin
             AieStyleCatalog.cpp
             AieService.hpp
             AieService.cpp
+            AiePropertiesShortcutController.hpp
+            AiePropertiesShortcutController.cpp
             AiePlugin.json
             AieDeviceTopologies.json
             AiePluginResources.qrc
@@ -32,6 +34,8 @@ ironsmith_add_plugin(AiePlugin
             state/AieWorkspaceState.cpp
             state/AieKernelsPanelState.hpp
             state/AieKernelsPanelState.cpp
+            state/AieKernelAssignmentState.hpp
+            state/AieKernelAssignmentState.cpp
             state/AieLayoutSettings.hpp
             state/AieLayoutSettings.cpp
             kernels/KernelCatalog.hpp
@@ -50,6 +54,14 @@ ironsmith_add_plugin(AiePlugin
             panels/AieKernelsPanel.cpp
             panels/AiePropertiesPanel.hpp
             panels/AiePropertiesPanel.cpp
+            symbol_table/SymbolTableTypes.hpp
+            symbol_table/SymbolTableTypes.cpp
+            symbol_table/SymbolsController.hpp
+            symbol_table/SymbolsController.cpp
+            symbol_table/SymbolsModel.hpp
+            symbol_table/SymbolsModel.cpp
+            symbol_table/SymbolsPanel.hpp
+            symbol_table/SymbolsPanel.cpp
             panels/KernelCreateDialog.hpp
             panels/KernelCreateDialog.cpp
             panels/KernelPreviewDialog.hpp

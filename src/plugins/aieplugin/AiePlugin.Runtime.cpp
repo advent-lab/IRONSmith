@@ -60,6 +60,9 @@ Utils::Result AiePlugin::configureService(const RuntimeDependencies& deps)
     m_service->setStyleHost(deps.styleHost);
     m_service->setCanvasHost(deps.canvasHost);
 
+    if (m_symbolsController)
+        m_symbolsController->setCanvasDocumentService(deps.canvasDocumentService);
+
     const Utils::Result loadResult =
         m_service->loadProfileCatalog(QString::fromLatin1(Aie::kDeviceTopologiesResource));
     if (!loadResult)
@@ -71,6 +74,9 @@ Utils::Result AiePlugin::configureService(const RuntimeDependencies& deps)
         m_kernelAssignments->setCoordinator(m_service->coordinator());
         m_kernelAssignments->setCanvasHost(deps.canvasHost);
     }
+
+    if (m_propertiesShortcutController)
+        m_propertiesShortcutController->setCanvasHost(deps.canvasHost);
 
     if (m_kernelRegistry) {
         const Utils::Result reloadResult = m_kernelRegistry->reload();

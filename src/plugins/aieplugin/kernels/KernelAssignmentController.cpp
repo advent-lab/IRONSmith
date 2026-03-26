@@ -20,9 +20,12 @@
 
 #include <utils/Result.hpp>
 #include <utils/PathUtils.hpp>
+#include <utils/ui/ConfirmationDialog.hpp>
 
 #include <QtCore/QRegularExpression>
 #include <QtCore/QTimer>
+#include <QtCore/QUrl>
+#include <QtCore/QUrlQuery>
 #include <QtGui/QCursor>
 #include <QtGui/QFont>
 #include <QtGui/QFontMetricsF>
@@ -35,13 +38,17 @@ namespace Aie::Internal {
 
 namespace {
 
-const QRegularExpression kTileSpecIdPattern(QStringLiteral("^(aie|shim|mem)\\d+_\\d+$"),
+const QRegularExpression kTileSpecIdPattern(QStringLiteral("^aie\\d+_\\d+$"),
                                             QRegularExpression::CaseInsensitiveOption);
 const QRegularExpression kComputeTileSpecIdPattern(QStringLiteral("^aie\\d+_\\d+$"),
                                                    QRegularExpression::CaseInsensitiveOption);
 const QRegularExpression kKernelAnnotationPattern(
     QStringLiteral("<<\\s*kernel\\s*:\\s*([A-Za-z0-9_.-]+)\\s*>>"),
     QRegularExpression::CaseInsensitiveOption);
+const QString kApplicationLinkScheme = QStringLiteral("application");
+const QString kKernelLinkHost = QStringLiteral("kernel");
+const QString kKernelLinkAction = QStringLiteral("/preview");
+const QString kKernelLinkQueryKey = QStringLiteral("id");
 
 QString cleanedId(const QString& text)
 {
@@ -51,11 +58,6 @@ QString cleanedId(const QString& text)
 QString normalizedKernelId(const QString& text)
 {
     return text.trimmed();
-}
-
-bool hasPreviewModifier(Qt::KeyboardModifiers mods)
-{
-    return mods.testFlag(Qt::ControlModifier) || mods.testFlag(Qt::MetaModifier);
 }
 
 } // namespace
@@ -226,10 +228,6 @@ bool KernelAssignmentController::eventFilter(QObject* watched, QEvent* event)
                 clearSelectedKernel();
                 return true;
             }
-            refreshStereotypeLinkHover(keyEvent->modifiers());
-        } else if (event->type() == QEvent::KeyRelease) {
-            auto* keyEvent = static_cast<QKeyEvent*>(event);
-            refreshStereotypeLinkHover(keyEvent->modifiers());
         } else if (event->type() == QEvent::Leave || event->type() == QEvent::FocusOut) {
             clearStereotypeLinkHover();
         }
@@ -256,22 +254,18 @@ void KernelAssignmentController::updateCanvasCursor()
     m_canvasViewWidget->setCursor(Qt::CrossCursor);
 }
 
-bool KernelAssignmentController::handlePreviewLinkClick(const QPointF& scenePos, Qt::KeyboardModifiers mods)
+bool KernelAssignmentController::handleStereotypeLinkClick(const QPointF& scenePos)
 {
-    if (!hasPreviewModifier(mods))
+    QUrl url;
+    if (!clickableStereotypeBlockAt(scenePos, &url) || !url.isValid())
         return false;
 
-    QString kernelId;
-    if (!clickableStereotypeBlockAt(scenePos, &kernelId) || kernelId.isEmpty())
-        return false;
-
-    showPreviewDialog(kernelId, false);
-    return true;
+    return openKernelLink(url);
 }
 
 const Canvas::CanvasBlock* KernelAssignmentController::clickableStereotypeBlockAt(
     const QPointF& scenePos,
-    QString* kernelIdOut) const
+    QUrl* urlOut) const
 {
     auto* host = m_canvasHost.data();
     auto* document = host ? host->document() : nullptr;
@@ -291,33 +285,30 @@ const Canvas::CanvasBlock* KernelAssignmentController::clickableStereotypeBlockA
         if (!stereotypeRect.isValid() || !stereotypeRect.contains(scenePos))
             continue;
 
-        const QString kernelId = parseKernelIdFromLabel(stereotype);
-        if (kernelId.isEmpty())
+        const QUrl url = kernelLinkUrl(parseKernelIdFromLabel(stereotype));
+        if (!url.isValid())
             continue;
 
-        if (!kernelById(kernelId))
-            continue;
-
-        if (kernelIdOut)
-            *kernelIdOut = kernelId;
+        if (urlOut)
+            *urlOut = url;
         return block;
     }
 
     return nullptr;
 }
 
-void KernelAssignmentController::updateStereotypeLinkHover(const QPointF& scenePos, Qt::KeyboardModifiers mods)
+void KernelAssignmentController::updateStereotypeLinkHover(const QPointF& scenePos)
 {
     Canvas::ObjectId hoveredItemId{};
     auto* view = qobject_cast<Canvas::CanvasView*>(m_canvasViewWidget.data());
 
-    if (hasPreviewModifier(mods)) {
-        if (const Canvas::CanvasBlock* block = clickableStereotypeBlockAt(scenePos))
-            hoveredItemId = block->id();
-    }
+    if (const Canvas::CanvasBlock* block = clickableStereotypeBlockAt(scenePos))
+        hoveredItemId = block->id();
 
-    if (hoveredItemId == m_hoveredStereotypeItemId)
+    if (hoveredItemId == m_hoveredStereotypeItemId) {
+        updateCanvasCursor();
         return;
+    }
 
     m_hoveredStereotypeItemId = hoveredItemId;
     if (view) {
@@ -327,23 +318,6 @@ void KernelAssignmentController::updateStereotypeLinkHover(const QPointF& sceneP
             view->setHoveredStereotype(hoveredItemId);
     }
     updateCanvasCursor();
-}
-
-void KernelAssignmentController::refreshStereotypeLinkHover(Qt::KeyboardModifiers mods)
-{
-    auto* view = qobject_cast<Canvas::CanvasView*>(m_canvasViewWidget.data());
-    if (!view) {
-        clearStereotypeLinkHover();
-        return;
-    }
-
-    const QPoint localPos = view->mapFromGlobal(QCursor::pos());
-    if (!view->rect().contains(localPos)) {
-        clearStereotypeLinkHover();
-        return;
-    }
-
-    updateStereotypeLinkHover(view->viewToScene(QPointF(localPos)), mods);
 }
 
 void KernelAssignmentController::clearStereotypeLinkHover()
@@ -399,6 +373,59 @@ void KernelAssignmentController::showPreviewDialog(const QString& kernelId, bool
             [this, kernelId]() { copyKernelToScope(kernelId, KernelSourceScope::Global, true); });
 
     dialog.exec();
+}
+
+bool KernelAssignmentController::openKernelLink(const QUrl& url)
+{
+    const QString kernelId = kernelIdFromLink(url);
+    if (kernelId.isEmpty())
+        return false;
+
+    showPreviewDialog(kernelId, false);
+    return true;
+}
+
+bool KernelAssignmentController::confirmReassignment(const QString& tileSpecId,
+                                                     const QString& currentKernelId,
+                                                     const QString& nextKernelId)
+{
+    const QString currentId = normalizedKernelId(currentKernelId);
+    const QString nextId = normalizedKernelId(nextKernelId);
+    if (currentId.isEmpty() || nextId.isEmpty() || currentId == nextId)
+        return true;
+
+    if (!m_assignmentState.confirmReassignment())
+        return true;
+
+    const KernelAsset* currentKernel = kernelById(currentId);
+    const KernelAsset* nextKernel = kernelById(nextId);
+
+    const QString currentName = currentKernel && !currentKernel->name.trimmed().isEmpty()
+        ? currentKernel->name.trimmed()
+        : currentId;
+    const QString nextName = nextKernel && !nextKernel->name.trimmed().isEmpty()
+        ? nextKernel->name.trimmed()
+        : nextId;
+
+    Utils::ConfirmationDialogConfig config;
+    config.title = QStringLiteral("Reassign Kernel");
+    config.message = QStringLiteral("Replace the kernel assignment on '%1'?").arg(tileSpecId);
+    config.informativeText = QStringLiteral("This tile is already assigned to '%1'.")
+                                 .arg(currentName);
+    config.details = QStringLiteral("New kernel: %1").arg(nextName);
+    config.confirmText = QStringLiteral("Replace");
+    config.cancelText = QStringLiteral("Cancel");
+    config.checkBoxText = QStringLiteral("Don't show this again.");
+
+    QWidget* parent = m_canvasViewWidget ? m_canvasViewWidget.data() : QApplication::activeWindow();
+    const Utils::ConfirmationDialogResult result = Utils::ConfirmationDialog::run(parent, config);
+    if (!result.accepted)
+        return false;
+
+    if (result.checkBoxChecked)
+        m_assignmentState.setConfirmReassignment(false);
+
+    return true;
 }
 
 void KernelAssignmentController::openKernelInEditor(const QString& kernelId, bool forceReadOnly)
@@ -458,6 +485,40 @@ const KernelAsset* KernelAssignmentController::kernelById(const QString& kernelI
     return m_registry->kernelById(kernelId);
 }
 
+QUrl KernelAssignmentController::kernelLinkUrl(const QString& kernelId) const
+{
+    const QString cleanedKernelId = normalizedKernelId(kernelId);
+    if (cleanedKernelId.isEmpty() || !kernelById(cleanedKernelId))
+        return {};
+
+    QUrl url;
+    url.setScheme(kApplicationLinkScheme);
+    url.setHost(kKernelLinkHost);
+    url.setPath(kKernelLinkAction);
+
+    QUrlQuery query;
+    query.addQueryItem(kKernelLinkQueryKey, cleanedKernelId);
+    url.setQuery(query);
+    return url;
+}
+
+QString KernelAssignmentController::kernelIdFromLink(const QUrl& url) const
+{
+    if (!url.isValid()
+        || url.scheme() != kApplicationLinkScheme
+        || url.host() != kKernelLinkHost
+        || url.path() != kKernelLinkAction) {
+        return {};
+    }
+
+    const QUrlQuery query(url);
+    const QString kernelId = normalizedKernelId(query.queryItemValue(kKernelLinkQueryKey));
+    if (kernelId.isEmpty() || !kernelById(kernelId))
+        return {};
+
+    return kernelId;
+}
+
 void KernelAssignmentController::applyLabelOverrides()
 {
     if (!m_coordinator)
@@ -505,7 +566,7 @@ void KernelAssignmentController::onCanvasMousePressed(const QPointF& scenePos,
     if (!buttons.testFlag(Qt::LeftButton))
         return;
 
-    if (handlePreviewLinkClick(scenePos, mods))
+    if (handleStereotypeLinkClick(scenePos))
         return;
 
     if (mods != Qt::NoModifier)
@@ -523,7 +584,17 @@ void KernelAssignmentController::onCanvasMousePressed(const QPointF& scenePos,
     if (!block)
         return;
 
-    const Utils::Result assignmentResult = assignKernelToTile(block->specId(), m_selectedKernelId);
+    const QString tileSpecId = cleanedId(block->specId());
+    if (!isAssignableTile(tileSpecId))
+        return;
+
+    const QString currentKernelId = normalizedKernelId(m_assignmentsByTileSpecId.value(tileSpecId));
+    if (!currentKernelId.isEmpty() && currentKernelId != m_selectedKernelId) {
+        if (!confirmReassignment(tileSpecId, currentKernelId, m_selectedKernelId))
+            return;
+    }
+
+    const Utils::Result assignmentResult = assignKernelToTile(tileSpecId, m_selectedKernelId);
     if (!assignmentResult)
         emit assignmentFailed(assignmentResult.errors.join("\n"));
 }
@@ -533,7 +604,8 @@ void KernelAssignmentController::onCanvasMouseMoved(const QPointF& scenePos,
                                                     Qt::KeyboardModifiers mods)
 {
     Q_UNUSED(buttons);
-    updateStereotypeLinkHover(scenePos, mods);
+    Q_UNUSED(mods);
+    updateStereotypeLinkHover(scenePos);
 }
 
 } // namespace Aie::Internal

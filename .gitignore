@@ -25,3 +25,5 @@ Thumbs.db
 # Misc. files and folders
 Sandbox/
 sandbox (1)/
+sandbox_designs/
+src/aiecad_compiler/hlir/__pycache__/

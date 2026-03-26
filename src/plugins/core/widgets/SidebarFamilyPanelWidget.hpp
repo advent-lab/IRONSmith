@@ -27,8 +27,12 @@ public:
     void setHasExclusive(bool hasExclusive);
     void setHasAdditive(bool hasAdditive);
 
+    int additiveDockedExtent() const noexcept { return clampDockedExtent(m_lastDockedAdditivePx); }
     void setAdditiveDockedHeight(int targetHeight, bool animate);
     void setAdditiveFillMode(bool fill);
+
+signals:
+    void additiveDockedExtentChanged(int extent);
 
 private:
     void syncRegionVisibilityAndSizes();

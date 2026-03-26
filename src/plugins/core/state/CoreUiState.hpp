@@ -24,6 +24,8 @@ public:
 
     int sidebarPanelWidth(SidebarSide side, SidebarFamily family, int fallback) const;
     void setSidebarPanelWidth(SidebarSide side, SidebarFamily family, int width);
+    int sidebarAdditiveDockedExtent(SidebarSide side, SidebarFamily family, int fallback) const;
+    void setSidebarAdditiveDockedExtent(SidebarSide side, SidebarFamily family, int extent);
 
     QByteArray mainWindowGeometry() const;
     void setMainWindowGeometry(const QByteArray& geometry);
@@ -32,6 +34,7 @@ public:
 
 private:
     static QString sidebarWidthKey(SidebarSide side, SidebarFamily family);
+    static QString sidebarAdditiveDockedExtentKey(SidebarSide side, SidebarFamily family);
 
     Utils::Environment m_env;
 };

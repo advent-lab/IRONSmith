@@ -59,7 +59,7 @@ UiHostImpl::UiHostImpl(FrameWidget* frame, QObject* parent)
     m_sidebarWidthSaveTimer.setSingleShot(true);
     m_sidebarWidthSaveTimer.setInterval(kSidebarWidthSaveDelayMs);
     connect(&m_sidebarWidthSaveTimer, &QTimer::timeout,
-            this, &UiHostImpl::flushSidebarPanelWidthState);
+            this, &UiHostImpl::flushSidebarPanelState);
 
     m_menuModel = new GlobalMenuBar(this);
     m_ribbonModel = new CommandRibbon(this);
@@ -426,16 +426,27 @@ void UiHostImpl::restoreAndTrackOverlayHost(SidebarOverlayHostWidget* host,
     const int persistedWidth = m_uiState->sidebarPanelWidth(side, family, fallbackWidth);
     host->setPanelWidthClamped(persistedWidth);
 
+    const int fallbackAdditiveExtent = host->additiveDockedExtent();
+    const int persistedAdditiveExtent =
+        m_uiState->sidebarAdditiveDockedExtent(side, family, fallbackAdditiveExtent);
+    host->setAdditiveDockedExtent(persistedAdditiveExtent, false);
+
     connect(host, &SidebarOverlayHostWidget::panelWidthChanged, this,
             [this, side, family](int width) {
                 m_pendingSidebarWidths.insert(sidebarWidthMapKey(side, family), width);
                 m_sidebarWidthSaveTimer.start();
             });
+
+    connect(host, &SidebarOverlayHostWidget::additiveDockedExtentChanged, this,
+            [this, side, family](int extent) {
+                m_pendingSidebarAdditiveExtents.insert(sidebarWidthMapKey(side, family), extent);
+                m_sidebarWidthSaveTimer.start();
+            });
 }
 
-void UiHostImpl::flushSidebarPanelWidthState()
+void UiHostImpl::flushSidebarPanelState()
 {
-    if (!m_uiState || m_pendingSidebarWidths.isEmpty())
+    if (!m_uiState || (m_pendingSidebarWidths.isEmpty() && m_pendingSidebarAdditiveExtents.isEmpty()))
         return;
 
     if (m_sidebarWidthSaveTimer.isActive())
@@ -456,7 +467,23 @@ void UiHostImpl::flushSidebarPanelWidthState()
         m_uiState->setSidebarPanelWidth(side, family, it.value());
     }
 
+    for (auto it = m_pendingSidebarAdditiveExtents.cbegin(); it != m_pendingSidebarAdditiveExtents.cend(); ++it) {
+        const QStringList tokens = it.key().split(':');
+        if (tokens.size() != 2)
+            continue;
+
+        bool okSide = false;
+        bool okFamily = false;
+        const auto side = static_cast<SidebarSide>(tokens.at(0).toInt(&okSide));
+        const auto family = static_cast<SidebarFamily>(tokens.at(1).toInt(&okFamily));
+        if (!okSide || !okFamily)
+            continue;
+
+        m_uiState->setSidebarAdditiveDockedExtent(side, family, it.value());
+    }
+
     m_pendingSidebarWidths.clear();
+    m_pendingSidebarAdditiveExtents.clear();
 }
 
 } // namespace Core

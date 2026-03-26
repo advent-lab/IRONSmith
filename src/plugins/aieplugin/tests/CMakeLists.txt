@@ -8,6 +8,7 @@ ironsmith_define_tests(
         LINK_LIBS
             IRONSmith::AiePlugin
             IRONSmith::CanvasPlugin
+            IRONSmith::CorePlugin
             ${QT6_REQUIRED_COMPONENTS}
             Qt6::Test
         TEST AiePluginTests
@@ -21,6 +22,11 @@ ironsmith_define_tests(
                 AieSidebarStateTests.cpp
                 AieWorkspaceStateTests.cpp
                 AieKernelsPanelStateTests.cpp
+                AieKernelAssignmentStateTests.cpp
+                AiePropertiesShortcutControllerTests.cpp
                 KernelCatalogTests.cpp
                 KernelRegistryServiceTests.cpp
+                KernelAssignmentControllerTests.cpp
+                SymbolsControllerTests.cpp
+                SymbolsPanelTests.cpp
 )

@@ -163,3 +163,54 @@ TEST(CanvasDocumentServiceTests, CreateSaveCloseAndReopenRoundTrip)
     }
     EXPECT_TRUE(foundBoundProducer);
 }
+
+TEST(CanvasDocumentServiceTests, MetadataUpdatesRoundTripAcrossReopen)
+{
+    ensureCoreApp();
+
+    QTemporaryDir temp;
+    ASSERT_TRUE(temp.isValid());
+
+    const QString bundlePath = QDir(temp.path()).filePath(QStringLiteral("MetadataRoundTrip.ironsmith"));
+    ASSERT_TRUE(QDir().mkpath(bundlePath));
+
+    StubCanvasHost host;
+    Canvas::Internal::CanvasDocumentServiceImpl service;
+    service.setCanvasHost(&host);
+
+    Canvas::Api::CanvasDocumentCreateRequest createRequest;
+    createRequest.bundlePath = bundlePath;
+    createRequest.persistenceRelativePath = QStringLiteral("canvas/document.json");
+    createRequest.metadata.insert(QStringLiteral("deviceId"), QStringLiteral("phoenix"));
+
+    Canvas::Api::CanvasDocumentHandle handle;
+    const Utils::Result createResult = service.createDocument(createRequest, handle);
+    ASSERT_TRUE(createResult.ok) << createResult.errors.join("\n").toStdString();
+    EXPECT_EQ(service.activeMetadata().value(QStringLiteral("deviceId")).toString(), QStringLiteral("phoenix"));
+
+    QJsonObject updatedMetadata = service.activeMetadata();
+    updatedMetadata.insert(QStringLiteral("symbols"),
+                           QJsonObject{{QStringLiteral("schema"), QStringLiteral("aie.symbols/1")}});
+
+    const Utils::Result updateResult = service.updateActiveMetadata(updatedMetadata);
+    ASSERT_TRUE(updateResult.ok) << updateResult.errors.join("\n").toStdString();
+
+    const Utils::Result saveResult = service.saveDocument(handle);
+    ASSERT_TRUE(saveResult.ok) << saveResult.errors.join("\n").toStdString();
+
+    const Utils::Result closeResult =
+        service.closeDocument(handle, Canvas::Api::CanvasDocumentCloseReason::UserClosed);
+    ASSERT_TRUE(closeResult.ok) << closeResult.errors.join("\n").toStdString();
+
+    Canvas::Api::CanvasDocumentOpenRequest openRequest;
+    openRequest.bundlePath = bundlePath;
+    openRequest.persistencePath = handle.persistencePath;
+
+    Canvas::Api::CanvasDocumentHandle reopened;
+    const Utils::Result openResult = service.openDocument(openRequest, reopened);
+    ASSERT_TRUE(openResult.ok) << openResult.errors.join("\n").toStdString();
+
+    const QJsonObject reopenedMetadata = service.activeMetadata();
+    EXPECT_EQ(reopenedMetadata.value(QStringLiteral("deviceId")).toString(), QStringLiteral("phoenix"));
+    EXPECT_TRUE(reopenedMetadata.contains(QStringLiteral("symbols")));
+}

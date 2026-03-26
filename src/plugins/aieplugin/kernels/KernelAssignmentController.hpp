@@ -4,6 +4,7 @@
 #pragma once
 
 #include "aieplugin/kernels/KernelCatalog.hpp"
+#include "aieplugin/state/AieKernelAssignmentState.hpp"
 #include "canvas/CanvasTypes.hpp"
 
 #include <utils/Result.hpp>
@@ -15,6 +16,7 @@
 #include <QtCore/QPointF>
 #include <QtCore/QRectF>
 #include <QtCore/QString>
+#include <QtCore/QUrl>
 #include <QtCore/qnamespace.h>
 
 QT_BEGIN_NAMESPACE
@@ -76,13 +78,16 @@ private:
 
     void reconnectCanvasSignals();
     void updateCanvasCursor();
-    void updateStereotypeLinkHover(const QPointF& scenePos, Qt::KeyboardModifiers mods);
-    void refreshStereotypeLinkHover(Qt::KeyboardModifiers mods);
+    void updateStereotypeLinkHover(const QPointF& scenePos);
     void clearStereotypeLinkHover();
     void applyLabelOverrides();
-    bool handlePreviewLinkClick(const QPointF& scenePos, Qt::KeyboardModifiers mods);
+    bool handleStereotypeLinkClick(const QPointF& scenePos);
+    bool openKernelLink(const QUrl& url);
+    bool confirmReassignment(const QString& tileSpecId,
+                             const QString& currentKernelId,
+                             const QString& nextKernelId);
     const Canvas::CanvasBlock* clickableStereotypeBlockAt(const QPointF& scenePos,
-                                                          QString* kernelIdOut = nullptr) const;
+                                                          QUrl* urlOut = nullptr) const;
     static QRectF stereotypeRectForBlock(const Canvas::CanvasBlock& block);
     void showPreviewDialog(const QString& kernelId, bool openMetadataTab = false);
     void openKernelInEditor(const QString& kernelId, bool forceReadOnly);
@@ -90,6 +95,8 @@ private:
                            KernelSourceScope scope,
                            bool openCopiedKernelInEditor);
     const KernelAsset* kernelById(const QString& kernelId) const;
+    QUrl kernelLinkUrl(const QString& kernelId) const;
+    QString kernelIdFromLink(const QUrl& url) const;
 
     bool isAssignableTile(const QString& tileSpecId) const;
     QString stereotypeLabelFor(const QString& kernelId) const;
@@ -114,6 +121,7 @@ private:
     QString m_selectedKernelId;
     Canvas::ObjectId m_hoveredStereotypeItemId{};
     QHash<QString, QString> m_assignmentsByTileSpecId;
+    AieKernelAssignmentState m_assignmentState;
 };
 
 } // namespace Aie::Internal

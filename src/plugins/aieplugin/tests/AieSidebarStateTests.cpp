@@ -15,6 +15,7 @@ namespace {
 constexpr auto kLayoutPanelId = "IRONSmith.AieGridTools";
 constexpr auto kKernelsPanelId = "IRONSmith.Kernels";
 constexpr auto kPropertiesPanelId = "IRONSmith.AieProperties";
+constexpr auto kSymbolsPanelId = "IRONSmith.Symbols";
 
 QApplication* ensureApp()
 {
@@ -50,10 +51,12 @@ TEST(AieSidebarStateTests, PersistsPanelOpenFlagsPerPanelId)
         EXPECT_FALSE(state.panelOpen(QString::fromLatin1(kLayoutPanelId)));
         EXPECT_FALSE(state.panelOpen(QString::fromLatin1(kKernelsPanelId)));
         EXPECT_FALSE(state.panelOpen(QString::fromLatin1(kPropertiesPanelId)));
+        EXPECT_FALSE(state.panelOpen(QString::fromLatin1(kSymbolsPanelId)));
 
         state.setPanelOpen(QString::fromLatin1(kLayoutPanelId), true);
         state.setPanelOpen(QString::fromLatin1(kKernelsPanelId), false);
         state.setPanelOpen(QString::fromLatin1(kPropertiesPanelId), true);
+        state.setPanelOpen(QString::fromLatin1(kSymbolsPanelId), true);
     }
 
     {
@@ -61,6 +64,7 @@ TEST(AieSidebarStateTests, PersistsPanelOpenFlagsPerPanelId)
         EXPECT_TRUE(restored.panelOpen(QString::fromLatin1(kLayoutPanelId)));
         EXPECT_FALSE(restored.panelOpen(QString::fromLatin1(kKernelsPanelId)));
         EXPECT_TRUE(restored.panelOpen(QString::fromLatin1(kPropertiesPanelId)));
+        EXPECT_TRUE(restored.panelOpen(QString::fromLatin1(kSymbolsPanelId)));
 
         restored.setPanelOpen(QString::fromLatin1(kKernelsPanelId), true);
     }
@@ -70,5 +74,6 @@ TEST(AieSidebarStateTests, PersistsPanelOpenFlagsPerPanelId)
         EXPECT_TRUE(restored.panelOpen(QString::fromLatin1(kLayoutPanelId)));
         EXPECT_TRUE(restored.panelOpen(QString::fromLatin1(kKernelsPanelId)));
         EXPECT_TRUE(restored.panelOpen(QString::fromLatin1(kPropertiesPanelId)));
+        EXPECT_TRUE(restored.panelOpen(QString::fromLatin1(kSymbolsPanelId)));
     }
 }

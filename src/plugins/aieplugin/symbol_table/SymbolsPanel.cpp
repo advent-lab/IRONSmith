@@ -1,0 +1,791 @@
+// SPDX-FileCopyrightText: 2026 Samer Ali
+// SPDX-License-Identifier: GPL-3.0-only
+
+#include "aieplugin/symbol_table/SymbolsPanel.hpp"
+
+#include "aieplugin/symbol_table/SymbolsController.hpp"
+#include "aieplugin/symbol_table/SymbolsModel.hpp"
+
+#include <utils/ui/SidebarPanelFrame.hpp>
+
+#include <QtCore/QItemSelectionModel>
+#include <QtCore/QSignalBlocker>
+#include <QtCore/QStringListModel>
+#include <QtCore/QTimer>
+#include <QtGui/QFontDatabase>
+#include <QtWidgets/QAbstractItemView>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QCompleter>
+#include <QtWidgets/QFormLayout>
+#include <QtWidgets/QFrame>
+#include <QtWidgets/QGroupBox>
+#include <QtWidgets/QHeaderView>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QScrollArea>
+#include <QtWidgets/QSpinBox>
+#include <QtWidgets/QSplitter>
+#include <QtWidgets/QStackedWidget>
+#include <QtWidgets/QTableView>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QWidget>
+
+namespace Aie::Internal {
+
+namespace {
+
+using namespace Qt::StringLiterals;
+
+constexpr int kAllFilterIndex = 0;
+constexpr int kConstantsFilterIndex = 1;
+constexpr int kTypesFilterIndex = 2;
+
+QFont fixedFont()
+{
+    return QFontDatabase::systemFont(QFontDatabase::FixedFont);
+}
+
+void repolish(QWidget* widget)
+{
+    if (!widget || !widget->style())
+        return;
+    widget->style()->unpolish(widget);
+    widget->style()->polish(widget);
+    widget->update();
+}
+
+QLabel* makeKeyLabel(const QString& text, QWidget* parent)
+{
+    auto* label = new QLabel(text, parent);
+    label->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+    return label;
+}
+
+QLineEdit* makeField(QWidget* parent, const QString& placeholder = {})
+{
+    auto* edit = new QLineEdit(parent);
+    edit->setObjectName(QStringLiteral("AiePropertiesField"));
+    edit->setPlaceholderText(placeholder);
+    return edit;
+}
+
+QString filterSummary(int visibleCount, int totalCount)
+{
+    if (totalCount <= 0)
+        return QStringLiteral("No symbols in this design yet.");
+    if (visibleCount == totalCount)
+        return QStringLiteral("%1 symbol%2 in this design.")
+            .arg(totalCount)
+            .arg(totalCount == 1 ? QString() : QStringLiteral("s"));
+    return QStringLiteral("Showing %1 of %2 symbols.")
+        .arg(visibleCount)
+        .arg(totalCount);
+}
+
+} // namespace
+
+SymbolsPanel::SymbolsPanel(SymbolsController* controller, QWidget* parent)
+    : QWidget(parent)
+    , m_controller(controller)
+{
+    setObjectName(QStringLiteral("AieSymbolsPanel"));
+    setAttribute(Qt::WA_StyledBackground, true);
+
+    m_commitTimer.setSingleShot(true);
+    m_commitTimer.setInterval(0);
+    connect(&m_commitTimer, &QTimer::timeout, this, &SymbolsPanel::flushPendingCommit);
+
+    buildUi();
+    bindController();
+    refreshPanelState();
+}
+
+void SymbolsPanel::buildUi()
+{
+    auto* rootLayout = new QVBoxLayout(this);
+    rootLayout->setContentsMargins(0, 0, 0, 0);
+    rootLayout->setSpacing(0);
+
+    auto* frame = new Utils::SidebarPanelFrame(this);
+    frame->setTitle(QStringLiteral("Symbols"));
+    frame->setSubtitle(QStringLiteral("Constants and type abstractions"));
+    frame->setSearchEnabled(true);
+    frame->setSearchPlaceholder(QStringLiteral("Search symbols"));
+    frame->setHeaderDividerVisible(true);
+    m_frame = frame;
+
+    auto* content = new QWidget(frame);
+    content->setObjectName(QStringLiteral("AieSymbolsPanelContent"));
+    auto* contentLayout = new QVBoxLayout(content);
+    contentLayout->setContentsMargins(8, 8, 8, 8);
+    contentLayout->setSpacing(6);
+
+    auto* summaryLabel = new QLabel(content);
+    summaryLabel->setWordWrap(true);
+    summaryLabel->setObjectName(QStringLiteral("AieSymbolsSummaryLabel"));
+    m_summaryLabel = summaryLabel;
+
+    auto* detailLabel = new QLabel(content);
+    detailLabel->setWordWrap(true);
+    detailLabel->setObjectName(QStringLiteral("AieSymbolsDetailLabel"));
+    detailLabel->setProperty("severity", QStringLiteral("normal"));
+    m_detailLabel = detailLabel;
+
+    auto* toolbarCard = new QFrame(content);
+    toolbarCard->setObjectName(QStringLiteral("AieSymbolsToolbarRow"));
+    auto* toolbarLayout = new QHBoxLayout(toolbarCard);
+    toolbarLayout->setContentsMargins(0, 0, 0, 0);
+    toolbarLayout->setSpacing(6);
+
+    auto* addConstantButton = new QPushButton(QStringLiteral("New Constant"), toolbarCard);
+    addConstantButton->setObjectName(QStringLiteral("AieSymbolsPrimaryButton"));
+    m_addConstantButton = addConstantButton;
+
+    auto* addTypeButton = new QPushButton(QStringLiteral("New Type"), toolbarCard);
+    addTypeButton->setObjectName(QStringLiteral("AieSymbolsSecondaryButton"));
+    m_addTypeButton = addTypeButton;
+
+    auto* deleteButton = new QPushButton(QStringLiteral("Delete"), toolbarCard);
+    deleteButton->setObjectName(QStringLiteral("AieSymbolsDangerButton"));
+    m_deleteButton = deleteButton;
+
+    auto* filterCombo = new QComboBox(toolbarCard);
+    filterCombo->setObjectName(QStringLiteral("AieSymbolsFilterField"));
+    filterCombo->addItem(QStringLiteral("All Symbols"), static_cast<int>(SymbolFilterKind::All));
+    filterCombo->addItem(QStringLiteral("Constants"), static_cast<int>(SymbolFilterKind::Constants));
+    filterCombo->addItem(QStringLiteral("Types"), static_cast<int>(SymbolFilterKind::Types));
+    filterCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    m_filterCombo = filterCombo;
+
+    toolbarLayout->addWidget(addConstantButton);
+    toolbarLayout->addWidget(addTypeButton);
+    toolbarLayout->addWidget(deleteButton);
+    toolbarLayout->addStretch(1);
+    toolbarLayout->addWidget(filterCombo, 0);
+
+    auto* splitter = new QSplitter(Qt::Vertical, content);
+    splitter->setObjectName(QStringLiteral("AieSymbolsSplitter"));
+    splitter->setChildrenCollapsible(false);
+
+    auto* listCard = new QFrame(splitter);
+    listCard->setObjectName(QStringLiteral("AieSymbolsListSurface"));
+    auto* listLayout = new QVBoxLayout(listCard);
+    listLayout->setContentsMargins(0, 0, 0, 0);
+    listLayout->setSpacing(0);
+
+    m_model = new SymbolsModel(m_controller, this);
+    m_filterModel = new SymbolsFilterModel(this);
+    m_filterModel->setSourceModel(m_model);
+
+    auto* tableView = new QTableView(listCard);
+    tableView->setObjectName(QStringLiteral("AieSymbolsTable"));
+    tableView->setModel(m_filterModel);
+    tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+    tableView->setSelectionMode(QAbstractItemView::SingleSelection);
+    tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    tableView->setAlternatingRowColors(false);
+    tableView->setShowGrid(false);
+    tableView->setSortingEnabled(false);
+    tableView->verticalHeader()->setVisible(false);
+    tableView->verticalHeader()->setDefaultSectionSize(30);
+    tableView->horizontalHeader()->setStretchLastSection(false);
+    tableView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    tableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    tableView->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    tableView->setFocusPolicy(Qt::StrongFocus);
+    tableView->setWordWrap(false);
+    m_tableView = tableView;
+
+    listLayout->addWidget(tableView, 1);
+
+    auto* editorHost = new QWidget(splitter);
+    editorHost->setObjectName(QStringLiteral("AieSymbolsEditorHost"));
+    auto* editorHostLayout = new QVBoxLayout(editorHost);
+    editorHostLayout->setContentsMargins(0, 0, 0, 0);
+    editorHostLayout->setSpacing(0);
+
+    auto* editorStack = new QStackedWidget(editorHost);
+    editorStack->setObjectName(QStringLiteral("AieSymbolsEditorStack"));
+    m_editorStack = editorStack;
+
+    buildEditorPages();
+    editorHostLayout->addWidget(editorStack, 1);
+
+    splitter->addWidget(listCard);
+    splitter->addWidget(editorHost);
+    splitter->setStretchFactor(0, 3);
+    splitter->setStretchFactor(1, 4);
+    splitter->setSizes({230, 360});
+
+    contentLayout->addWidget(summaryLabel);
+    contentLayout->addWidget(detailLabel);
+    contentLayout->addWidget(toolbarCard);
+    contentLayout->addWidget(splitter, 1);
+
+    frame->setContentWidget(content);
+    rootLayout->addWidget(frame);
+
+    if (auto* search = frame->searchField()) {
+        connect(search, &QLineEdit::textChanged, this, [this](const QString& text) {
+            if (m_filterModel)
+                m_filterModel->setSearchText(text);
+            updateSummaryText();
+        });
+    }
+
+    connect(addConstantButton, &QPushButton::clicked, this, [this]() {
+        if (!m_controller)
+            return;
+        QString newId;
+        const Utils::Result result = m_controller->createConstant(&newId);
+        refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+        if (result)
+            refreshSelection();
+    });
+    connect(addTypeButton, &QPushButton::clicked, this, [this]() {
+        if (!m_controller)
+            return;
+        QString newId;
+        const Utils::Result result = m_controller->createTypeAbstraction(&newId);
+        refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+        if (result)
+            refreshSelection();
+    });
+    connect(deleteButton, &QPushButton::clicked, this, &SymbolsPanel::deleteSelectedSymbol);
+    connect(filterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+        if (!m_filterModel)
+            return;
+
+        SymbolFilterKind kind = SymbolFilterKind::All;
+        switch (index) {
+            case kConstantsFilterIndex:
+                kind = SymbolFilterKind::Constants;
+                break;
+            case kTypesFilterIndex:
+                kind = SymbolFilterKind::Types;
+                break;
+            case kAllFilterIndex:
+            default:
+                break;
+        }
+
+        m_filterModel->setFilterKind(kind);
+        updateSummaryText();
+        refreshSelection();
+    });
+}
+
+void SymbolsPanel::buildEditorPages()
+{
+    auto* emptyPage = new QWidget(m_editorStack);
+    emptyPage->setObjectName(QStringLiteral("AieSymbolsEmptyEditorPage"));
+    auto* emptyLayout = new QVBoxLayout(emptyPage);
+    emptyLayout->setContentsMargins(0, 0, 0, 0);
+    emptyLayout->setSpacing(8);
+
+    auto* emptyCard = new QGroupBox(QStringLiteral("Selection"), emptyPage);
+    emptyCard->setObjectName(QStringLiteral("AieSymbolsSection"));
+    auto* emptyCardLayout = new QVBoxLayout(emptyCard);
+    emptyCardLayout->setContentsMargins(12, 12, 12, 12);
+    emptyCardLayout->setSpacing(8);
+
+    auto* emptyLabel = new QLabel(QStringLiteral("Create a constant or type, or select an existing symbol to inspect and edit it."), emptyCard);
+    emptyLabel->setWordWrap(true);
+    emptyLabel->setObjectName(QStringLiteral("AieSymbolsEmptyStateLabel"));
+
+    auto* exampleLabel = new QLabel(QStringLiteral("Examples:\nN = 1024\nin_ty = np.ndarray[(N,), np.dtype[np.int32]]"), emptyCard);
+    exampleLabel->setWordWrap(true);
+    exampleLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    exampleLabel->setFont(fixedFont());
+    exampleLabel->setObjectName(QStringLiteral("AieSymbolsPreviewLabel"));
+
+    emptyCardLayout->addWidget(emptyLabel);
+    emptyCardLayout->addWidget(exampleLabel);
+    emptyCardLayout->addStretch(1);
+    emptyLayout->addWidget(emptyCard);
+    emptyLayout->addStretch(1);
+
+    m_emptyEditorPage = emptyPage;
+    m_editorStack->addWidget(emptyPage);
+
+    auto* constantCard = new QGroupBox(QStringLiteral("Constant"), m_editorStack);
+    constantCard->setObjectName(QStringLiteral("AieSymbolsSection"));
+    auto* constantForm = new QFormLayout(constantCard);
+    constantForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    constantForm->setContentsMargins(12, 12, 12, 12);
+    constantForm->setHorizontalSpacing(10);
+    constantForm->setVerticalSpacing(8);
+    constantForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    auto* constantNameEdit = makeField(constantCard, QStringLiteral("Identifier"));
+    auto* constantValueEdit = makeField(constantCard, QStringLiteral("Integral value"));
+    auto* constantReferencesLabel = new QLabel(constantCard);
+    constantReferencesLabel->setObjectName(QStringLiteral("AiePropertiesValueLabel"));
+    constantReferencesLabel->setWordWrap(true);
+    auto* constantPreviewLabel = new QLabel(constantCard);
+    constantPreviewLabel->setObjectName(QStringLiteral("AieSymbolsPreviewLabel"));
+    constantPreviewLabel->setFont(fixedFont());
+    constantPreviewLabel->setWordWrap(true);
+    constantPreviewLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+
+    constantForm->addRow(makeKeyLabel(QStringLiteral("Name"), constantCard), constantNameEdit);
+    constantForm->addRow(makeKeyLabel(QStringLiteral("Value"), constantCard), constantValueEdit);
+    constantForm->addRow(makeKeyLabel(QStringLiteral("Used By"), constantCard), constantReferencesLabel);
+    constantForm->addRow(makeKeyLabel(QStringLiteral("Preview"), constantCard), constantPreviewLabel);
+
+    m_constantEditorCard = constantCard;
+    m_constantNameEdit = constantNameEdit;
+    m_constantValueEdit = constantValueEdit;
+    m_constantReferencesLabel = constantReferencesLabel;
+    m_constantPreviewLabel = constantPreviewLabel;
+    m_editorStack->addWidget(constantCard);
+
+    auto* typeScroll = new QScrollArea(m_editorStack);
+    typeScroll->setWidgetResizable(true);
+    typeScroll->setFrameShape(QFrame::NoFrame);
+    typeScroll->setObjectName(QStringLiteral("AieSymbolsEditorScrollArea"));
+
+    auto* typeHost = new QWidget(typeScroll);
+    auto* typeHostLayout = new QVBoxLayout(typeHost);
+    typeHostLayout->setContentsMargins(0, 0, 0, 0);
+    typeHostLayout->setSpacing(0);
+
+    auto* typeCard = new QGroupBox(QStringLiteral("Type Abstraction"), typeHost);
+    typeCard->setObjectName(QStringLiteral("AieSymbolsSection"));
+    auto* typeForm = new QFormLayout(typeCard);
+    typeForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    typeForm->setContentsMargins(12, 12, 12, 12);
+    typeForm->setHorizontalSpacing(10);
+    typeForm->setVerticalSpacing(8);
+    typeForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignTop);
+
+    auto* typeNameEdit = makeField(typeCard, QStringLiteral("Identifier"));
+    auto* typeContainerValue = new QLabel(QStringLiteral("np.ndarray"), typeCard);
+    typeContainerValue->setObjectName(QStringLiteral("AiePropertiesValueLabel"));
+    auto* typeRankSpin = new QSpinBox(typeCard);
+    typeRankSpin->setObjectName(QStringLiteral("AiePropertiesField"));
+    typeRankSpin->setRange(1, 8);
+    typeRankSpin->setValue(1);
+
+    auto* dimensionsHost = new QWidget(typeCard);
+    auto* dimensionsForm = new QFormLayout(dimensionsHost);
+    dimensionsForm->setContentsMargins(0, 0, 0, 0);
+    dimensionsForm->setHorizontalSpacing(10);
+    dimensionsForm->setVerticalSpacing(6);
+    dimensionsForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    dimensionsForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    auto* dtypeCombo = new QComboBox(typeCard);
+    dtypeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+    dtypeCombo->addItems(supportedSymbolDtypes());
+
+    auto* typePreviewLabel = new QLabel(typeCard);
+    typePreviewLabel->setObjectName(QStringLiteral("AieSymbolsPreviewLabel"));
+    typePreviewLabel->setFont(fixedFont());
+    typePreviewLabel->setWordWrap(true);
+    typePreviewLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+
+    typeForm->addRow(makeKeyLabel(QStringLiteral("Name"), typeCard), typeNameEdit);
+    typeForm->addRow(makeKeyLabel(QStringLiteral("Container"), typeCard), typeContainerValue);
+    typeForm->addRow(makeKeyLabel(QStringLiteral("Rank"), typeCard), typeRankSpin);
+    typeForm->addRow(makeKeyLabel(QStringLiteral("Dimensions"), typeCard), dimensionsHost);
+    typeForm->addRow(makeKeyLabel(QStringLiteral("DType"), typeCard), dtypeCombo);
+    typeForm->addRow(makeKeyLabel(QStringLiteral("Preview"), typeCard), typePreviewLabel);
+
+    typeHostLayout->addWidget(typeCard);
+    typeHostLayout->addStretch(1);
+    typeScroll->setWidget(typeHost);
+
+    m_typeEditorCard = typeCard;
+    m_typeNameEdit = typeNameEdit;
+    m_typeContainerValue = typeContainerValue;
+    m_typeRankSpin = typeRankSpin;
+    m_typeDimensionsForm = dimensionsForm;
+    m_typeDTypeCombo = dtypeCombo;
+    m_typePreviewLabel = typePreviewLabel;
+    m_editorStack->addWidget(typeScroll);
+
+    rebuildDimensionEditors(1);
+
+    connect(constantNameEdit, &QLineEdit::textChanged, this, &SymbolsPanel::refreshEditorPreview);
+    connect(constantValueEdit, &QLineEdit::textChanged, this, &SymbolsPanel::refreshEditorPreview);
+    connect(constantNameEdit, &QLineEdit::editingFinished, this, &SymbolsPanel::requestConstantCommit);
+    connect(constantValueEdit, &QLineEdit::editingFinished, this, &SymbolsPanel::requestConstantCommit);
+
+    connect(typeNameEdit, &QLineEdit::textChanged, this, &SymbolsPanel::refreshEditorPreview);
+    connect(typeNameEdit, &QLineEdit::editingFinished, this, &SymbolsPanel::requestTypeCommit);
+    connect(typeRankSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int rank) {
+        if (m_updatingUi)
+            return;
+        QStringList existingTokens;
+        existingTokens.reserve(m_dimensionEdits.size());
+        for (const auto& edit : m_dimensionEdits)
+            existingTokens.push_back(edit ? edit->text().trimmed() : QString());
+        rebuildDimensionEditors(rank);
+        for (int i = 0; i < m_dimensionEdits.size() && i < existingTokens.size(); ++i) {
+            if (m_dimensionEdits[i] && !existingTokens.at(i).isEmpty())
+                m_dimensionEdits[i]->setText(existingTokens.at(i));
+        }
+        refreshEditorPreview();
+        requestTypeCommit();
+    });
+    connect(dtypeCombo, &QComboBox::currentTextChanged, this, [this](const QString&) {
+        if (m_updatingUi)
+            return;
+        refreshEditorPreview();
+        requestTypeCommit();
+    });
+}
+
+void SymbolsPanel::rebuildDimensionEditors(int rank)
+{
+    if (!m_typeDimensionsForm)
+        return;
+
+    while (m_typeDimensionsForm->rowCount() > 0)
+        m_typeDimensionsForm->removeRow(0);
+
+    m_dimensionEdits.clear();
+    m_dimensionCompleters.clear();
+
+    const QStringList suggestions = m_controller
+        ? m_controller->dimensionReferenceCandidates()
+        : QStringList{QStringLiteral("1")};
+
+    for (int axis = 0; axis < rank; ++axis) {
+        auto* field = makeField(m_typeDimensionsForm->parentWidget(),
+                                QStringLiteral("Literal or constant"));
+        field->setText(QStringLiteral("1"));
+        auto* completerModel = new QStringListModel(suggestions, field);
+        auto* completer = new QCompleter(completerModel, field);
+        completer->setCaseSensitivity(Qt::CaseInsensitive);
+        completer->setFilterMode(Qt::MatchContains);
+        field->setCompleter(completer);
+
+        connect(field, &QLineEdit::textChanged, this, &SymbolsPanel::refreshEditorPreview);
+        connect(field, &QLineEdit::editingFinished, this, &SymbolsPanel::requestTypeCommit);
+
+        m_typeDimensionsForm->addRow(makeKeyLabel(QStringLiteral("Axis %1").arg(axis), field->parentWidget()),
+                                     field);
+        m_dimensionEdits.push_back(field);
+        m_dimensionCompleters.push_back(completer);
+    }
+}
+
+void SymbolsPanel::bindController()
+{
+    if (!m_controller)
+        return;
+
+    connect(m_controller, &SymbolsController::symbolsChanged,
+            this, &SymbolsPanel::refreshPanelState);
+    connect(m_controller, &SymbolsController::selectedSymbolChanged,
+            this, &SymbolsPanel::refreshSelection);
+    connect(m_controller, &SymbolsController::activeDocumentChanged,
+            this, &SymbolsPanel::refreshPanelState);
+
+    if (m_tableView && m_tableView->selectionModel()) {
+        connect(m_tableView->selectionModel(), &QItemSelectionModel::currentRowChanged,
+                this, [this](const QModelIndex& current) {
+                    if (m_updatingUi || !m_controller)
+                        return;
+                    m_controller->setSelectedSymbolId(current.data(SymbolsModel::SymbolIdRole).toString());
+                });
+    }
+}
+
+void SymbolsPanel::refreshPanelState()
+{
+    updateActionState();
+    updateSummaryText();
+    refreshSelection();
+
+    if (!m_controller || !m_controller->hasActiveDocument()) {
+        refreshStatusMessage(QStringLiteral("Open a design to manage symbols."));
+        if (m_editorStack && m_emptyEditorPage)
+            m_editorStack->setCurrentWidget(m_emptyEditorPage);
+        return;
+    }
+
+    if (m_controller->symbols().isEmpty())
+        refreshStatusMessage(QStringLiteral("Create constants and reusable ndarray types for this design."));
+    else
+        refreshStatusMessage();
+
+    refreshEditor();
+}
+
+void SymbolsPanel::refreshSelection()
+{
+    if (!m_tableView || !m_filterModel || !m_controller)
+        return;
+
+    const QString selectedId = m_controller->selectedSymbolId();
+    QModelIndex targetIndex;
+    for (int row = 0; row < m_filterModel->rowCount(); ++row) {
+        const QModelIndex index = m_filterModel->index(row, 0);
+        if (index.data(SymbolsModel::SymbolIdRole).toString() == selectedId) {
+            targetIndex = index;
+            break;
+        }
+    }
+
+    m_updatingUi = true;
+    if (auto* selectionModel = m_tableView->selectionModel()) {
+        selectionModel->clearSelection();
+        if (targetIndex.isValid()) {
+            selectionModel->setCurrentIndex(targetIndex,
+                                            QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        }
+    }
+    m_updatingUi = false;
+
+    refreshEditor();
+    updateActionState();
+}
+
+void SymbolsPanel::refreshEditor()
+{
+    if (!m_editorStack || !m_controller) {
+        return;
+    }
+
+    const SymbolRecord* symbol = m_controller->symbolById(m_controller->selectedSymbolId());
+    if (!symbol) {
+        if (m_emptyEditorPage)
+            m_editorStack->setCurrentWidget(m_emptyEditorPage);
+        m_commitTimer.stop();
+        m_pendingCommit = PendingCommitKind::None;
+        refreshEditorPreview();
+        return;
+    }
+
+    m_updatingUi = true;
+
+    if (symbol->kind == SymbolKind::Constant) {
+        if (m_constantNameEdit)
+            m_constantNameEdit->setText(symbol->name);
+        if (m_constantValueEdit)
+            m_constantValueEdit->setText(QString::number(symbol->constant.value));
+        if (m_constantReferencesLabel) {
+            const QStringList references = m_controller->referencesForSymbol(symbol->id);
+            m_constantReferencesLabel->setText(references.isEmpty()
+                                                   ? QStringLiteral("Not referenced yet.")
+                                                   : references.join(QStringLiteral(", ")));
+        }
+        if (m_editorStack && m_constantEditorCard)
+            m_editorStack->setCurrentWidget(m_constantEditorCard);
+    } else {
+        if (m_typeNameEdit)
+            m_typeNameEdit->setText(symbol->name);
+        if (m_typeRankSpin)
+            m_typeRankSpin->setValue(qMax(1, symbol->type.shapeTokens.size()));
+        rebuildDimensionEditors(qMax(1, symbol->type.shapeTokens.size()));
+        for (int i = 0; i < m_dimensionEdits.size() && i < symbol->type.shapeTokens.size(); ++i) {
+            if (m_dimensionEdits[i])
+                m_dimensionEdits[i]->setText(symbol->type.shapeTokens.at(i));
+        }
+        if (m_typeDTypeCombo) {
+            const int dtypeIndex = m_typeDTypeCombo->findText(symbol->type.dtype);
+            if (dtypeIndex >= 0)
+                m_typeDTypeCombo->setCurrentIndex(dtypeIndex);
+        }
+        if (m_editorStack)
+            m_editorStack->setCurrentIndex(2);
+    }
+
+    m_updatingUi = false;
+    refreshEditorPreview();
+}
+
+void SymbolsPanel::refreshEditorPreview()
+{
+    if (!m_controller || !m_editorStack)
+        return;
+
+    const SymbolRecord* symbol = m_controller->symbolById(m_controller->selectedSymbolId());
+    if (!symbol)
+        return;
+
+    if (symbol->kind == SymbolKind::Constant) {
+        if (m_constantPreviewLabel)
+            m_constantPreviewLabel->setText(currentConstantPreview());
+    } else {
+        if (m_typePreviewLabel)
+            m_typePreviewLabel->setText(currentTypePreview());
+    }
+}
+
+void SymbolsPanel::refreshStatusMessage(const QString& message, bool error)
+{
+    if (!m_detailLabel)
+        return;
+
+    const QString text = message.trimmed().isEmpty()
+        ? QStringLiteral("Stored with the active design document.")
+        : message.trimmed();
+    m_detailLabel->setText(text);
+    m_detailLabel->setProperty("severity", error ? QStringLiteral("error") : QStringLiteral("normal"));
+    repolish(m_detailLabel);
+}
+
+void SymbolsPanel::updateSummaryText()
+{
+    if (!m_summaryLabel)
+        return;
+
+    if (!m_controller || !m_controller->hasActiveDocument()) {
+        m_summaryLabel->setText(QStringLiteral("No design open."));
+        return;
+    }
+
+    const int totalCount = m_controller->symbols().size();
+    const int visibleCount = m_filterModel ? m_filterModel->rowCount() : totalCount;
+    m_summaryLabel->setText(filterSummary(visibleCount, totalCount));
+}
+
+void SymbolsPanel::updateActionState()
+{
+    const bool hasDocument = m_controller && m_controller->hasActiveDocument();
+    const bool hasSelection = m_controller && m_controller->symbolById(m_controller->selectedSymbolId());
+
+    if (m_addConstantButton)
+        m_addConstantButton->setEnabled(hasDocument);
+    if (m_addTypeButton)
+        m_addTypeButton->setEnabled(hasDocument);
+    if (m_deleteButton)
+        m_deleteButton->setEnabled(hasDocument && hasSelection);
+}
+
+void SymbolsPanel::requestConstantCommit()
+{
+    if (m_updatingUi)
+        return;
+
+    m_pendingCommit = PendingCommitKind::Constant;
+    m_commitTimer.start();
+}
+
+void SymbolsPanel::requestTypeCommit()
+{
+    if (m_updatingUi)
+        return;
+
+    m_pendingCommit = PendingCommitKind::Type;
+    m_commitTimer.start();
+}
+
+void SymbolsPanel::flushPendingCommit()
+{
+    const PendingCommitKind commit = m_pendingCommit;
+    m_pendingCommit = PendingCommitKind::None;
+
+    switch (commit) {
+        case PendingCommitKind::Constant:
+            commitConstantEdits();
+            break;
+        case PendingCommitKind::Type:
+            commitTypeEdits();
+            break;
+        case PendingCommitKind::None:
+            break;
+    }
+}
+
+void SymbolsPanel::commitConstantEdits()
+{
+    if (m_updatingUi || !m_controller)
+        return;
+
+    const SymbolRecord* current = m_controller->symbolById(m_controller->selectedSymbolId());
+    if (!current || current->kind != SymbolKind::Constant)
+        return;
+
+    bool ok = false;
+    const qint64 value = m_constantValueEdit ? m_constantValueEdit->text().trimmed().toLongLong(&ok) : 0;
+    if (!ok) {
+        refreshStatusMessage(QStringLiteral("Constants must use an integral value."), true);
+        return;
+    }
+
+    SymbolRecord updated = *current;
+    updated.name = currentEditorName();
+    updated.constant.value = value;
+
+    const Utils::Result result = m_controller->updateSymbol(updated);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+}
+
+void SymbolsPanel::commitTypeEdits()
+{
+    if (m_updatingUi || !m_controller)
+        return;
+
+    const SymbolRecord* current = m_controller->symbolById(m_controller->selectedSymbolId());
+    if (!current || current->kind != SymbolKind::TypeAbstraction)
+        return;
+
+    SymbolRecord updated = *current;
+    updated.name = currentEditorName();
+    updated.type.dtype = m_typeDTypeCombo ? m_typeDTypeCombo->currentText().trimmed() : QStringLiteral("int32");
+    updated.type.shapeTokens.clear();
+    updated.type.shapeTokens.reserve(m_dimensionEdits.size());
+    for (const auto& edit : m_dimensionEdits)
+        updated.type.shapeTokens.push_back(edit ? edit->text().trimmed() : QString());
+
+    const Utils::Result result = m_controller->updateSymbol(updated);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+}
+
+void SymbolsPanel::deleteSelectedSymbol()
+{
+    if (!m_controller)
+        return;
+
+    const QString symbolId = m_controller->selectedSymbolId();
+    if (symbolId.isEmpty())
+        return;
+
+    const Utils::Result result = m_controller->removeSymbol(symbolId);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+}
+
+QString SymbolsPanel::selectedSymbolIdFromView() const
+{
+    if (!m_tableView || !m_tableView->selectionModel())
+        return {};
+    return m_tableView->selectionModel()->currentIndex().data(SymbolsModel::SymbolIdRole).toString();
+}
+
+QString SymbolsPanel::currentEditorName() const
+{
+    const SymbolRecord* current = m_controller ? m_controller->symbolById(m_controller->selectedSymbolId()) : nullptr;
+    if (!current)
+        return {};
+
+    if (current->kind == SymbolKind::Constant && m_constantNameEdit)
+        return m_constantNameEdit->text().trimmed();
+    if (current->kind == SymbolKind::TypeAbstraction && m_typeNameEdit)
+        return m_typeNameEdit->text().trimmed();
+    return current->name;
+}
+
+QString SymbolsPanel::currentConstantPreview() const
+{
+    const QString name = m_constantNameEdit ? m_constantNameEdit->text().trimmed() : QString();
+    const QString value = m_constantValueEdit ? m_constantValueEdit->text().trimmed() : QString();
+    return QStringLiteral("%1 = %2").arg(name, value);
+}
+
+QString SymbolsPanel::currentTypePreview() const
+{
+    TypeAbstractionSymbolData typeData;
+    typeData.dtype = m_typeDTypeCombo ? m_typeDTypeCombo->currentText().trimmed() : QStringLiteral("int32");
+    for (const auto& edit : m_dimensionEdits)
+        typeData.shapeTokens.push_back(edit ? edit->text().trimmed() : QString());
+    return typeAbstractionPreview(m_typeNameEdit ? m_typeNameEdit->text().trimmed() : QString(), typeData);
+}
+
+} // namespace Aie::Internal

@@ -13,6 +13,15 @@ namespace {
 constexpr int kDefaultDockedExtent = 240;
 constexpr int kMinDockedExtent = 96;
 constexpr int kHandlePx = 6;
+
+bool updateDockedExtent(int& storage, int nextValue)
+{
+    if (storage == nextValue)
+        return false;
+
+    storage = nextValue;
+    return true;
+}
 }
 
 SidebarFamilyPanelWidget::SidebarFamilyPanelWidget(SidebarSide side,
@@ -66,7 +75,9 @@ SidebarFamilyPanelWidget::SidebarFamilyPanelWidget(SidebarSide side,
         if (sizes.size() != 2)
             return;
 
-        m_lastDockedAdditivePx = sizes[1];
+        const int extent = clampDockedExtent(sizes[1]);
+        if (updateDockedExtent(m_lastDockedAdditivePx, extent))
+            emit additiveDockedExtentChanged(extent);
     });
 }
 
@@ -106,13 +117,14 @@ void SidebarFamilyPanelWidget::setAdditiveDockedHeight(int targetHeight, bool an
 {
     Q_UNUSED(animate);
 
+    const int docked = clampDockedExtent(targetHeight);
+    if (updateDockedExtent(m_lastDockedAdditivePx, docked))
+        emit additiveDockedExtentChanged(docked);
+
     if (!(m_hasExclusive && m_hasAdditive))
         return;
 
     m_additiveFillMode = false;
-
-    const int docked = clampDockedExtent(targetHeight);
-    m_lastDockedAdditivePx = docked;
 
     const QList<int> sizes = m_splitter->sizes();
     int total = 0;

@@ -37,4 +37,5 @@ class CanvasDocumentImporter;
 class KernelRegistryService;
 class KernelAssignmentController;
 class KernelToolboxController;
+class SymbolsController;
 }

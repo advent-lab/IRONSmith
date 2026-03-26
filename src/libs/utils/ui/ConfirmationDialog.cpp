@@ -3,6 +3,7 @@
 
 #include "utils/ui/ConfirmationDialog.hpp"
 
+#include <QtWidgets/QCheckBox>
 #include <QtWidgets/QDialogButtonBox>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QPushButton>
@@ -24,8 +25,16 @@ ConfirmationDialog::ConfirmationDialog(QWidget* parent)
     m_detailsLabel->setWordWrap(true);
     m_detailsLabel->setVisible(false);
 
+    m_checkBox = new QCheckBox(contentWidget());
+    m_checkBox->setObjectName(QStringLiteral("DialogCheckBox"));
+    m_checkBox->setVisible(false);
+    connect(m_checkBox, &QCheckBox::checkStateChanged, this, [this]() {
+        emit checkBoxCheckedChanged(isCheckBoxChecked());
+    });
+
     contentLayout()->addWidget(m_informativeLabel);
     contentLayout()->addWidget(m_detailsLabel);
+    contentLayout()->addWidget(m_checkBox);
 
     auto* buttons = buttonBox();
     buttons->setStandardButtons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
@@ -42,7 +51,7 @@ ConfirmationDialog::ConfirmationDialog(QWidget* parent)
     updateButtons();
 }
 
-bool ConfirmationDialog::confirm(QWidget* parent, const ConfirmationDialogConfig& config)
+ConfirmationDialogResult ConfirmationDialog::run(QWidget* parent, const ConfirmationDialogConfig& config)
 {
     ConfirmationDialog dialog(parent);
     dialog.setTitle(config.title);
@@ -52,7 +61,18 @@ bool ConfirmationDialog::confirm(QWidget* parent, const ConfirmationDialogConfig
     dialog.setDestructive(config.destructive);
     dialog.setConfirmButtonText(config.confirmText);
     dialog.setCancelButtonText(config.cancelText);
-    return dialog.exec() == QDialog::Accepted;
+    dialog.setCheckBoxText(config.checkBoxText);
+    dialog.setCheckBoxChecked(config.checkBoxChecked);
+
+    ConfirmationDialogResult result;
+    result.accepted = (dialog.exec() == QDialog::Accepted);
+    result.checkBoxChecked = dialog.isCheckBoxChecked();
+    return result;
+}
+
+bool ConfirmationDialog::confirm(QWidget* parent, const ConfirmationDialogConfig& config)
+{
+    return run(parent, config).accepted;
 }
 
 bool ConfirmationDialog::confirmDelete(QWidget* parent, const QString& targetName, bool isFolder)
@@ -150,6 +170,38 @@ void ConfirmationDialog::setCancelButtonText(const QString& text)
 {
     m_cancelText = text.trimmed();
     updateButtons();
+}
+
+QString ConfirmationDialog::checkBoxText() const
+{
+    return m_checkBoxText;
+}
+
+void ConfirmationDialog::setCheckBoxText(const QString& text)
+{
+    const QString cleaned = text.trimmed();
+    if (m_checkBoxText == cleaned)
+        return;
+
+    m_checkBoxText = cleaned;
+    if (m_checkBox) {
+        m_checkBox->setText(m_checkBoxText);
+        m_checkBox->setVisible(!m_checkBoxText.isEmpty());
+    }
+    emit checkBoxTextChanged(m_checkBoxText);
+}
+
+bool ConfirmationDialog::isCheckBoxChecked() const
+{
+    return m_checkBox ? m_checkBox->isChecked() : false;
+}
+
+void ConfirmationDialog::setCheckBoxChecked(bool checked)
+{
+    if (!m_checkBox || m_checkBox->isChecked() == checked)
+        return;
+
+    m_checkBox->setChecked(checked);
 }
 
 void ConfirmationDialog::updateLabels()

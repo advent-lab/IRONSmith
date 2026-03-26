@@ -76,13 +76,6 @@
             "portSnapStep": 24,
             "ports": [
                 {
-                    "id": "ded01c11-648a-428f-bfb8-17cd98e616ac",
-                    "name": "",
-                    "role": "dynamic",
-                    "side": "left",
-                    "t": 0.408
-                },
-                {
                     "id": "9fb59817-10e4-471d-89bb-f0bba5fc2071",
                     "name": "",
                     "role": "dynamic",
@@ -95,6 +88,13 @@
                     "role": "dynamic",
                     "side": "bottom",
                     "t": 0.256
+                },
+                {
+                    "id": "ded01c11-648a-428f-bfb8-17cd98e616ac",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "left",
+                    "t": 0.4842105263157895
                 }
             ],
             "showPortLabels": false,
@@ -294,7 +294,6 @@
             "showPortLabels": false,
             "showPorts": true,
             "specId": "mem1_1",
-            "stereotype": "<<kernel: gemm_bf16>>",
             "style": {
                 "fill": "#ff1f1710",
                 "label": "#ffffd7a8",
@@ -331,7 +330,6 @@
             "showPortLabels": false,
             "showPorts": true,
             "specId": "mem2_1",
-            "stereotype": "<<kernel: gemm_bf16>>",
             "style": {
                 "fill": "#ff1f1710",
                 "label": "#ffffd7a8",
@@ -440,8 +438,8 @@
                     "id": "b27aa1e5-d81f-4283-84fc-2f319fb03070",
                     "name": "",
                     "role": "dynamic",
-                    "side": "right",
-                    "t": 0.552
+                    "side": "top",
+                    "t": 0.5052631578947369
                 }
             ],
             "showPortLabels": false,
@@ -627,6 +625,7 @@
             "showPortLabels": false,
             "showPorts": true,
             "specId": "aie0_3",
+            "stereotype": "<<kernel: eltwise_add_i8>>",
             "style": {
                 "fill": "#ff0b1b16",
                 "label": "#ffb7f3da",
@@ -1145,8 +1144,8 @@
                     "portId": "ded01c11-648a-428f-bfb8-17cd98e616ac"
                 },
                 "free": {
-                    "x": 0,
-                    "y": 0
+                    "x": 54.05583242468788,
+                    "y": 2395.2513550269755
                 }
             },
             "arrowPolicy": "end",
@@ -1177,8 +1176,8 @@
                     "portId": "b27aa1e5-d81f-4283-84fc-2f319fb03070"
                 },
                 "free": {
-                    "x": 0,
-                    "y": 0
+                    "x": 226.15820023769282,
+                    "y": 1403.611387662422
                 }
             },
             "arrowPolicy": "end",
@@ -1200,6 +1199,36 @@
                 "operation": "fifo",
                 "valueType": "i32"
             },
+            "routeOverride": [
+                {
+                    "x": 9,
+                    "y": 56
+                },
+                {
+                    "x": 9,
+                    "y": 55
+                },
+                {
+                    "x": 21,
+                    "y": 55
+                },
+                {
+                    "x": 21,
+                    "y": 65
+                },
+                {
+                    "x": 21,
+                    "y": 65
+                },
+                {
+                    "x": 21,
+                    "y": 80
+                },
+                {
+                    "x": 16,
+                    "y": 80
+                }
+            ],
             "type": "wire"
         },
         {
@@ -1256,14 +1285,37 @@
     "metadata": {
         "deviceFamily": "aie-ml",
         "deviceId": "amd-xdna1-phoenix",
-        "schema": "aie.spec/1"
+        "schema": "aie.spec/1",
+        "symbols": {
+            "entries": [
+                {
+                    "dtype": "int32",
+                    "id": "e489607f-a40c-408e-b31e-fa5f266f1f39",
+                    "kind": "type",
+                    "name": "tensor_ty",
+                    "shape": [
+                        "1",
+                        "1",
+                        "1"
+                    ]
+                },
+                {
+                    "id": "418e9bf3-df17-415f-af30-768c8c5932d3",
+                    "kind": "constant",
+                    "name": "const",
+                    "value": 1
+                }
+            ],
+            "schema": "aie.symbols/1",
+            "schemaVersion": 1
+        }
     },
     "schemaVersion": 1,
     "view": {
         "pan": {
-            "x": 2039.9974840257948,
-            "y": 63.446981571498
+            "x": 1748.935583629336,
+            "y": -326.0255570655862
         },
-        "zoom": 0.2547333120262967
+        "zoom": 0.30535051934800234
     }
 }

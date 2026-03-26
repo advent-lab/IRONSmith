@@ -53,6 +53,16 @@ QString CoreUiState::sidebarWidthKey(SidebarSide side, SidebarFamily family)
     return QStringLiteral("core/sidebarPanels/%1/%2/width").arg(sideToken, familyToken);
 }
 
+QString CoreUiState::sidebarAdditiveDockedExtentKey(SidebarSide side, SidebarFamily family)
+{
+    const QString sideToken = kSideTokens.value(side);
+    const QString familyToken = kFamilyTokens.value(family);
+    if (sideToken.isEmpty() || familyToken.isEmpty())
+        return {};
+
+    return QStringLiteral("core/sidebarPanels/%1/%2/additiveDockedExtent").arg(sideToken, familyToken);
+}
+
 int CoreUiState::sidebarPanelWidth(SidebarSide side, SidebarFamily family, int fallback) const
 {
     const QString key = sidebarWidthKey(side, family);
@@ -69,6 +79,24 @@ void CoreUiState::setSidebarPanelWidth(SidebarSide side, SidebarFamily family, i
         return;
 
     m_env.setSetting(Utils::EnvironmentScope::Global, key, width);
+}
+
+int CoreUiState::sidebarAdditiveDockedExtent(SidebarSide side, SidebarFamily family, int fallback) const
+{
+    const QString key = sidebarAdditiveDockedExtentKey(side, family);
+    if (key.isEmpty())
+        return fallback;
+
+    return m_env.setting(Utils::EnvironmentScope::Global, key, fallback).toInt();
+}
+
+void CoreUiState::setSidebarAdditiveDockedExtent(SidebarSide side, SidebarFamily family, int extent)
+{
+    const QString key = sidebarAdditiveDockedExtentKey(side, family);
+    if (key.isEmpty())
+        return;
+
+    m_env.setSetting(Utils::EnvironmentScope::Global, key, extent);
 }
 
 QByteArray CoreUiState::mainWindowGeometry() const

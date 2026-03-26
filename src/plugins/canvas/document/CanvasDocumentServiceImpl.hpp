@@ -40,6 +40,8 @@ public:
                                 Canvas::Api::CanvasDocumentCloseReason reason) override;
 
     Canvas::Api::CanvasDocumentHandle activeDocument() const override;
+    QJsonObject activeMetadata() const override;
+    Utils::Result updateActiveMetadata(const QJsonObject& metadata) override;
     bool hasOpenDocument() const override;
     bool isDirty() const override;
 

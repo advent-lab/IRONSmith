@@ -60,6 +60,32 @@ TEST(CoreUiStateTests, PersistsSidebarPanelWidthBySideAndFamily)
               345);
 }
 
+TEST(CoreUiStateTests, PersistsSidebarAdditiveDockedExtentBySideAndFamily)
+{
+    ensureApp();
+
+    QTemporaryDir stateDir;
+    ASSERT_TRUE(stateDir.isValid());
+
+    Core::Internal::CoreUiState state(makeTestEnvironment(stateDir.path()));
+    state.setSidebarAdditiveDockedExtent(Core::SidebarSide::Right, Core::SidebarFamily::Vertical, 196);
+    state.setSidebarAdditiveDockedExtent(Core::SidebarSide::Left, Core::SidebarFamily::Horizontal, 312);
+
+    Core::Internal::CoreUiState restored(makeTestEnvironment(stateDir.path()));
+    EXPECT_EQ(restored.sidebarAdditiveDockedExtent(Core::SidebarSide::Right,
+                                                   Core::SidebarFamily::Vertical,
+                                                   240),
+              196);
+    EXPECT_EQ(restored.sidebarAdditiveDockedExtent(Core::SidebarSide::Left,
+                                                   Core::SidebarFamily::Horizontal,
+                                                   240),
+              312);
+    EXPECT_EQ(restored.sidebarAdditiveDockedExtent(Core::SidebarSide::Right,
+                                                   Core::SidebarFamily::Horizontal,
+                                                   240),
+              240);
+}
+
 TEST(CoreUiStateTests, PersistsMainWindowGeometryBlob)
 {
     ensureApp();

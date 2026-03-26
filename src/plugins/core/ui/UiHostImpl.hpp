@@ -69,7 +69,7 @@ private:
     void restoreAndTrackOverlayHost(class SidebarOverlayHostWidget* host,
                                     SidebarSide side,
                                     SidebarFamily family);
-    void flushSidebarPanelWidthState();
+    void flushSidebarPanelState();
 
 private:
 	FrameWidget* m_frame = nullptr;
@@ -80,6 +80,7 @@ private:
 	SidebarRegistryImpl* m_sidebarRegistry = nullptr;
     std::unique_ptr<Internal::CoreUiState> m_uiState;
     QHash<QString, int> m_pendingSidebarWidths;
+    QHash<QString, int> m_pendingSidebarAdditiveExtents;
     QTimer m_sidebarWidthSaveTimer;
 };
 
