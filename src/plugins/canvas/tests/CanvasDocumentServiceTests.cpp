@@ -10,9 +10,13 @@
 #include "canvas/api/ICanvasHost.hpp"
 #include "canvas/document/CanvasDocumentServiceImpl.hpp"
 
+#include <utils/filesystem/JsonFileUtils.hpp>
+
 #include <QtCore/QDir>
 #include <QtCore/QCoreApplication>
 #include <QtCore/QFileInfo>
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonObject>
 #include <QtCore/QTemporaryDir>
 
 namespace {
@@ -213,4 +217,96 @@ TEST(CanvasDocumentServiceTests, MetadataUpdatesRoundTripAcrossReopen)
     const QJsonObject reopenedMetadata = service.activeMetadata();
     EXPECT_EQ(reopenedMetadata.value(QStringLiteral("deviceId")).toString(), QStringLiteral("phoenix"));
     EXPECT_TRUE(reopenedMetadata.contains(QStringLiteral("symbols")));
+}
+
+TEST(CanvasDocumentServiceTests, AieManagedBlocksRoundTripWithoutPersistedBounds)
+{
+    ensureCoreApp();
+
+    QTemporaryDir temp;
+    ASSERT_TRUE(temp.isValid());
+
+    const QString bundlePath = QDir(temp.path()).filePath(QStringLiteral("AieManagedBlocks.ironsmith"));
+    ASSERT_TRUE(QDir().mkpath(bundlePath));
+
+    StubCanvasHost host;
+    Canvas::Internal::CanvasDocumentServiceImpl service;
+    service.setCanvasHost(&host);
+
+    Canvas::Api::CanvasDocumentCreateRequest createRequest;
+    createRequest.bundlePath = bundlePath;
+    createRequest.persistenceRelativePath = QStringLiteral("canvas/document.json");
+    createRequest.metadata.insert(QStringLiteral("schema"), QStringLiteral("aie.spec/1"));
+    createRequest.metadata.insert(QStringLiteral("deviceId"), QStringLiteral("phoenix"));
+
+    Canvas::Api::CanvasDocumentHandle handle;
+    const Utils::Result createResult = service.createDocument(createRequest, handle);
+    ASSERT_TRUE(createResult.ok) << createResult.errors.join("\n").toStdString();
+
+    auto* managedBlock = host.document()->createBlock(QRectF(120.0, 240.0, 48.0, 48.0), true);
+    ASSERT_NE(managedBlock, nullptr);
+    managedBlock->setSpecId(QStringLiteral("shim0_0"));
+    managedBlock->setLabel(QStringLiteral("Shim"));
+    const Canvas::ObjectId managedBlockId = managedBlock->id();
+
+    auto* freeformBlock = host.document()->createBlock(QRectF(360.0, 480.0, 64.0, 32.0), true);
+    ASSERT_NE(freeformBlock, nullptr);
+    freeformBlock->setLabel(QStringLiteral("Scratch"));
+    const Canvas::ObjectId freeformBlockId = freeformBlock->id();
+
+    const Utils::Result saveResult = service.saveDocument(handle);
+    ASSERT_TRUE(saveResult.ok) << saveResult.errors.join("\n").toStdString();
+
+    QString readError;
+    const QJsonObject saved =
+        Utils::JsonFileUtils::readObject(handle.persistencePath, &readError);
+    ASSERT_TRUE(readError.isEmpty()) << readError.toStdString();
+
+    bool foundManagedBlock = false;
+    bool foundFreeformBlock = false;
+    const QJsonArray items = saved.value(QStringLiteral("items")).toArray();
+    for (const QJsonValue& itemValue : items) {
+        const QJsonObject item = itemValue.toObject();
+        if (item.value(QStringLiteral("type")).toString() != QStringLiteral("block"))
+            continue;
+
+        const QString specId = item.value(QStringLiteral("specId")).toString();
+        if (specId == QStringLiteral("shim0_0")) {
+            foundManagedBlock = true;
+            EXPECT_FALSE(item.contains(QStringLiteral("bounds")));
+            continue;
+        }
+
+        if (item.value(QStringLiteral("id")).toString() == freeformBlockId.toString()) {
+            foundFreeformBlock = true;
+            EXPECT_TRUE(item.contains(QStringLiteral("bounds")));
+        }
+    }
+
+    EXPECT_TRUE(foundManagedBlock);
+    EXPECT_TRUE(foundFreeformBlock);
+    EXPECT_EQ(saved.value(QStringLiteral("schemaVersion")).toInt(), 2);
+
+    const Utils::Result closeResult =
+        service.closeDocument(handle, Canvas::Api::CanvasDocumentCloseReason::UserClosed);
+    ASSERT_TRUE(closeResult.ok) << closeResult.errors.join("\n").toStdString();
+
+    Canvas::Api::CanvasDocumentOpenRequest openRequest;
+    openRequest.bundlePath = bundlePath;
+    openRequest.persistencePath = handle.persistencePath;
+
+    Canvas::Api::CanvasDocumentHandle reopened;
+    const Utils::Result openResult = service.openDocument(openRequest, reopened);
+    ASSERT_TRUE(openResult.ok) << openResult.errors.join("\n").toStdString();
+
+    const auto* reopenedManagedBlock =
+        dynamic_cast<const Canvas::CanvasBlock*>(host.document()->findItem(managedBlockId));
+    ASSERT_NE(reopenedManagedBlock, nullptr);
+    EXPECT_EQ(reopenedManagedBlock->specId(), QStringLiteral("shim0_0"));
+    EXPECT_EQ(reopenedManagedBlock->boundsScene(), QRectF(0.0, 0.0, 1.0, 1.0));
+
+    const auto* reopenedFreeformBlock =
+        dynamic_cast<const Canvas::CanvasBlock*>(host.document()->findItem(freeformBlockId));
+    ASSERT_NE(reopenedFreeformBlock, nullptr);
+    EXPECT_EQ(reopenedFreeformBlock->boundsScene(), QRectF(360.0, 480.0, 64.0, 32.0));
 }

@@ -25,7 +25,35 @@ namespace {
 
 using namespace Qt::StringLiterals;
 
-constexpr int kSchemaVersion = 1;
+constexpr int kCurrentSchemaVersion = 2;
+constexpr int kLegacySchemaVersion = 1;
+constexpr int kPlaceholderManagedBlockExtent = 1;
+constexpr auto kAieSchemaKey = "schema";
+constexpr auto kAieSchemaValue = "aie.spec/1";
+
+bool isSupportedSchemaVersion(int version)
+{
+    return version == kLegacySchemaVersion || version == kCurrentSchemaVersion;
+}
+
+bool isAieDocument(const QJsonObject& metadata)
+{
+    return metadata.value(QLatin1StringView(kAieSchemaKey)).toString().trimmed()
+        == QLatin1StringView(kAieSchemaValue);
+}
+
+bool isAieManagedBlock(const QJsonObject& metadata, const QString& specId)
+{
+    return isAieDocument(metadata) && !specId.trimmed().isEmpty();
+}
+
+QRectF placeholderManagedBlockBounds()
+{
+    return QRectF(0.0,
+                  0.0,
+                  static_cast<double>(kPlaceholderManagedBlockExtent),
+                  static_cast<double>(kPlaceholderManagedBlockExtent));
+}
 
 QJsonObject pointObject(const QPointF& point)
 {
@@ -319,7 +347,7 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
                                                     const QJsonObject& metadata)
 {
     QJsonObject root;
-    root.insert(u"schemaVersion"_s, kSchemaVersion);
+    root.insert(u"schemaVersion"_s, kCurrentSchemaVersion);
 
     if (view) {
         QJsonObject viewObject;
@@ -338,15 +366,17 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
 
         if (const auto* block = dynamic_cast<const CanvasBlock*>(item.get())) {
             QJsonObject obj;
+            const QString specId = block->specId().trimmed();
             obj.insert(u"type"_s, u"block"_s);
             obj.insert(u"id"_s, block->id().toString());
-            obj.insert(u"bounds"_s, rectObject(block->boundsScene()));
+            if (!isAieManagedBlock(metadata, specId))
+                obj.insert(u"bounds"_s, rectObject(block->boundsScene()));
             obj.insert(u"movable"_s, block->isMovable());
             obj.insert(u"deletable"_s, block->isDeletable());
             obj.insert(u"label"_s, block->label());
             if (!block->stereotype().trimmed().isEmpty())
                 obj.insert(u"stereotype"_s, block->stereotype());
-            obj.insert(u"specId"_s, block->specId());
+            obj.insert(u"specId"_s, specId);
             obj.insert(u"showPorts"_s, block->showPorts());
             obj.insert(u"allowMultiplePorts"_s, block->allowMultiplePorts());
             obj.insert(u"autoOppositeProducerPort"_s, block->autoOppositeProducerPort());
@@ -475,7 +505,7 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
     if (!schemaValue.isUndefined()) {
         if (!schemaValue.isDouble()) {
             errors.push_back(QStringLiteral("schemaVersion must be a number."));
-        } else if (schemaValue.toInt() != kSchemaVersion) {
+        } else if (!isSupportedSchemaVersion(schemaValue.toInt())) {
             errors.push_back(QStringLiteral("Unsupported schemaVersion: %1").arg(schemaValue.toInt()));
         }
     }
@@ -566,8 +596,11 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                 continue;
             }
 
-            QRectF bounds;
-            if (!parseRect(item.value(u"bounds"_s).toObject(), bounds)) {
+            const QString specId = item.value(u"specId"_s).toString();
+            const bool managedAieBlock = isAieManagedBlock(metadata, specId);
+
+            QRectF bounds = managedAieBlock ? placeholderManagedBlockBounds() : QRectF{};
+            if (!managedAieBlock && !parseRect(item.value(u"bounds"_s).toObject(), bounds)) {
                 errors.push_back(QStringLiteral("items[%1]: block bounds are invalid.").arg(index));
                 continue;
             }
@@ -578,7 +611,7 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
             block->setId(*parsedId);
             block->setDeletable(item.value(u"deletable"_s).toBool(true));
             block->setStereotype(item.value(u"stereotype"_s).toString());
-            block->setSpecId(item.value(u"specId"_s).toString());
+            block->setSpecId(specId);
             block->setShowPorts(item.value(u"showPorts"_s).toBool(true));
             block->setAllowMultiplePorts(item.value(u"allowMultiplePorts"_s).toBool(false));
             block->setAutoOppositeProducerPort(item.value(u"autoOppositeProducerPort"_s).toBool(false));

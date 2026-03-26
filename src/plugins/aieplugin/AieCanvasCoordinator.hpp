@@ -83,6 +83,8 @@ public:
     void setBlockStereotypeOverride(const QString& blockId, const QString& stereotype);
     void clearBlockStereotypeOverride(const QString& blockId);
     void clearBlockStereotypeOverrides();
+    QHash<QString, QPointF> blockOffsets() const { return m_blockOffsets; }
+    void setBlockOffsets(const QHash<QString, QPointF>& offsets);
 
     double tileSpacing() const;
     void setTileSpacing(double spacing);
@@ -167,6 +169,7 @@ signals:
     void fillColorChanged(const QColor& color);
     void outlineColorChanged(const QColor& color);
     void labelColorChanged(const QColor& color);
+    void blockOffsetsChanged();
 
 private:
     struct LayoutState final {

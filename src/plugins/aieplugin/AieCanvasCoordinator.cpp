@@ -343,7 +343,10 @@ void AieCanvasCoordinator::setStyleHost(Canvas::Api::ICanvasStyleHost* host)
 void AieCanvasCoordinator::setBaseModel(const CanvasGridModel& model)
 {
     m_baseModel = model;
-    m_blockOffsets.clear();
+    if (!m_blockOffsets.isEmpty()) {
+        m_blockOffsets.clear();
+        emit blockOffsetsChanged();
+    }
     requestApply();
 }
 
@@ -448,6 +451,16 @@ void AieCanvasCoordinator::clearBlockStereotypeOverrides()
         return;
 
     m_blockStereotypeOverrides.clear();
+    requestApply();
+}
+
+void AieCanvasCoordinator::setBlockOffsets(const QHash<QString, QPointF>& offsets)
+{
+    if (m_blockOffsets == offsets)
+        return;
+
+    m_blockOffsets = offsets;
+    emit blockOffsetsChanged();
     requestApply();
 }
 
@@ -752,6 +765,8 @@ void AieCanvasCoordinator::updateSelectionSpacing(SelectionSpacingAxis axis, dou
         updated = true;
     }
     if (updated)
+        emit blockOffsetsChanged();
+    if (updated)
         requestApply();
 }
 
@@ -793,6 +808,8 @@ void AieCanvasCoordinator::nudgeSelection(double dx, double dy)
         m_blockOffsets[specId] += delta;
         updated = true;
     }
+    if (updated)
+        emit blockOffsetsChanged();
     if (updated)
         requestApply();
 }

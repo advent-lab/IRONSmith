@@ -5,8 +5,60 @@
 #include <array>
 #include <cstdio>
 #include <memory>
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
 
 namespace codegen {
+
+namespace {
+
+std::string shellQuote(const std::string& value)
+{
+#ifdef _WIN32
+    std::string quoted = "\"";
+    for (const char ch : value) {
+        if (ch == '"')
+            quoted += "\\\"";
+        else
+            quoted += ch;
+    }
+    quoted += "\"";
+    return quoted;
+#else
+    std::string quoted = "'";
+    for (const char ch : value) {
+        if (ch == '\'')
+            quoted += "'\\''";
+        else
+            quoted += ch;
+    }
+    quoted += "'";
+    return quoted;
+#endif
+}
+
+std::string pythonExecutable()
+{
+#ifdef CODEGEN_PYTHON_EXECUTABLE
+    return CODEGEN_PYTHON_EXECUTABLE;
+#else
+    return "python3";
+#endif
+}
+
+int normalizeExitCode(int exitCode)
+{
+#ifdef _WIN32
+    return exitCode;
+#else
+    if (exitCode != -1 && WIFEXITED(exitCode))
+        return WEXITSTATUS(exitCode);
+    return exitCode;
+#endif
+}
+
+} // namespace
 
 CodeGenBridge::CodeGenBridge()
     : m_pythonInitialized(false)
@@ -125,37 +177,19 @@ CodeGenResult<CodeGenOutput> CodeGenBridge::runPythonScript(
     const std::vector<std::string>& args,
     const std::optional<std::filesystem::path>& workingDir)
 {
-    // Build command line — use the Python interpreter found by CMake at configure time
-    // so the correct executable is used on each platform
-#ifdef PYTHON_EXECUTABLE
-    std::string pythonExe = PYTHON_EXECUTABLE;
-#elif defined(__APPLE__)
-    std::string pythonExe = "python3";
-#else
-    std::string pythonExe = "python";
-#endif
-    std::string innerArgs = "\"" + script + "\"";
-    for (const auto& arg : args) {
-        if (arg.find(' ') != std::string::npos) {
-            innerArgs += " \"" + arg + "\"";
-        } else {
-            innerArgs += " " + arg;
-        }
-    }
-#ifdef _WIN32
-    std::string command = "cmd /c \"\"" + pythonExe + "\" " + innerArgs + "\"";
-#else
-    std::string command = "\"" + pythonExe + "\" " + innerArgs;
+    std::string command = shellQuote(pythonExecutable()) + " " + shellQuote(script);
+    for (const auto& arg : args)
+        command += " " + shellQuote(arg);
+#ifndef _WIN32
+    command += " 2>&1";
 #endif
 
-    // Change to working directory if specified
     std::filesystem::path originalDir;
     if (workingDir) {
         originalDir = std::filesystem::current_path();
         std::filesystem::current_path(*workingDir);
     }
 
-    // Execute command and capture output
     std::array<char, 128> buffer;
     std::string result;
     int exitCode = 0;
@@ -167,11 +201,8 @@ CodeGenResult<CodeGenOutput> CodeGenBridge::runPythonScript(
 #endif
 
     if (!pipe) {
-        // Restore original directory
-        if (workingDir) {
+        if (workingDir)
             std::filesystem::current_path(originalDir);
-        }
-
         return std::unexpected(std::vector<CodeGenDiagnostic>{
             CodeGenDiagnostic{CodeGenError::PYTHON_ERROR,
                 "Failed to execute Python script",
@@ -179,22 +210,18 @@ CodeGenResult<CodeGenOutput> CodeGenBridge::runPythonScript(
         });
     }
 
-    // Read output
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
         result += buffer.data();
-    }
 
-    // Get exit code
 #ifdef _WIN32
     exitCode = _pclose(pipe.release());
 #else
     exitCode = pclose(pipe.release());
 #endif
+    exitCode = normalizeExitCode(exitCode);
 
-    // Restore original directory
-    if (workingDir) {
+    if (workingDir)
         std::filesystem::current_path(originalDir);
-    }
 
     // Check for errors
     if (exitCode != 0) {

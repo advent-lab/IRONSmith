@@ -141,15 +141,14 @@ Utils::Result CanvasDocumentServiceImpl::createDocument(const Canvas::Api::Canva
     m_autosaveRequested = false;
     m_changeRevision = 1;
 
-    if (request.activate && m_host)
-        m_host->setCanvasActive(true);
-
     const Utils::Result saveResult = saveActiveNow();
     if (!saveResult)
         return saveResult;
 
     outHandle = m_activeHandle;
     emit documentOpened(m_activeHandle);
+    if (request.activate && m_host)
+        m_host->setCanvasActive(true);
     return Utils::Result::success();
 }
 
@@ -199,11 +198,10 @@ Utils::Result CanvasDocumentServiceImpl::openDocument(const Canvas::Api::CanvasD
     m_autosaveRequested = false;
     m_changeRevision = 0;
 
-    if (request.activate && m_host)
-        m_host->setCanvasActive(true);
-
     outHandle = m_activeHandle;
     emit documentOpened(m_activeHandle);
+    if (request.activate && m_host)
+        m_host->setCanvasActive(true);
     emit documentDirtyChanged(m_activeHandle, false);
     return Utils::Result::success();
 }

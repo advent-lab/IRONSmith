@@ -55,17 +55,20 @@
         <file>icons/svg/reset_icon.svg</file>
         <file>icons/svg/select_hand_pointer_icon.svg</file>
         <file>icons/svg/split_link_icon.svg</file>
+        <file>icons/svg/split_mesh_icon.svg</file>
         <file>icons/svg/text_file_icon.svg</file>
         <file>icons/svg/xml_icon.svg</file>
         <file>icons/svg/h_icon.svg</file>
         <file>icons/svg/c_icon.svg</file>
         <file>icons/svg/broadcast_link_icon.svg</file>
+        <file>icons/svg/broadcast_mesh_icon.svg</file>
         <file>icons/svg/zoom_fit_icon.svg</file>
         <file>icons/svg/zoom_in_icon.svg</file>
         <file>icons/svg/zoom_out_icon.svg</file>
         <file>icons/svg/compute_icon.svg</file>
         <file>icons/svg/fifo_icon.svg</file>
         <file>icons/svg/forward_fifo_icon.svg</file>
+        <file>icons/svg/join_mesh_icon.svg</file>
         <file>icons/svg/code_icon.svg</file>
         <file>icons/svg/file_new_icon.svg</file>
         <file>icons/svg/eye_icon.svg</file>

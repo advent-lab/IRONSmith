@@ -13,6 +13,12 @@ namespace Aie {
 class AieCanvasCoordinator;
 }
 
+namespace Canvas::Api {
+class ICanvasDocumentService;
+struct CanvasDocumentHandle;
+enum class CanvasDocumentCloseReason : unsigned char;
+} // namespace Canvas::Api
+
 namespace Aie::Internal {
 
 class AiePanelState final : public QObject
@@ -23,6 +29,7 @@ public:
     explicit AiePanelState(AieCanvasCoordinator* coordinator = nullptr, QObject* parent = nullptr);
 
     void setCoordinator(AieCanvasCoordinator* coordinator);
+    void setCanvasDocumentService(Canvas::Api::ICanvasDocumentService* canvasDocuments);
     void setDefaultsPersistenceEnabled(bool enabled);
     bool defaultsPersistenceEnabled() const { return m_persistDefaults; }
 
@@ -30,13 +37,16 @@ public:
 
 private:
     void loadState();
+    void loadDocumentState();
     void saveState();
+    void saveDocumentState();
     void scheduleSave();
 
     void apply(const QJsonObject& state);
     QJsonObject snapshot() const;
 
     QPointer<AieCanvasCoordinator> m_coordinator;
+    QPointer<Canvas::Api::ICanvasDocumentService> m_canvasDocuments;
     Utils::Environment m_env;
     QTimer m_saveTimer;
     bool m_applying = false;

@@ -149,7 +149,7 @@ Utils::Result AiePlugin::configureDesignWorkflow(const RuntimeDependencies& deps
     return Utils::Result::success();
 }
 
-void AiePlugin::configurePanelState()
+void AiePlugin::configurePanelState(const RuntimeDependencies& deps)
 {
     if (!m_service)
         return;
@@ -158,6 +158,8 @@ void AiePlugin::configurePanelState()
         m_panelState = new AiePanelState(m_service->coordinator(), this);
     else
         m_panelState->setCoordinator(m_service->coordinator());
+
+    m_panelState->setCanvasDocumentService(deps.canvasDocumentService);
 }
 
 void AiePlugin::configureKernelToolbox(const RuntimeDependencies& deps)

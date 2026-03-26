@@ -4,6 +4,9 @@
 #include "aieplugin/state/AiePanelState.hpp"
 
 #include "aieplugin/AieCanvasCoordinator.hpp"
+#include "aieplugin/state/AieLayoutSettings.hpp"
+
+#include "canvas/api/ICanvasDocumentService.hpp"
 
 #include <QtCore/QJsonObject>
 
@@ -91,8 +94,34 @@ void AiePanelState::setCoordinator(AieCanvasCoordinator* coordinator)
     connect(m_coordinator, &AieCanvasCoordinator::fillColorChanged, this, &AiePanelState::scheduleSave);
     connect(m_coordinator, &AieCanvasCoordinator::outlineColorChanged, this, &AiePanelState::scheduleSave);
     connect(m_coordinator, &AieCanvasCoordinator::labelColorChanged, this, &AiePanelState::scheduleSave);
+    connect(m_coordinator, &AieCanvasCoordinator::blockOffsetsChanged, this, &AiePanelState::scheduleSave);
 
     loadState();
+    loadDocumentState();
+}
+
+void AiePanelState::setCanvasDocumentService(Canvas::Api::ICanvasDocumentService* canvasDocuments)
+{
+    if (m_canvasDocuments == canvasDocuments)
+        return;
+
+    if (m_canvasDocuments)
+        disconnect(m_canvasDocuments, nullptr, this, nullptr);
+
+    m_canvasDocuments = canvasDocuments;
+    if (!m_canvasDocuments)
+        return;
+
+    connect(m_canvasDocuments, &Canvas::Api::ICanvasDocumentService::documentOpened,
+            this, [this](const Canvas::Api::CanvasDocumentHandle&) {
+                loadState();
+                loadDocumentState();
+            });
+
+    if (m_coordinator) {
+        loadState();
+        loadDocumentState();
+    }
 }
 
 void AiePanelState::setDefaultsPersistenceEnabled(bool enabled)
@@ -107,6 +136,23 @@ void AiePanelState::loadState()
         return;
 
     apply(loaded.object);
+}
+
+void AiePanelState::loadDocumentState()
+{
+    if (!m_coordinator || !m_canvasDocuments || !m_canvasDocuments->hasOpenDocument())
+        return;
+
+    bool overrideDefaults = false;
+    const PanelSettings fallback = panelFromCoordinator(*m_coordinator);
+    const PanelSettings settings =
+        panelFromJson(m_canvasDocuments->activeMetadata(), fallback, &overrideDefaults);
+    if (!overrideDefaults)
+        return;
+
+    m_applying = true;
+    applyPanel(*m_coordinator, settings);
+    m_applying = false;
 }
 
 void AiePanelState::apply(const QJsonObject& state)
@@ -208,6 +254,21 @@ void AiePanelState::scheduleSave()
 void AiePanelState::saveState()
 {
     m_env.saveState(Utils::EnvironmentScope::Global, kStateName, snapshot());
+    saveDocumentState();
+}
+
+void AiePanelState::saveDocumentState()
+{
+    if (!m_coordinator || !m_canvasDocuments || !m_canvasDocuments->hasOpenDocument())
+        return;
+
+    QJsonObject metadata = m_canvasDocuments->activeMetadata();
+    const PanelSettings settings = panelFromCoordinator(*m_coordinator);
+    const QJsonObject panelMetadata = panelToJson(settings, true);
+    for (auto it = panelMetadata.begin(); it != panelMetadata.end(); ++it)
+        metadata.insert(it.key(), it.value());
+
+    m_canvasDocuments->updateActiveMetadata(metadata);
 }
 
 } // namespace Aie::Internal

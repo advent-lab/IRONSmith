@@ -1050,8 +1050,12 @@ void HlirSyncService::generateCode()
         emit codeGenFinished(true, tr("Code generated in %1").arg(m_outputDir));
     } else {
         QStringList errors;
-        for (const auto& diag : genResult.error())
+        for (const auto& diag : genResult.error()) {
             errors << QString::fromStdString(diag.message);
+            const QString details = QString::fromStdString(diag.details).trimmed();
+            if (!details.isEmpty())
+                errors << details;
+        }
         emit codeGenFinished(false, errors.join(u'\n'));
     }
 }

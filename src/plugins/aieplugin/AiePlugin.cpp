@@ -80,7 +80,7 @@ private:
     Utils::Result configureService(const RuntimeDependencies& deps);
     void configureCanvasDefaults(const RuntimeDependencies& deps) const;
     Utils::Result configureDesignWorkflow(const RuntimeDependencies& deps);
-    void configurePanelState();
+    void configurePanelState(const RuntimeDependencies& deps);
     void registerSidebarTools(const RuntimeDependencies& deps);
     void registerLayoutSidebarTool(const RuntimeDependencies& deps);
     void registerKernelsSidebarTool(const RuntimeDependencies& deps);
@@ -192,7 +192,7 @@ void AiePlugin::extensionsInitialized(ExtensionSystem::PluginManager& manager)
         return;
     }
 
-    configurePanelState();
+    configurePanelState(deps);
     registerSidebarTools(deps);
     connectHeaderInfo(deps);
     connectRibbonActions(deps, manager);

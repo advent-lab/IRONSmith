@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 # Find Python3
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+file(TO_CMAKE_PATH "${Python3_EXECUTABLE}" _codegen_python3_exe)
 
 # Create the code generation bridge library
 ironsmith_add_library(CodeGenBridge
@@ -23,7 +24,7 @@ target_include_directories(CodeGenBridge
 string(REPLACE "\\" "/" _python3_exe "${Python3_EXECUTABLE}")
 target_compile_definitions(CodeGenBridge PRIVATE
     CODEGEN_MAIN_PY="${CMAKE_SOURCE_DIR}/src/aiecad_compiler/main.py"
-    PYTHON_EXECUTABLE="${_python3_exe}"
+    CODEGEN_PYTHON_EXECUTABLE="${_codegen_python3_exe}"
 )
 
 # Platform-specific settings
@@ -33,4 +34,3 @@ endif()
 
 # C++23 required for std::expected
 target_compile_features(CodeGenBridge PUBLIC cxx_std_23)
-

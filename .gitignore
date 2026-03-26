@@ -3,6 +3,7 @@ out/
 src.bak/
 build/
 cmake-build-*/
+CMakeUserPresets.json
 
 # Python venv
 .venv/
@@ -27,3 +28,4 @@ Sandbox/
 sandbox (1)/
 sandbox_designs/
 src/aiecad_compiler/hlir/__pycache__/
+example_designs/
