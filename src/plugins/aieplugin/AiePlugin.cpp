@@ -147,8 +147,10 @@ Utils::Result AiePlugin::initialize(const QStringList& arguments, ExtensionSyste
     if (m_kernelAssignments)
         m_kernelAssignments->setRegistry(m_kernelRegistry);
 
-    if (m_hlirSync)
+    if (m_hlirSync) {
         m_hlirSync->setKernelRegistry(m_kernelRegistry);
+        m_hlirSync->setSymbolsController(m_symbolsController);
+    }
 
     if (m_kernelToolboxController) {
         m_kernelToolboxController->setRegistry(m_kernelRegistry);

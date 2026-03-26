@@ -10,6 +10,8 @@
 #include "canvas/CanvasView.hpp"
 #include "canvas/CanvasWire.hpp"
 #include "canvas/utils/CanvasAutoPorts.hpp"
+#include "canvas/utils/CanvasLinkHubStyle.hpp"
+#include "canvas/utils/CanvasLinkWireStyle.hpp"
 
 #include <QtCore/QHash>
 #include <QtCore/QJsonArray>
@@ -197,7 +199,9 @@ QString objectFifoOperationToString(CanvasWire::ObjectFifoOperation operation)
 {
     switch (operation) {
         case CanvasWire::ObjectFifoOperation::Forward: return u"forward"_s;
-        case CanvasWire::ObjectFifoOperation::Fifo: return u"fifo"_s;
+        case CanvasWire::ObjectFifoOperation::Split:   return u"split"_s;
+        case CanvasWire::ObjectFifoOperation::Join:    return u"join"_s;
+        case CanvasWire::ObjectFifoOperation::Fifo:    return u"fifo"_s;
     }
     return u"fifo"_s;
 }
@@ -207,6 +211,10 @@ CanvasWire::ObjectFifoOperation objectFifoOperationFromString(const QString& tex
     const QString key = text.trimmed().toLower();
     if (key == u"forward"_s || key == u"fwd"_s || key == u"forward_fifo"_s || key == u"forward-fifo"_s)
         return CanvasWire::ObjectFifoOperation::Forward;
+    if (key == u"split"_s)
+        return CanvasWire::ObjectFifoOperation::Split;
+    if (key == u"join"_s)
+        return CanvasWire::ObjectFifoOperation::Join;
     return CanvasWire::ObjectFifoOperation::Fifo;
 }
 
@@ -451,11 +459,15 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
                 fifoObject.insert(u"name"_s, fifo.name);
                 fifoObject.insert(u"depth"_s, fifo.depth);
                 fifoObject.insert(u"operation"_s, objectFifoOperationToString(fifo.operation));
+                if (!fifo.hubName.isEmpty())
+                    fifoObject.insert(u"hubName"_s, fifo.hubName);
                 fifoObject.insert(u"dimensions"_s, fifo.type.dimensions);
                 fifoObject.insert(u"valueType"_s, fifo.type.valueType);
                 fifoObject.insert(u"dimensionMode"_s,
                     fifo.type.mode == CanvasWire::DimensionMode::Matrix
                         ? u"matrix"_s : u"vector"_s);
+                if (fifo.type.symbolRef.has_value() && !fifo.type.symbolRef->isEmpty())
+                    fifoObject.insert(u"symbolRef"_s, *fifo.type.symbolRef);
                 if (fifo.type.tap.has_value()) {
                     const auto& t = *fifo.type.tap;
                     QJsonObject tapObj;
@@ -773,8 +785,12 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                 objectFifo.name = objectFifoObject.value(u"name"_s).toString();
                 objectFifo.depth = objectFifoObject.value(u"depth"_s).toInt(2);
                 objectFifo.operation = objectFifoOperationFromString(objectFifoObject.value(u"operation"_s).toString());
+                objectFifo.hubName = objectFifoObject.value(u"hubName"_s).toString();
                 objectFifo.type.dimensions = objectFifoObject.value(u"dimensions"_s).toString();
                 objectFifo.type.valueType  = objectFifoObject.value(u"valueType"_s).toString();
+                const QString symbolRef = objectFifoObject.value(u"symbolRef"_s).toString();
+                if (!symbolRef.isEmpty())
+                    objectFifo.type.symbolRef = symbolRef;
                 objectFifo.type.mode = objectFifoObject.value(u"dimensionMode"_s).toString() == u"matrix"_s
                     ? CanvasWire::DimensionMode::Matrix
                     : CanvasWire::DimensionMode::Vector;
@@ -869,6 +885,30 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
 
     if (!errors.isEmpty())
         return Utils::Result::failure(errors.join("\n"));
+
+    // Recolor arm wires connected to broadcast hubs. Saved designs may have
+    // stale colors from before broadcast-specific colors were introduced.
+    // Convention: hub at endpoint A → consumer arm (blue); hub at endpoint B → producer arm (orange).
+    const QString broadcastSymbol = Support::linkHubStyle(Support::LinkHubKind::Broadcast).symbol;
+    for (const auto& item : document.items()) {
+        auto* wire = dynamic_cast<CanvasWire*>(item.get());
+        if (!wire)
+            continue;
+        auto isBroadcastHub = [&](ObjectId id) {
+            auto* block = dynamic_cast<CanvasBlock*>(document.findItem(id));
+            if (!block || !block->isLinkHub())
+                return false;
+            auto* sym = dynamic_cast<BlockContentSymbol*>(block->content());
+            return sym && sym->symbol().trimmed() == broadcastSymbol;
+        };
+        if (wire->a().attached && isBroadcastHub(wire->a().attached->itemId)) {
+            wire->setColorOverride(
+                Support::linkWireStyle(Support::LinkWireRole::Broadcast).color);
+        } else if (wire->b().attached && isBroadcastHub(wire->b().attached->itemId)) {
+            wire->setColorOverride(
+                Support::linkWireStyle(Support::LinkWireRole::BroadcastProducer).color);
+        }
+    }
 
     if (view) {
         view->setZoom(zoom);

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
 #include "aieplugin/hlir_sync/DesignVerifier.hpp"
 #include "canvas/CanvasTypes.hpp"
 #include "canvas/CanvasWire.hpp"
@@ -27,9 +28,10 @@ class HlirBridge;
 namespace Aie::Internal {
 
 class KernelRegistryService;
+class SymbolsController;
 
 /// Keeps an HlirBridge in sync with the active CanvasDocument (tiles + FIFOs).
-class HlirSyncService : public QObject
+class AIEPLUGIN_EXPORT HlirSyncService : public QObject
 {
     Q_OBJECT
 
@@ -46,8 +48,21 @@ public:
     /// The base output directory set by the most recent attachDocument() call.
     const QString& outputDir() const { return m_outputDir; }
 
+    /// Full path of the generated Python script for the current design,
+    /// e.g. <outputDir>/generated_MatrixVectorMul.py.
+    /// Returns an empty string when no document is attached.
+    QString generatedScriptPath() const;
+
     /// Set the kernel registry used to look up kernel assets during code generation.
     void setKernelRegistry(KernelRegistryService* registry);
+
+    /// Set the symbol table controller. When set, TypeAbstraction symbol references on
+    /// wires are resolved to named tensor types during sync.
+    void setSymbolsController(SymbolsController* controller);
+
+    /// Disable the per-step animation delay (250 ms sleep). Call in test fixtures.
+    static void setAnimateSteps(bool enabled) { s_animateSteps = enabled; }
+    static bool animateSteps() { return s_animateSteps; }
 
 public slots:
     /// Run all design rule checks and emit verificationFinished() with the result.
@@ -92,6 +107,18 @@ private:
                                           const Canvas::CanvasWire::TensorTilerConfig& tap,
                                           const QString& totalDims);
 
+    struct ResolvedType {
+        QString dimensions;
+        QString valueType;
+        QString symbolName; // empty if literal (no symbol ref)
+    };
+
+    /// Resolve a wire's type abstraction to concrete dims/dtype/symbolName.
+    /// If symbolRef is set and found in the symbol table, shape tokens are resolved
+    /// using the provided constants map; otherwise, literal values are returned as-is.
+    ResolvedType resolveType(const Canvas::CanvasWire::ObjectFifoTypeAbstraction& typeAbs,
+                             const QHash<QString, qint64>& constants) const;
+
     /// Run all design rule checks and return the collected issues.
     QList<VerificationIssue> runVerification() const;
 
@@ -123,8 +150,13 @@ private:
     QHash<QString, hlir::ComponentId> m_kernelMap;   // kernelId → external kernel ComponentId
     QHash<QString, hlir::ComponentId> m_coreFuncMap; // kernelId → core function ComponentId
 
+    // Maps constant symbol name → HLIR ComponentId
+    QHash<QString, hlir::ComponentId> m_constantMap;
     // Maps "dimensions|valueType" → HLIR ComponentId (tensor type cache)
     QHash<QString, hlir::ComponentId> m_typeMap;
+    // Maps "dimensions|valueType" → already-registered named type key, so ensureTensorType
+    // can reuse a named type instead of generating a duplicate anonymous one.
+    QHash<QString, QString> m_typeNameByKey;
     // Maps tiler name → HLIR ComponentId (TensorTiler2D cache)
     QHash<QString, hlir::ComponentId> m_tilerMap;
     // Maps hub block ObjectId → branch type ComponentId (split/join/forward branch element type)
@@ -132,8 +164,11 @@ private:
 
     QPointer<Canvas::CanvasDocument> m_document;
     QPointer<KernelRegistryService> m_kernelRegistry;
+    QPointer<SymbolsController> m_symbolsController;
     QString m_outputDir;
     bool m_syncInProgress = false;
+
+    static bool s_animateSteps;
 };
 
 } // namespace Aie::Internal

@@ -8,8 +8,8 @@
 
 namespace Aie::Internal {
 
-/// Executes the generated design script (codegen/generated_design.py) as an
-/// external Python process and streams the output back to the log panel.
+/// Executes a generated design script as an external Python process
+/// and streams the output back to the log panel.
 class HlirDirectExecution : public QObject
 {
     Q_OBJECT
@@ -18,9 +18,9 @@ public:
     explicit HlirDirectExecution(QObject* parent = nullptr);
 
 public slots:
-    /// Run generated_design.py in <outputDir>/codegen/.
+    /// Run the generated Python script at \a scriptPath.
     /// Emits runStarted(), stepLogged(), and executeFinished() as the run progresses.
-    void execute(const QString& outputDir);
+    void execute(const QString& scriptPath);
 
 signals:
     void runStarted();

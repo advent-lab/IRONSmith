@@ -45,7 +45,7 @@ namespace Aie::Internal {
 
 class KernelRegistryService;
 
-class KernelAssignmentController final : public QObject
+class AIEPLUGIN_EXPORT KernelAssignmentController final : public QObject
 {
     Q_OBJECT
 

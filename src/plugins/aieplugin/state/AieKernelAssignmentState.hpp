@@ -9,7 +9,7 @@
 
 namespace Aie::Internal {
 
-class AieKernelAssignmentState final
+class AIEPLUGIN_EXPORT AieKernelAssignmentState final
 {
 public:
     AieKernelAssignmentState();

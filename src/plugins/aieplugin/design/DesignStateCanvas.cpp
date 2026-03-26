@@ -310,6 +310,7 @@ Utils::Result buildDesignStateFromCanvas(Canvas::CanvasDocument& doc,
             link.objectFifo.operation = toDesignObjectFifoOperation(objectFifo.operation);
             link.objectFifo.type.dimensions = objectFifo.type.dimensions;
             link.objectFifo.type.valueType = objectFifo.type.valueType;
+            link.objectFifo.type.symbolRef = objectFifo.type.symbolRef.value_or(QString{});
             link.objectFifo.hubName = objectFifo.hubName;
             link.hasObjectFifo = true;
         }
@@ -467,6 +468,8 @@ Utils::Result applyDesignStateToCanvas(const DesignState& state,
             objectFifo.operation = toCanvasObjectFifoOperation(link.objectFifo.operation);
             objectFifo.type.dimensions = link.objectFifo.type.dimensions;
             objectFifo.type.valueType = link.objectFifo.type.valueType;
+            if (!link.objectFifo.type.symbolRef.isEmpty())
+                objectFifo.type.symbolRef = link.objectFifo.type.symbolRef;
             objectFifo.hubName = link.objectFifo.hubName;
             wire->setObjectFifo(objectFifo);
         }

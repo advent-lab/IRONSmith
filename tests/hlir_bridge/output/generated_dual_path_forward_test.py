@@ -18,6 +18,7 @@ from aie.helpers.taplib import TensorAccessPattern
 
 @iron.jit(is_placed=False)
 def dual_path_forward_test_jit(inputA, inputB, outputA, outputB):
+    # Define constants
     N = 64
 
     # Define tensor types

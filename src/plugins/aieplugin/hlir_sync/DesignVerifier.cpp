@@ -478,11 +478,13 @@ public:
 // ---------------------------------------------------------------------------
 // Check 5 — DmaChannelLimit
 //
-// Each tile type has a fixed number of DMA channels. All connections
-// (both DDR wires and object FIFO wires) count toward a tile's channel
-// budget. DDR itself is excluded — it is not a real tile with a channel limit.
+// Each tile type has a fixed number of DMA channels.
+// DDR↔SHIM fill/drain wires do NOT consume SHIM DMA channels — only
+// SHIM↔MEM, SHIM↔AIE, and SHIM↔SHIM object FIFOs count toward the SHIM budget.
+// MEM and AIE count all non-DDR connections.
+// DDR itself is excluded — it is not a real tile with a channel limit.
 //   SHIM   — 4 channels  (error at 5 or more)
-//   MEM    — 6 channels  (error at 7 or more)
+//   MEM    — 12 channels (error at 13 or more)
 //   AIE    — 4 channels  (error at 5 or more)
 // ---------------------------------------------------------------------------
 
@@ -492,7 +494,7 @@ class DmaChannelLimitCheck : public IVerificationCheck
     {
         switch (kind) {
             case NodeKind::SHIM:    return 4;
-            case NodeKind::MEM:     return 6;
+            case NodeKind::MEM:     return 12;
             case NodeKind::COMPUTE: return 4;
             case NodeKind::DDR:     return INT_MAX;
         }
@@ -509,16 +511,27 @@ public:
         if (!ctx.document)
             return issues;
 
-        // Count all connections (DDR wires + FIFO wires) for every non-DDR tile.
+        // Count connections toward each tile's DMA channel budget.
+        // DDR↔SHIM fill/drain wires are excluded from the SHIM count — only
+        // object FIFOs between non-DDR tiles consume SHIM DMA channels.
+        // MEM and AIE count all non-DDR connections.
         QHash<Canvas::CanvasBlock*, ParsedSpec> blockSpec;
         QHash<Canvas::CanvasBlock*, int> connectionCount;
 
         for (const auto& w : collectWires(*ctx.document)) {
+            const bool involvesDdr = w.producerSpec.kind == NodeKind::DDR
+                                  || w.consumerSpec.kind == NodeKind::DDR;
             if (w.producerSpec.kind != NodeKind::DDR) {
+                // Skip DDR↔SHIM wires for the SHIM endpoint.
+                if (involvesDdr && w.producerSpec.kind == NodeKind::SHIM)
+                    continue;
                 blockSpec.insert(w.producerBlock, w.producerSpec);
                 connectionCount[w.producerBlock]++;
             }
             if (w.consumerSpec.kind != NodeKind::DDR) {
+                // Skip DDR↔SHIM wires for the SHIM endpoint.
+                if (involvesDdr && w.consumerSpec.kind == NodeKind::SHIM)
+                    continue;
                 blockSpec.insert(w.consumerBlock, w.consumerSpec);
                 connectionCount[w.consumerBlock]++;
             }

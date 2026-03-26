@@ -91,7 +91,7 @@ int main(int argc, char** argv)
 
 #ifdef IRONSMITH_WITH_BRIDGE_TESTS
 	if (app.arguments().contains("--test-bridges"))
-		return BridgeTests::runBridgeTests() ? EXIT_SUCCESS : EXIT_FAILURE;
+		return BridgeTests::runBridgeTests(app.applicationDirPath().toStdString()) ? EXIT_SUCCESS : EXIT_FAILURE;
 #endif
 
 	const QString pluginDir = defaultPluginDir();

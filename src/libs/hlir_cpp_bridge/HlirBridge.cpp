@@ -11,27 +11,49 @@ using json = nlohmann::json;
 namespace hlir {
 
 // ============================================================================
+// Python interpreter lifetime — reference-counted so multiple HlirBridge
+// instances in the same process share one interpreter session.
+// ============================================================================
+
+static int s_pyRefCount = 0;
+
+static void pyAddRef()
+{
+    if (s_pyRefCount++ == 0)
+        Py_Initialize();
+}
+
+static void pyRelease()
+{
+    if (--s_pyRefCount == 0)
+        Py_Finalize();
+}
+
+// ============================================================================
 // Constructor / Destructor
 // ============================================================================
 
 HlirBridge::HlirBridge(const std::string& programName)
     : m_programName(programName)
 {
-    // Set Python home to find the correct standard library
-    // Use PYTHONHOME env var if set, otherwise use the CMake-detected path
+    // Set Python home to find the correct standard library using the modern
+    // PyConfig API (Py_SetPythonHome was deprecated in Python 3.11).
+    // Use PYTHONHOME env var if set, otherwise use the CMake-detected path.
     const char* pythonHome = std::getenv("PYTHONHOME");
     if (!pythonHome) {
 #ifdef PYTHON_HOME_DIR
         pythonHome = PYTHON_HOME_DIR;
 #endif
     }
-    if (pythonHome) {
-        size_t len = strlen(pythonHome);
-        static std::wstring pythonHomePath(pythonHome, pythonHome + len);
-        Py_SetPythonHome(pythonHomePath.c_str());
-    }
 
-    Py_Initialize();
+    PyConfig config;
+    PyConfig_InitPythonConfig(&config);
+    if (pythonHome) {
+        std::wstring wHome(pythonHome, pythonHome + strlen(pythonHome));
+        PyConfig_SetString(&config, &config.home, wHome.c_str());
+    }
+    Py_InitializeFromConfig(&config);
+    PyConfig_Clear(&config);
 
     // Add Python module paths using absolute paths baked in at build time.
     PyRun_SimpleString("import sys");
@@ -80,7 +102,7 @@ HlirBridge::~HlirBridge() {
     Py_XDECREF(m_runtime);
     Py_XDECREF(m_builder);
     Py_XDECREF(m_hlirModule);
-    Py_Finalize();
+    pyRelease();
 }
 
 // ============================================================================

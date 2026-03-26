@@ -118,8 +118,7 @@ void SymbolsFilterModel::setSearchText(const QString& text)
     if (m_searchText == normalized)
         return;
     m_searchText = normalized;
-    beginFilterChange();
-    endFilterChange(QSortFilterProxyModel::Direction::Rows);
+    invalidateFilter();
 }
 
 SymbolFilterKind SymbolsFilterModel::filterKind() const
@@ -132,8 +131,7 @@ void SymbolsFilterModel::setFilterKind(SymbolFilterKind kind)
     if (m_filterKind == kind)
         return;
     m_filterKind = kind;
-    beginFilterChange();
-    endFilterChange(QSortFilterProxyModel::Direction::Rows);
+    invalidateFilter();
 }
 
 bool SymbolsFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const

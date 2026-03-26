@@ -86,5 +86,7 @@ inline constexpr char kLinkHubBroadcastText[] = "#D5ECFF";
 
 inline constexpr char kLinkWireProducerColor[] = "#E55353";
 inline constexpr char kLinkWireConsumerColor[] = "#5CCB7A";
+inline constexpr char kLinkWireBroadcastColor[] = "#58B5FF";
+inline constexpr char kLinkWireBroadcastProducerColor[] = "#F2B65E";
 
 } // namespace Canvas::Constants

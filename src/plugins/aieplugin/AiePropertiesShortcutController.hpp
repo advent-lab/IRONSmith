@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "aieplugin/AieGlobal.hpp"
+
 #include <QtCore/QMetaObject>
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
@@ -21,7 +23,7 @@ class ICanvasHost;
 
 namespace Aie::Internal {
 
-class AiePropertiesShortcutController final : public QObject
+class AIEPLUGIN_EXPORT AiePropertiesShortcutController final : public QObject
 {
     Q_OBJECT
 

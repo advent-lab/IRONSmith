@@ -31,11 +31,16 @@ ironsmith_add_library(HlirCppBridge
 target_include_directories(HlirCppBridge PRIVATE ${Python3_INCLUDE_DIRS})
 
 # Bake the Python home path so the embedded interpreter finds its standard library.
-# Derive the interpreter prefix from the stdlib location rather than the executable
-# path. On macOS frameworks, the executable lives under `.../bin`, while Python
-# expects `PYTHONHOME` to be the framework version root.
-cmake_path(GET Python3_STDLIB PARENT_PATH _python3_stdlib_parent)
-cmake_path(GET _python3_stdlib_parent PARENT_PATH _python3_home)
+# On Windows the stdlib is at <home>/Lib (one level up from stdlib = home).
+# On macOS frameworks the stdlib is at <home>/lib/python3.x (two levels up = home).
+if(WIN32)
+    cmake_path(GET Python3_STDLIB PARENT_PATH _python3_home)
+else()
+    cmake_path(GET Python3_STDLIB PARENT_PATH _python3_stdlib_parent)
+    cmake_path(GET _python3_stdlib_parent PARENT_PATH _python3_home)
+endif()
+# Convert backslashes to forward slashes so the path is a valid C++ string literal
+string(REPLACE "\\" "/" _python3_home "${_python3_home}")
 target_compile_definitions(HlirCppBridge PRIVATE
     PYTHON_HOME_DIR="${_python3_home}"
     HLIR_AIECAD_DIR="${CMAKE_SOURCE_DIR}/src/aiecad_compiler"

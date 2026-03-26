@@ -40,7 +40,10 @@ if (BUILD_WITH_TESTS)
         HlirCppBridge
         CodeGenBridge
     )
-    target_compile_definitions(ironsmith PRIVATE IRONSMITH_WITH_BRIDGE_TESTS)
+    target_compile_definitions(ironsmith PRIVATE
+        IRONSMITH_WITH_BRIDGE_TESTS
+        IRONSMITH_BRIDGE_TEST_OUTPUT_DIR="${PROJECT_SOURCE_DIR}/tests/hlir_bridge/output"
+    )
 
     if (WIN32)
         # Copy bridge DLL dependencies to bin/ so --test-bridges works at runtime.
@@ -51,6 +54,16 @@ if (BUILD_WITH_TESTS)
                 $<TARGET_FILE_DIR:ironsmith>
         )
     endif()
+
+    # Register as a CTest test. WORKING_DIRECTORY is set to the build root so
+    # the relative "tests/hlir_bridge/output/" path the tests write to resolves
+    # inside the build tree instead of the source tree.
+    add_test(
+        NAME BridgeTests
+        COMMAND $<TARGET_FILE:ironsmith> --test-bridges
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    set_tests_properties(BridgeTests PROPERTIES TIMEOUT 120)
 endif()
 
 if (TARGET iron_sanitize_flags)

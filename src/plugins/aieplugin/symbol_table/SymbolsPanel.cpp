@@ -213,6 +213,10 @@ void SymbolsPanel::buildUi()
     buildEditorPages();
     editorHostLayout->addWidget(editorStack, 1);
 
+    // Allow each pane to shrink freely so the handle is always draggable.
+    listCard->setMinimumHeight(40);
+    editorHost->setMinimumHeight(40);
+
     splitter->addWidget(listCard);
     splitter->addWidget(editorHost);
     splitter->setStretchFactor(0, 3);
@@ -580,9 +584,14 @@ void SymbolsPanel::refreshEditor()
     } else {
         if (m_typeNameEdit)
             m_typeNameEdit->setText(symbol->name);
+        const int newRank = qMax(1, symbol->type.shapeTokens.size());
         if (m_typeRankSpin)
-            m_typeRankSpin->setValue(qMax(1, symbol->type.shapeTokens.size()));
-        rebuildDimensionEditors(qMax(1, symbol->type.shapeTokens.size()));
+            m_typeRankSpin->setValue(newRank);
+        // Only rebuild the dimension editors if the rank changed; otherwise
+        // just update the field values in place to avoid destroying live
+        // widgets that callers may still hold raw pointers to.
+        if (m_dimensionEdits.size() != newRank)
+            rebuildDimensionEditors(newRank);
         for (int i = 0; i < m_dimensionEdits.size() && i < symbol->type.shapeTokens.size(); ++i) {
             if (m_dimensionEdits[i])
                 m_dimensionEdits[i]->setText(symbol->type.shapeTokens.at(i));

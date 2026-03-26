@@ -8,8 +8,14 @@
 
 namespace BridgeTests {
 
-// Output directory for generated test files
-static const std::string OUTPUT_DIR = "tests/hlir_bridge/output/";
+// Output directory for generated test files.
+// IRONSMITH_BRIDGE_TEST_OUTPUT_DIR is set by CMake to the source-tree output folder
+// so files always land in tests/hlir_bridge/output/ regardless of working directory.
+#ifdef IRONSMITH_BRIDGE_TEST_OUTPUT_DIR
+static std::string OUTPUT_DIR = std::string(IRONSMITH_BRIDGE_TEST_OUTPUT_DIR) + "/";
+#else
+static std::string OUTPUT_DIR = "tests/hlir_bridge/output/";
+#endif
 
 static void ensureOutputDir() {
     std::filesystem::create_directories(OUTPUT_DIR);
@@ -2117,7 +2123,7 @@ static bool testDualPathForwardExample() {
     }
 }
 
-bool runBridgeTests() {
+bool runBridgeTests(const std::string& /*appDir*/) {
     std::cout << "\n";
     std::cout << "========================================\n";
     std::cout << "  IRONSmith Bridge Integration Tests\n";

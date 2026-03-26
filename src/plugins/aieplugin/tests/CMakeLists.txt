@@ -26,6 +26,8 @@ ironsmith_define_tests(
                 AiePropertiesShortcutControllerTests.cpp
                 KernelCatalogTests.cpp
                 KernelRegistryServiceTests.cpp
+                DesignVerifierTests.cpp
+                HlirSyncServiceTests.cpp
                 KernelAssignmentControllerTests.cpp
                 SymbolsControllerTests.cpp
                 SymbolsPanelTests.cpp

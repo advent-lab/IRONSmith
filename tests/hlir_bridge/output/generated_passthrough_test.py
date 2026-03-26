@@ -18,6 +18,7 @@ from aie.helpers.taplib import TensorAccessPattern
 
 @iron.jit(is_placed=False)
 def passthrough_test_jit(inputA, outputC):
+    # Define constants
     N = 4096
 
     # Define tensor types

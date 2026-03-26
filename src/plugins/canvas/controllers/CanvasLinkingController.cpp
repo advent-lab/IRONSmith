@@ -102,9 +102,11 @@ std::optional<Support::LinkWireRole> wireRoleForHubConnection(CanvasBlock* hub, 
             return hubIsStart ? Support::LinkWireRole::Producer
                               : Support::LinkWireRole::Consumer;
         case Support::LinkHubKind::Split:
-        case Support::LinkHubKind::Broadcast:
             return hubIsStart ? Support::LinkWireRole::Consumer
                               : Support::LinkWireRole::Producer;
+        case Support::LinkHubKind::Broadcast:
+            return hubIsStart ? Support::LinkWireRole::Broadcast
+                              : Support::LinkWireRole::BroadcastProducer;
     }
     return std::nullopt;
 }

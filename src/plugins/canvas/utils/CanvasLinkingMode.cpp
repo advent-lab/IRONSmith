@@ -47,16 +47,20 @@ std::optional<LinkHubKind> linkHubKindForMode(CanvasController::LinkingMode mode
 
 LinkWireRole linkStartWireRole(CanvasController::LinkingMode mode)
 {
-    return mode == CanvasController::LinkingMode::Join
-        ? LinkWireRole::Consumer
-        : LinkWireRole::Producer;
+    if (mode == CanvasController::LinkingMode::Join)
+        return LinkWireRole::Consumer;
+    if (mode == CanvasController::LinkingMode::Broadcast)
+        return LinkWireRole::BroadcastProducer;
+    return LinkWireRole::Producer;
 }
 
 LinkWireRole linkFinishWireRole(CanvasController::LinkingMode mode)
 {
-    return mode == CanvasController::LinkingMode::Join
-        ? LinkWireRole::Producer
-        : LinkWireRole::Consumer;
+    if (mode == CanvasController::LinkingMode::Join)
+        return LinkWireRole::Producer;
+    if (mode == CanvasController::LinkingMode::Broadcast)
+        return LinkWireRole::Broadcast;
+    return LinkWireRole::Consumer;
 }
 
 } // namespace Canvas::Support

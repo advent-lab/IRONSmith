@@ -34,6 +34,7 @@ class ICanvasHost;
 namespace Aie::Internal {
 
 class AieService;
+class SymbolsController;
 
 class AiePropertiesPanel final : public QWidget
 {
@@ -41,6 +42,8 @@ class AiePropertiesPanel final : public QWidget
 
 public:
     explicit AiePropertiesPanel(AieService* service, QWidget* parent = nullptr);
+
+    void setSymbolsController(SymbolsController* controller);
 
 private:
     enum class SelectionKind : uint8_t {
@@ -68,9 +71,13 @@ private:
     void applyDdrEntry(Canvas::ObjectId fifoWireId, Canvas::ObjectId ddrWireId,
                        const QString& name, const QString& dims, const QString& type,
                        bool isMatrix = false,
-                       const Canvas::CanvasWire::TensorTilerConfig& tap = {});
+                       const Canvas::CanvasWire::TensorTilerConfig& tap = {},
+                       const QString& symbolRef = {});
+
+    void populateFifoSymbolCombo();
 
     QPointer<AieService> m_service;
+    QPointer<SymbolsController> m_symbolsController;
     QPointer<Canvas::Api::ICanvasHost> m_canvasHost;
     QPointer<Canvas::CanvasDocument> m_document;
     QPointer<Canvas::CanvasView> m_canvasView;
@@ -93,6 +100,7 @@ private:
     QPointer<QLabel> m_fifoWireIdValue;
     QPointer<QLineEdit> m_fifoNameEdit;
     QPointer<QSpinBox> m_fifoDepthSpin;
+    QPointer<QComboBox> m_fifoSymbolCombo;
     QPointer<QComboBox> m_fifoTypeCombo;
     QPointer<QLineEdit> m_fifoDimensionsEdit;
 
