@@ -11,7 +11,9 @@ namespace Canvas::Support {
 
 enum class LinkWireRole : uint8_t {
     Producer,
-    Consumer
+    Consumer,
+    Broadcast,
+    BroadcastProducer
 };
 
 struct CANVAS_EXPORT LinkWireStyle final {

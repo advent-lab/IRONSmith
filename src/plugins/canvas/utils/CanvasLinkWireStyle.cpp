@@ -14,6 +14,10 @@ LinkWireStyle linkWireStyle(LinkWireRole role)
             return {QColor(Constants::kLinkWireProducerColor)};
         case LinkWireRole::Consumer:
             return {QColor(Constants::kLinkWireConsumerColor)};
+        case LinkWireRole::Broadcast:
+            return {QColor(Constants::kLinkWireBroadcastColor)};
+        case LinkWireRole::BroadcastProducer:
+            return {QColor(Constants::kLinkWireBroadcastProducerColor)};
     }
     return {QColor(Constants::kWireColor)};
 }

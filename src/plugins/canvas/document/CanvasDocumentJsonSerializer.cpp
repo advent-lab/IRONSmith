@@ -10,6 +10,8 @@
 #include "canvas/CanvasView.hpp"
 #include "canvas/CanvasWire.hpp"
 #include "canvas/utils/CanvasAutoPorts.hpp"
+#include "canvas/utils/CanvasLinkHubStyle.hpp"
+#include "canvas/utils/CanvasLinkWireStyle.hpp"
 
 #include <QtCore/QHash>
 #include <QtCore/QJsonArray>
@@ -836,6 +838,30 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
 
     if (!errors.isEmpty())
         return Utils::Result::failure(errors.join("\n"));
+
+    // Recolor arm wires connected to broadcast hubs. Saved designs may have
+    // stale colors from before broadcast-specific colors were introduced.
+    // Convention: hub at endpoint A → consumer arm (blue); hub at endpoint B → producer arm (orange).
+    const QString broadcastSymbol = Support::linkHubStyle(Support::LinkHubKind::Broadcast).symbol;
+    for (const auto& item : document.items()) {
+        auto* wire = dynamic_cast<CanvasWire*>(item.get());
+        if (!wire)
+            continue;
+        auto isBroadcastHub = [&](ObjectId id) {
+            auto* block = dynamic_cast<CanvasBlock*>(document.findItem(id));
+            if (!block || !block->isLinkHub())
+                return false;
+            auto* sym = dynamic_cast<BlockContentSymbol*>(block->content());
+            return sym && sym->symbol().trimmed() == broadcastSymbol;
+        };
+        if (wire->a().attached && isBroadcastHub(wire->a().attached->itemId)) {
+            wire->setColorOverride(
+                Support::linkWireStyle(Support::LinkWireRole::Broadcast).color);
+        } else if (wire->b().attached && isBroadcastHub(wire->b().attached->itemId)) {
+            wire->setColorOverride(
+                Support::linkWireStyle(Support::LinkWireRole::BroadcastProducer).color);
+        }
+    }
 
     if (view) {
         view->setZoom(zoom);

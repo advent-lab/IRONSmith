@@ -584,9 +584,14 @@ void SymbolsPanel::refreshEditor()
     } else {
         if (m_typeNameEdit)
             m_typeNameEdit->setText(symbol->name);
+        const int newRank = qMax(1, symbol->type.shapeTokens.size());
         if (m_typeRankSpin)
-            m_typeRankSpin->setValue(qMax(1, symbol->type.shapeTokens.size()));
-        rebuildDimensionEditors(qMax(1, symbol->type.shapeTokens.size()));
+            m_typeRankSpin->setValue(newRank);
+        // Only rebuild the dimension editors if the rank changed; otherwise
+        // just update the field values in place to avoid destroying live
+        // widgets that callers may still hold raw pointers to.
+        if (m_dimensionEdits.size() != newRank)
+            rebuildDimensionEditors(newRank);
         for (int i = 0; i < m_dimensionEdits.size() && i < symbol->type.shapeTokens.size(); ++i) {
             if (m_dimensionEdits[i])
                 m_dimensionEdits[i]->setText(symbol->type.shapeTokens.at(i));
