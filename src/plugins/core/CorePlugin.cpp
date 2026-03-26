@@ -174,9 +174,9 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 	actSelect->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/select_hand_pointer_icon.svg"), QSize(20, 20)));
 	actPan->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/pan_icon.svg"), QSize(20, 20)));
 	actLink->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/link_icon.svg"), QSize(28, 28)));
-	actSplit->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/split_link_icon.svg"), QSize(20, 20)));
-	actJoin->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/merge_link_icon.svg"), QSize(20, 20)));
-	actBroadcast->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/broadcast_link_icon.svg"), QSize(20, 20)));
+	actSplit->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/split_mesh_icon.svg"), QSize(20, 20)));
+	actJoin->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/join_mesh_icon.svg"), QSize(20, 20)));
+	actBroadcast->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/broadcast_mesh_icon.svg"), QSize(20, 20)));
 	actFifo->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/fifo_icon.svg"), QSize(20, 20)));
 	actForwardFifo->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/forward_fifo_icon.svg"), QSize(20, 20)));
 
