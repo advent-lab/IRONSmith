@@ -211,6 +211,35 @@ Utils::Result SymbolsController::createTypeAbstraction(QString* outId)
     return Utils::Result::success();
 }
 
+Utils::Result SymbolsController::createTensorAccessPattern(QString* outId)
+{
+    if (!hasActiveDocument())
+        return Utils::Result::failure(QStringLiteral("Open a design before creating symbols."));
+
+    SymbolRecord symbol;
+    symbol.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    symbol.kind = SymbolKind::TensorAccessPattern;
+    symbol.name = uniqueNameForBase(QStringLiteral("tap"));
+    symbol.tap = {};
+
+    QVector<SymbolRecord> nextSymbols = m_symbols;
+    nextSymbols.push_back(symbol);
+
+    const Utils::Result validateResult = validateSymbols(nextSymbols);
+    if (!validateResult)
+        return validateResult;
+
+    const Utils::Result persistResult = persistSymbols(nextSymbols);
+    if (!persistResult)
+        return persistResult;
+
+    replaceSymbols(std::move(nextSymbols));
+    setSelectedSymbolId(symbol.id);
+    if (outId)
+        *outId = symbol.id;
+    return Utils::Result::success();
+}
+
 Utils::Result SymbolsController::updateSymbol(const SymbolRecord& updatedSymbol)
 {
     if (!hasActiveDocument())
@@ -243,6 +272,10 @@ Utils::Result SymbolsController::updateSymbol(const SymbolRecord& updatedSymbol)
         for (QString& token : normalized.type.shapeTokens)
             token = token.trimmed();
         normalized.type.dtype = normalized.type.dtype.trimmed();
+    } else if (normalized.kind == SymbolKind::TensorAccessPattern) {
+        normalized.tap.rows = qMax(1, normalized.tap.rows);
+        normalized.tap.cols = qMax(1, normalized.tap.cols);
+        normalized.tap.offset = qMax(0, normalized.tap.offset);
     }
 
     nextSymbols[index] = normalized;
@@ -443,6 +476,38 @@ Utils::Result SymbolsController::validateSymbols(const QVector<SymbolRecord>& sy
             if (constantValuesByName.value(token) <= 0) {
                 return Utils::Result::failure(QStringLiteral("Constant '%1' must be positive when used as a dimension.")
                                                   .arg(token));
+            }
+        }
+    }
+
+    for (const SymbolRecord& symbol : symbols) {
+        if (symbol.kind != SymbolKind::TensorAccessPattern)
+            continue;
+
+        if (symbol.tap.rows <= 0 || symbol.tap.cols <= 0) {
+            return Utils::Result::failure(QStringLiteral("TAP '%1' dimensions must be positive.")
+                                              .arg(symbol.name));
+        }
+        if (symbol.tap.offset < 0) {
+            return Utils::Result::failure(QStringLiteral("TAP '%1' offset must be zero or greater.")
+                                              .arg(symbol.name));
+        }
+        if (symbol.tap.sizes.isEmpty() || symbol.tap.strides.isEmpty()
+            || symbol.tap.sizes.size() != symbol.tap.strides.size()) {
+            return Utils::Result::failure(QStringLiteral("TAP '%1' must declare matching sizes and strides.")
+                                              .arg(symbol.name));
+        }
+
+        for (const int size : symbol.tap.sizes) {
+            if (size <= 0) {
+                return Utils::Result::failure(QStringLiteral("TAP '%1' sizes must be positive integers.")
+                                                  .arg(symbol.name));
+            }
+        }
+        for (const int stride : symbol.tap.strides) {
+            if (stride <= 0) {
+                return Utils::Result::failure(QStringLiteral("TAP '%1' strides must be positive integers.")
+                                                  .arg(symbol.name));
             }
         }
     }

@@ -62,6 +62,8 @@ ironsmith_add_plugin(AiePlugin
             symbol_table/SymbolsModel.cpp
             symbol_table/SymbolsPanel.hpp
             symbol_table/SymbolsPanel.cpp
+            symbol_table/TapPreviewWidget.hpp
+            symbol_table/TapPreviewWidget.cpp
             panels/KernelCreateDialog.hpp
             panels/KernelCreateDialog.cpp
             panels/KernelPreviewDialog.hpp

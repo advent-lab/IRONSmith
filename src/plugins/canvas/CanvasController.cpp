@@ -93,6 +93,11 @@ bool CanvasController::isEndpointDragActive() const noexcept
     return m_dragController && m_dragController->isEndpointDragActive();
 }
 
+CanvasController::ObjectFifoDefaults CanvasController::objectFifoDefaults() const noexcept
+{
+    return m_linkingController ? m_linkingController->objectFifoDefaults() : ObjectFifoDefaults{};
+}
+
 bool CanvasController::isBoundProducerPlacementActive() const noexcept
 {
     return m_boundProducerPlacementActive;
@@ -136,6 +141,12 @@ void CanvasController::setLinkingMode(LinkingMode mode)
 	if (m_linkingController)
 		m_linkingController->setLinkingMode(mode);
 	emit linkingModeChanged(mode);
+}
+
+void CanvasController::setObjectFifoDefaults(const ObjectFifoDefaults& defaults)
+{
+    if (m_linkingController)
+        m_linkingController->setObjectFifoDefaults(defaults);
 }
 
 QPointF CanvasController::sceneToView(const QPointF& scenePos) const
@@ -461,7 +472,20 @@ void CanvasController::onCanvasContextMenuRequested(const QPointF& scenePos,
     if (m_contextMenuController) {
         m_contextMenuController->showContextMenu(scenePos, globalPos, mods);
         syncBoundProducerPlacementUiState();
+        if (m_view && isBoundProducerPlacementActive())
+            m_view->setFocus(Qt::OtherFocusReason);
     }
+}
+
+void CanvasController::cancelBoundProducerPlacement()
+{
+    if (!m_contextMenuController ||
+        !m_contextMenuController->hasPendingBoundProducerPlacement()) {
+        return;
+    }
+
+    m_contextMenuController->clearPendingBoundProducerPlacement();
+    syncBoundProducerPlacementUiState();
 }
 
 
@@ -507,10 +531,8 @@ void CanvasController::onCanvasKeyPressed(int key, Qt::KeyboardModifiers mods)
         return;
 
     if (key == Qt::Key_Escape) {
-        if (m_contextMenuController &&
-            m_contextMenuController->hasPendingBoundProducerPlacement()) {
-            m_contextMenuController->clearPendingBoundProducerPlacement();
-            syncBoundProducerPlacementUiState();
+        if (isBoundProducerPlacementActive()) {
+            cancelBoundProducerPlacement();
             return;
         }
 		if (m_panning) {
