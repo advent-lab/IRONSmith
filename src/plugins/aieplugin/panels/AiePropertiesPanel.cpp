@@ -667,6 +667,55 @@ void AiePropertiesPanel::buildUi()
     m_hubValueTypeValue  = hubValueTypeValue;
     m_hubDimensionsValue = hubDimensionsValue;
 
+    auto* fifoGroup = new QGroupBox(QStringLiteral("Object FIFO"), fieldsHost);
+    fifoGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
+    auto* fifoForm = new QFormLayout(fifoGroup);
+    fifoForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    fifoForm->setContentsMargins(12, 12, 12, 12);
+    fifoForm->setHorizontalSpacing(10);
+    fifoForm->setVerticalSpacing(8);
+    fifoForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    const auto makeFifoKeyLabel = [fifoGroup](const QString& text) -> QLabel* {
+        auto* label = new QLabel(text, fifoGroup);
+        label->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+        return label;
+    };
+
+    auto* fifoWireIdValue = new QLabel(fifoGroup);
+    fifoWireIdValue->setObjectName(QStringLiteral("AiePropertiesValueLabel"));
+    fifoWireIdValue->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    auto* fifoNameEdit = new QLineEdit(fifoGroup);
+    fifoNameEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    auto* fifoDepthSpin = new QSpinBox(fifoGroup);
+    fifoDepthSpin->setObjectName(QStringLiteral("AiePropertiesField"));
+    fifoDepthSpin->setRange(1, 4096);
+    auto* fifoSymbolCombo = new QComboBox(fifoGroup);
+    fifoSymbolCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+    fifoSymbolCombo->addItem(QStringLiteral("None"));
+    auto* fifoTypeCombo = new QComboBox(fifoGroup);
+    fifoTypeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+    fifoTypeCombo->addItem(QStringLiteral("i8"));
+    fifoTypeCombo->addItem(QStringLiteral("i16"));
+    fifoTypeCombo->addItem(QStringLiteral("i32"));
+    auto* fifoDimensionsEdit = new QLineEdit(fifoGroup);
+    fifoDimensionsEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+
+    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Wire ID")),    fifoWireIdValue);
+    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Name")),       fifoNameEdit);
+    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Depth")),      fifoDepthSpin);
+    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Symbol")),     fifoSymbolCombo);
+    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Value Type")), fifoTypeCombo);
+    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Dimensions")), fifoDimensionsEdit);
+
+    m_fifoGroup          = fifoGroup;
+    m_fifoWireIdValue    = fifoWireIdValue;
+    m_fifoNameEdit       = fifoNameEdit;
+    m_fifoDepthSpin      = fifoDepthSpin;
+    m_fifoSymbolCombo    = fifoSymbolCombo;
+    m_fifoTypeCombo      = fifoTypeCombo;
+    m_fifoDimensionsEdit = fifoDimensionsEdit;
+
     auto* ddrTransferGroup = new QGroupBox(QStringLiteral("DDR Transfer"), fieldsHost);
     ddrTransferGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
     auto* ddrTransferForm = new QFormLayout(ddrTransferGroup);
@@ -693,11 +742,12 @@ void AiePropertiesPanel::buildUi()
     new QVBoxLayout(ddrGroup);
     m_ddrGroup = ddrGroup;
 
-    fieldsLayout->addWidget(objectFifosGroup);
     fieldsLayout->addWidget(tileGroup);
     fieldsLayout->addWidget(hubPivotGroup);
+    fieldsLayout->addWidget(fifoGroup);
     fieldsLayout->addWidget(ddrTransferGroup);
     fieldsLayout->addWidget(ddrGroup);
+    fieldsLayout->addWidget(objectFifosGroup);
     fieldsLayout->addStretch(1);
 
     scrollArea->setWidget(fieldsHost);
@@ -718,6 +768,17 @@ void AiePropertiesPanel::buildUi()
             this, &AiePropertiesPanel::applyHubPivotProperties);
     connect(hubPivotFifoEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyHubPivotProperties);
+
+    connect(fifoNameEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyFifoAnnotation);
+    connect(fifoDepthSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int) { applyFifoAnnotation(); });
+    connect(fifoSymbolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int) { applyFifoAnnotation(); });
+    connect(fifoTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int) { applyFifoAnnotation(); });
+    connect(fifoDimensionsEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyFifoAnnotation);
     connect(ddrTransferTapCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int) { applyDdrTransferHubTap(); });
 
@@ -890,8 +951,11 @@ void AiePropertiesPanel::refreshObjectFifoSection()
             continue;
 
         const auto fifo = wire->objectFifo().value();
-        if (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Fill ||
-            fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Drain) {
+        if (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Fill    ||
+            fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Drain   ||
+            fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Split   ||
+            fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Join    ||
+            fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward) {
             continue;
         }
         m_objectFifosTable->insertRow(row);
@@ -1041,6 +1105,7 @@ void AiePropertiesPanel::showSelectionState(SelectionKind kind,
 
     const bool showTile     = (kind == SelectionKind::Tile);
     const bool showHubPivot = (kind == SelectionKind::HubPivotWire);
+    const bool showFifo     = (kind == SelectionKind::FifoWire);
     const bool showDdrTransferHub = (kind == SelectionKind::DdrTransferHub);
     const bool showDdr      = (kind == SelectionKind::DdrBlock);
     if (m_objectFifosGroup)
@@ -1049,10 +1114,84 @@ void AiePropertiesPanel::showSelectionState(SelectionKind kind,
         m_tileGroup->setVisible(showTile);
     if (m_hubPivotGroup)
         m_hubPivotGroup->setVisible(showHubPivot);
+    if (m_fifoGroup)
+        m_fifoGroup->setVisible(showFifo);
     if (m_ddrTransferGroup)
         m_ddrTransferGroup->setVisible(showDdrTransferHub);
     if (m_ddrGroup)
         m_ddrGroup->setVisible(showDdr);
+}
+
+// Returns the first FIFO wire whose endpoint A or B is attached to blockId.
+Canvas::CanvasWire* AiePropertiesPanel::findFifoWireForBlock(Canvas::ObjectId blockId) const
+{
+    if (!m_document) return nullptr;
+    for (const auto& item : m_document->items()) {
+        auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
+        if (!wire || !wire->hasObjectFifo()) continue;
+        if ((wire->a().attached && wire->a().attached->itemId == blockId) ||
+            (wire->b().attached && wire->b().attached->itemId == blockId))
+            return wire;
+    }
+    return nullptr;
+}
+
+// Returns the FIFO wire whose endpoint matches the given block+port exactly.
+Canvas::CanvasWire* AiePropertiesPanel::findFifoWireForPort(Canvas::ObjectId blockId,
+                                                             Canvas::PortId portId) const
+{
+    if (!m_document) return nullptr;
+    for (const auto& item : m_document->items()) {
+        auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
+        if (!wire || !wire->hasObjectFifo()) continue;
+        if (wire->a().attached && wire->a().attached->itemId == blockId
+                               && wire->a().attached->portId == portId)
+            return wire;
+        if (wire->b().attached && wire->b().attached->itemId == blockId
+                               && wire->b().attached->portId == portId)
+            return wire;
+    }
+    return nullptr;
+}
+
+// Returns the pivot (Split/Join/Broadcast) wire whose endpoint B is attached to hubBlockId.
+Canvas::CanvasWire* AiePropertiesPanel::findPivotWireForHub(Canvas::ObjectId hubBlockId) const
+{
+    if (!m_document) return nullptr;
+    for (const auto& item : m_document->items()) {
+        auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
+        if (!wire || !wire->hasObjectFifo()) continue;
+        const auto op = wire->objectFifo()->operation;
+        const bool isPivot = (op == Canvas::CanvasWire::ObjectFifoOperation::Split ||
+                              op == Canvas::CanvasWire::ObjectFifoOperation::Join  ||
+                              op == Canvas::CanvasWire::ObjectFifoOperation::Forward);
+        if (!isPivot) continue;
+        if ((wire->b().attached && wire->b().attached->itemId == hubBlockId) ||
+            (wire->a().attached && wire->a().attached->itemId == hubBlockId))
+            return wire;
+    }
+    return nullptr;
+}
+
+// If wire is an arm wire (one endpoint attaches to a hub tile that has a pivot wire),
+// returns that pivot wire. Returns nullptr if wire is not an arm wire.
+Canvas::CanvasWire* AiePropertiesPanel::findPivotWireForArmWire(Canvas::CanvasWire* wire) const
+{
+    if (!m_document || !wire || !wire->hasObjectFifo()) return nullptr;
+    if (wire->objectFifo()->operation != Canvas::CanvasWire::ObjectFifoOperation::Fifo)
+        return nullptr;
+
+    // Hub blocks carry a BlockContentSymbol (the "S"/"J"/"B" label).
+    auto isHubBlock = [&](Canvas::ObjectId blockId) -> bool {
+        auto* block = dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(blockId));
+        return block && dynamic_cast<const Canvas::BlockContentSymbol*>(block->content());
+    };
+
+    if (wire->a().attached && isHubBlock(wire->a().attached->itemId))
+        return findPivotWireForHub(wire->a().attached->itemId);
+    if (wire->b().attached && isHubBlock(wire->b().attached->itemId))
+        return findPivotWireForHub(wire->b().attached->itemId);
+    return nullptr;
 }
 
 Canvas::CanvasBlock* AiePropertiesPanel::selectedBlock() const
@@ -1067,7 +1206,7 @@ Canvas::CanvasBlock* AiePropertiesPanel::selectedBlock() const
 
 Canvas::CanvasWire* AiePropertiesPanel::selectedFifoWire() const
 {
-    if (!m_canvasView || !m_document)
+    if (!m_document)
         return nullptr;
     const Canvas::ObjectId itemId = m_canvasView->selectedItem();
     if (itemId.isNull())
@@ -1118,6 +1257,7 @@ void AiePropertiesPanel::refreshSelection()
     refreshObjectFifoSection();
 
     if (!m_canvasHost || !m_document || !m_canvasView || !m_canvasHost->canvasActive()) {
+        m_effectiveFifoWireId = Canvas::ObjectId{};
         showSelectionState(SelectionKind::None,
                            QStringLiteral("Open an AIE design to edit properties."),
                            QString());
@@ -1125,6 +1265,8 @@ void AiePropertiesPanel::refreshSelection()
     }
 
     const Canvas::ObjectId selectedItemId = m_canvasView->selectedItem();
+    
+    
     if (selectedItemId.isNull()) {
         showSelectionState(SelectionKind::None,
                            QStringLiteral("Select a tile or FIFO annotation."),
@@ -1143,79 +1285,53 @@ void AiePropertiesPanel::refreshSelection()
             return;
         }
 
+        // Hub block clicked → redirect to its pivot wire so the wire branch below
+        // populates the split/join/broadcast properties panel.
         if (block->isLinkHub()) {
-            const auto* symbolContent = dynamic_cast<const Canvas::BlockContentSymbol*>(block->content());
-            const QString symbol = symbolContent ? symbolContent->symbol().trimmed() : QString();
-            const bool isDistribute = symbol == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Distribute).symbol;
-            const bool isCollect = symbol == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Collect).symbol;
-            if (isDistribute || isCollect) {
-                const QVector<TapOption> tapOptions = tapOptionsFromMetadata(
-                    m_canvasDocuments ? m_canvasDocuments->activeMetadata() : QJsonObject{});
-                Canvas::CanvasWire* ddrWire = selectedDdrTransferWire();
-                const QString selectedTapId =
-                    ddrWire && ddrWire->hasObjectFifo()
-                        ? ddrWire->objectFifo()->type.tapSymbolId.trimmed()
-                        : QString();
-
-                m_updatingUi = true;
-                if (m_ddrTransferModeValue)
-                    m_ddrTransferModeValue->setText(isDistribute ? QStringLiteral("Distribute") : QStringLiteral("Collect"));
-                if (m_ddrTransferTapCombo) {
-                    QSignalBlocker blocker(m_ddrTransferTapCombo);
-                    m_ddrTransferTapCombo->clear();
-                    m_ddrTransferTapCombo->addItem(QStringLiteral("None"), QString{});
-                    for (const TapOption& option : tapOptions)
-                        m_ddrTransferTapCombo->addItem(tapLabel(option), option.id);
-                    const int tapIndex = selectedTapId.isEmpty() ? 0 : m_ddrTransferTapCombo->findData(selectedTapId);
-                    m_ddrTransferTapCombo->setCurrentIndex(tapIndex >= 0 ? tapIndex : 0);
-                    m_ddrTransferTapCombo->setEnabled(ddrWire != nullptr);
-                }
-                m_updatingUi = false;
-
-                showSelectionState(SelectionKind::DdrTransferHub,
-                                   isDistribute ? QStringLiteral("Distribute hub selected")
-                                                : QStringLiteral("Collect hub selected"),
-                                   ddrWire
-                                       ? QStringLiteral("Assign a Tensor Access Pattern from the Symbols panel.")
-                                       : QStringLiteral("Connect this hub to DDR before assigning a Tensor Access Pattern."));
+            auto* pivotWire = findPivotWireForHub(block->id());
+            if (!pivotWire || !pivotWire->hasObjectFifo()) {
+                showSelectionState(SelectionKind::Unsupported,
+                                   QStringLiteral("Hub selected"),
+                                   QStringLiteral("No FIFO annotation found for this hub."));
                 return;
             }
+            item = pivotWire;
+        } else {
+            m_updatingUi = true;
+            if (m_tileIdValue)
+                m_tileIdValue->setText(block->id().toString());
+            if (m_tileSpecIdValue)
+                m_tileSpecIdValue->setText(block->specId().trimmed().isEmpty()
+                                               ? QStringLiteral("-")
+                                               : block->specId().trimmed());
+            if (m_tileBoundsValue)
+                m_tileBoundsValue->setText(formatBounds(block->boundsScene()));
+            if (m_tileLabelEdit)
+                m_tileLabelEdit->setText(block->label());
+            const bool isComputeTile = block->specId().trimmed().startsWith(u"aie");
+            if (m_tileKernelRow)
+                m_tileKernelRow->setVisible(isComputeTile);
+            if (m_tileKernelRowLabel)
+                m_tileKernelRowLabel->setVisible(isComputeTile);
+
+            if (isComputeTile && m_tileStereotypeEdit) {
+                // Strip UML stereotype decorators: <<kernel: name>> → name
+                QString kernelDisplay = block->stereotype();
+                if (kernelDisplay.startsWith(u"<<") && kernelDisplay.endsWith(u">>"))
+                    kernelDisplay = kernelDisplay.sliced(2, kernelDisplay.size() - 4).trimmed();
+                if (kernelDisplay.startsWith(u"kernel:"))
+                    kernelDisplay = kernelDisplay.sliced(7).trimmed();
+                m_tileStereotypeEdit->setText(kernelDisplay);
+                if (m_tileStereotypeClearBtn)
+                    m_tileStereotypeClearBtn->setEnabled(!block->stereotype().isEmpty());
+            }
+            m_updatingUi = false;
+
+            showSelectionState(SelectionKind::Tile,
+                               QStringLiteral("Tile selected"),
+                               QStringLiteral("Update tile label and stereotype."));
+            return;
         }
-
-        m_updatingUi = true;
-        if (m_tileIdValue)
-            m_tileIdValue->setText(block->id().toString());
-        if (m_tileSpecIdValue)
-            m_tileSpecIdValue->setText(block->specId().trimmed().isEmpty()
-                                           ? QStringLiteral("-")
-                                           : block->specId().trimmed());
-        if (m_tileBoundsValue)
-            m_tileBoundsValue->setText(formatBounds(block->boundsScene()));
-        if (m_tileLabelEdit)
-            m_tileLabelEdit->setText(block->label());
-        const bool isComputeTile = block->specId().trimmed().startsWith(u"aie");
-        if (m_tileKernelRow)
-            m_tileKernelRow->setVisible(isComputeTile);
-        if (m_tileKernelRowLabel)
-            m_tileKernelRowLabel->setVisible(isComputeTile);
-
-        if (isComputeTile && m_tileStereotypeEdit) {
-            // Strip UML stereotype decorators: <<kernel: name>> → name
-            QString kernelDisplay = block->stereotype();
-            if (kernelDisplay.startsWith(u"<<") && kernelDisplay.endsWith(u">>"))
-                kernelDisplay = kernelDisplay.sliced(2, kernelDisplay.size() - 4).trimmed();
-            if (kernelDisplay.startsWith(u"kernel:"))
-                kernelDisplay = kernelDisplay.sliced(7).trimmed();
-            m_tileStereotypeEdit->setText(kernelDisplay);
-            if (m_tileStereotypeClearBtn)
-                m_tileStereotypeClearBtn->setEnabled(!block->stereotype().isEmpty());
-        }
-        m_updatingUi = false;
-
-        showSelectionState(SelectionKind::Tile,
-                           QStringLiteral("Tile selected"),
-                           QStringLiteral("Update tile label and stereotype."));
-        return;
     }
 
     if (auto* wire = dynamic_cast<Canvas::CanvasWire*>(item)) {
@@ -1235,30 +1351,53 @@ void AiePropertiesPanel::refreshSelection()
             const bool isSplit    = (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Split);
             const bool isBroadcast = (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward);
 
-            // Count arm branches: find the hub block at endpoint B, count ports by arm role.
+            // Count arm branches: find the hub block (either endpoint), count ports by arm role.
             // Broadcast arms are producer ports (same role as split arms).
             int numBranches = 0;
-            if (wire->b().attached.has_value()) {
-                auto* hubBlock = dynamic_cast<Canvas::CanvasBlock*>(
-                    m_document->findItem(wire->b().attached->itemId));
-                if (hubBlock) {
-                    const Canvas::PortRole armRole = (isSplit || isBroadcast)
-                        ? Canvas::PortRole::Producer
-                        : Canvas::PortRole::Consumer;
-                    for (const auto& port : hubBlock->ports()) {
-                        if (port.role == armRole)
-                            ++numBranches;
-                    }
+            auto* hubBlock = [&]() -> Canvas::CanvasBlock* {
+                for (const auto& ep : {wire->b(), wire->a()}) {
+                    if (!ep.attached.has_value()) continue;
+                    auto* blk = dynamic_cast<Canvas::CanvasBlock*>(
+                        m_document->findItem(ep.attached->itemId));
+                    if (blk && blk->isLinkHub()) return blk;
+                }
+                return nullptr;
+            }();
+            if (hubBlock) {
+                const Canvas::PortRole armRole = (isSplit || isBroadcast)
+                    ? Canvas::PortRole::Producer
+                    : Canvas::PortRole::Consumer;
+                for (const auto& port : hubBlock->ports()) {
+                    if (port.role == armRole)
+                        ++numBranches;
                 }
             }
+
+            // Resolve the source/destination ObjectFifo wire by name so that
+            // depth, value type, and dimensions reflect the actual FIFO, not the pivot wire.
+            const auto resolveLinkedFifo =
+                [&]() -> std::optional<Canvas::CanvasWire::ObjectFifoConfig> {
+                for (const auto& docItem : m_document->items()) {
+                    auto* w = dynamic_cast<Canvas::CanvasWire*>(docItem.get());
+                    if (!w || !w->hasObjectFifo()) continue;
+                    const auto& cfg = w->objectFifo().value();
+                    if (cfg.operation == Canvas::CanvasWire::ObjectFifoOperation::Fifo
+                            && cfg.name == fifo.name)
+                        return cfg;
+                }
+                return std::nullopt;
+            };
+            const auto linkedFifo = resolveLinkedFifo();
+            const auto& srcType  = linkedFifo.has_value() ? linkedFifo->type  : fifo.type;
+            const int   srcDepth = linkedFifo.has_value() ? linkedFifo->depth : fifo.depth;
 
             // Compute offsets string — not applicable for broadcasts (full FIFO forwarded).
             QString offsetsStr;
             if (!isBroadcast && numBranches > 0) {
                 int elemCount = 1024;
-                if (!fifo.type.dimensions.isEmpty()) {
+                if (!srcType.dimensions.isEmpty()) {
                     int count = 1;
-                    for (const QString& d : fifo.type.dimensions.split(u'x', Qt::SkipEmptyParts))
+                    for (const QString& d : srcType.dimensions.split(u'x', Qt::SkipEmptyParts))
                         count *= d.trimmed().toInt();
                     if (count > 0)
                         elemCount = count;
@@ -1292,13 +1431,13 @@ void AiePropertiesPanel::refreshSelection()
                 m_hubOffsetsValue->setText(offsetsStr.isEmpty()
                     ? QStringLiteral("-") : offsetsStr);
             if (m_hubDepthValue)
-                m_hubDepthValue->setText(QString::number(fifo.depth));
+                m_hubDepthValue->setText(QString::number(srcDepth));
             if (m_hubValueTypeValue)
-                m_hubValueTypeValue->setText(fifo.type.valueType.isEmpty()
-                    ? QStringLiteral("i32") : fifo.type.valueType);
+                m_hubValueTypeValue->setText(srcType.valueType.isEmpty()
+                    ? QStringLiteral("i32") : srcType.valueType);
             if (m_hubDimensionsValue)
-                m_hubDimensionsValue->setText(fifo.type.dimensions.isEmpty()
-                    ? QStringLiteral("-") : fifo.type.dimensions);
+                m_hubDimensionsValue->setText(srcType.dimensions.isEmpty()
+                    ? QStringLiteral("-") : srcType.dimensions);
             m_updatingUi = false;
 
             showSelectionState(SelectionKind::HubPivotWire,
@@ -1309,9 +1448,38 @@ void AiePropertiesPanel::refreshSelection()
             return;
         }
 
+        m_updatingUi = true;
+        if (m_fifoWireIdValue)
+            m_fifoWireIdValue->setText(wire->id().toString());
+        if (m_fifoNameEdit)
+            m_fifoNameEdit->setText(fifo.name);
+        if (m_fifoDepthSpin)
+            m_fifoDepthSpin->setValue(fifo.depth);
+
+        // Symbol combo
+        const QString currentSymbol = fifo.type.symbolRef.value_or(QString{});
+        if (m_fifoSymbolCombo) {
+            const int symIdx = currentSymbol.isEmpty() ? 0 : m_fifoSymbolCombo->findText(currentSymbol);
+            m_fifoSymbolCombo->setCurrentIndex(symIdx >= 0 ? symIdx : 0);
+        }
+        const bool usingSymbol = !currentSymbol.isEmpty() && (m_fifoSymbolCombo && m_fifoSymbolCombo->currentIndex() > 0);
+
+        if (m_fifoTypeCombo) {
+            m_fifoTypeCombo->setEnabled(!usingSymbol);
+            const QString valueType = fifo.type.valueType.trimmed().toLower();
+            const int index = m_fifoTypeCombo->findText(valueType);
+            m_fifoTypeCombo->setCurrentIndex(index >= 0 ? index : m_fifoTypeCombo->findText(QStringLiteral("i32")));
+        }
+        if (m_fifoDimensionsEdit) {
+            m_fifoDimensionsEdit->setEnabled(!usingSymbol);
+            m_fifoDimensionsEdit->setText(fifo.type.dimensions);
+        }
+        m_effectiveFifoWireId = wire->id();
+        m_updatingUi = false;
+
         showSelectionState(SelectionKind::FifoWire,
                            QStringLiteral("Object FIFO selected"),
-                           QStringLiteral("Edit name, type abstraction, and depth in the Object FIFOs table."));
+                           QStringLiteral("Edit FIFO properties above."));
         return;
     }
 
@@ -1368,6 +1536,44 @@ void AiePropertiesPanel::applyHubPivotProperties()
     Canvas::CanvasWire::ObjectFifoConfig config = wire->objectFifo().value();
     config.hubName = m_hubPivotNameEdit->text().trimmed();
     config.name    = m_hubPivotFifoEdit->text().trimmed();
+
+    wire->setObjectFifo(config);
+    m_document->notifyChanged();
+}
+
+void AiePropertiesPanel::applyFifoAnnotation()
+{
+    if (m_updatingUi || !m_document || !m_fifoNameEdit || !m_fifoDepthSpin)
+        return;
+
+    if (m_effectiveFifoWireId.isNull())
+        return;
+    auto* wire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(m_effectiveFifoWireId));
+    if (!wire || !wire->hasObjectFifo())
+        return;
+
+    Canvas::CanvasWire::ObjectFifoConfig config = wire->objectFifo().value();
+    config.name  = m_fifoNameEdit->text().trimmed();
+    config.depth = m_fifoDepthSpin->value();
+
+    const bool usingSymbol = m_fifoSymbolCombo && m_fifoSymbolCombo->currentIndex() > 0;
+    if (usingSymbol) {
+        const QString symName = m_fifoSymbolCombo->currentText();
+        config.type.symbolRef = symName;
+        if (m_symbolsController) {
+            for (const auto& sym : m_symbolsController->symbols()) {
+                if (sym.name == symName && sym.kind == SymbolKind::TypeAbstraction) {
+                    config.type.dimensions = sym.type.shapeTokens.join(u'x');
+                    config.type.valueType  = sym.type.dtype;
+                    break;
+                }
+            }
+        }
+    } else {
+        config.type.symbolRef  = std::nullopt;
+        config.type.valueType  = m_fifoTypeCombo ? m_fifoTypeCombo->currentText().trimmed().toLower() : config.type.valueType;
+        config.type.dimensions = m_fifoDimensionsEdit ? m_fifoDimensionsEdit->text().trimmed() : config.type.dimensions;
+    }
 
     wire->setObjectFifo(config);
     m_document->notifyChanged();

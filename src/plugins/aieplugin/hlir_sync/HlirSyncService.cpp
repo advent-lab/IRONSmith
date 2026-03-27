@@ -262,6 +262,26 @@ void HlirSyncService::syncCanvas()
         }
     }
 
+    // Re-add TypeAbstraction symbols from the symbol table so user-defined named types
+    // appear in generated code even when no FIFO wire references them by symbolRef.
+    if (m_symbolsController) {
+        for (const auto& sym : m_symbolsController->symbols()) {
+            if (sym.kind != SymbolKind::TypeAbstraction || sym.name.isEmpty())
+                continue;
+            QStringList parts;
+            parts.reserve(sym.type.shapeTokens.size());
+            for (const auto& t : sym.type.shapeTokens) {
+                qint64 val = 0;
+                if (parseIntegralToken(t, val))
+                    parts.append(QString::number(val));
+                else
+                    parts.append(t); // symbolic token — keep as-is
+            }
+            const QString dimensions = parts.join(u'x');
+            ensureNamedTensorType(sym.name, dimensions, normalizeValueType(sym.type.dtype));
+        }
+    }
+
     // Tiles are not rebuilt every sync — only remove ones that are no longer on the canvas.
     for (auto it = m_tileMap.begin(); it != m_tileMap.end(); ) {
         if (!currentIds.contains(it.key())) {

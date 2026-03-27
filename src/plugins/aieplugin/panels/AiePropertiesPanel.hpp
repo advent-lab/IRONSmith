@@ -78,8 +78,15 @@ private:
     Canvas::CanvasWire* selectedFifoWire() const;
     Canvas::CanvasController* canvasController() const;
 
+    // Find a FIFO or pivot wire relevant to the current selection (block or port).
+    Canvas::CanvasWire* findFifoWireForBlock(Canvas::ObjectId blockId) const;
+    Canvas::CanvasWire* findFifoWireForPort(Canvas::ObjectId blockId, Canvas::PortId portId) const;
+    Canvas::CanvasWire* findPivotWireForHub(Canvas::ObjectId hubBlockId) const;
+    Canvas::CanvasWire* findPivotWireForArmWire(Canvas::CanvasWire* wire) const;
+
     void applyTileLabel();
     void applyTileStereotype();
+    void applyFifoAnnotation();
     void applyHubPivotProperties();
     void applyDdrTransferHubTap();
     void applyObjectFifoDefaults();
@@ -129,6 +136,14 @@ private:
     QPointer<QLabel>    m_hubValueTypeValue;
     QPointer<QLabel>    m_hubDimensionsValue;
 
+    QPointer<QGroupBox> m_fifoGroup;
+    QPointer<QLabel>    m_fifoWireIdValue;
+    QPointer<QLineEdit> m_fifoNameEdit;
+    QPointer<QSpinBox>  m_fifoDepthSpin;
+    QPointer<QComboBox> m_fifoSymbolCombo;
+    QPointer<QComboBox> m_fifoTypeCombo;
+    QPointer<QLineEdit> m_fifoDimensionsEdit;
+
     QPointer<QGroupBox> m_ddrTransferGroup;
     QPointer<QLabel>    m_ddrTransferModeValue;
     QPointer<QComboBox> m_ddrTransferTapCombo;
@@ -136,6 +151,7 @@ private:
     QPointer<QGroupBox> m_ddrGroup;
     QPointer<QWidget>   m_ddrContent;
 
+    Canvas::ObjectId m_effectiveFifoWireId{};
     bool m_updatingUi = false;
     bool m_updatingObjectFifoTable = false;
 };

@@ -135,6 +135,24 @@ void CanvasView::clearSelectedPort()
         m_scene->clearSelectedPort();
 }
 
+bool CanvasView::hasSelectedPort() const noexcept
+{
+    auto* model = m_scene ? m_scene->selectionModel() : nullptr;
+    return model && model->hasSelectedPort();
+}
+
+ObjectId CanvasView::selectedPortItem() const noexcept
+{
+    auto* model = m_scene ? m_scene->selectionModel() : nullptr;
+    return model ? model->selectedPortItem() : ObjectId{};
+}
+
+PortId CanvasView::selectedPortId() const noexcept
+{
+    auto* model = m_scene ? m_scene->selectionModel() : nullptr;
+    return model ? model->selectedPortId() : PortId{};
+}
+
 void CanvasView::setHoveredPort(ObjectId itemId, PortId portId)
 {
     if (m_scene)
