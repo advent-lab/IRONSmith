@@ -802,14 +802,12 @@ QLabel#AiePropertiesDetailLabel {
 }
 
 QGroupBox#AiePropertiesSectionCard {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                stop:0 #2E3440,
-                                stop:1 #282E38);
-    border: 1px solid #4D5967;
-    border-radius: 10px;
-    margin-top: 10px;
+    background: transparent;
+    border: none;
+    border-top: 1px solid #2D353E;
+    margin-top: 12px;
     padding-top: 12px;
-    color: #F1F5FA;
+    color: #EAF0F7;
     font-size: 11px;
     font-weight: 600;
 }
@@ -817,11 +815,11 @@ QGroupBox#AiePropertiesSectionCard {
 QGroupBox#AiePropertiesSectionCard::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    left: 12px;
+    left: 0px;
     top: 0px;
-    padding: 0px 4px;
+    padding: 0px 0px 2px 0px;
     color: #D5DEE8;
-    letter-spacing: 0.25px;
+    letter-spacing: 0.2px;
 }
 
 QLabel#AiePropertiesKeyLabel {
@@ -903,6 +901,7 @@ QFrame#AieSymbolsToolbarRow,
 QWidget#AieSymbolsEditorHost,
 QStackedWidget#AieSymbolsEditorStack,
 QWidget#AieSymbolsEmptyEditorPage,
+QScrollArea#AieSymbolsScrollArea,
 QScrollArea#AieSymbolsEditorScrollArea {
     background: transparent;
     border: none;
@@ -943,6 +942,55 @@ QGroupBox#AieSymbolsSection::title {
     padding: 0px 0px 2px 0px;
     color: #D5DEE8;
     letter-spacing: 0.2px;
+}
+
+QFrame#AieTapEditorCard,
+QWidget#AieTapPatternsHost,
+QWidget#AieTapPreviewWidget {
+    background: #161A1F;
+    border: 1px solid #2D353E;
+    border-radius: 8px;
+}
+
+QSpinBox#AieTapSpinBox {
+    background: #171B20;
+    color: #E4EAF1;
+    border: 1px solid #39424C;
+    border-radius: 5px;
+    padding: 2px 8px;
+    min-height: 26px;
+}
+
+QSpinBox#AieTapSpinBox:focus {
+    border-color: #4E84C6;
+}
+
+QCheckBox#AieTapShowRepetitionsCheck {
+    color: #D6DDE6;
+    spacing: 8px;
+}
+
+QToolButton#AieTapPatternButton {
+    background: rgba(255, 255, 255, 0.03);
+    color: #DCE4ED;
+    border: 1px solid #39424C;
+    border-radius: 5px;
+    min-width: 22px;
+    min-height: 22px;
+    max-width: 22px;
+    max-height: 22px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QToolButton#AieTapPatternButton:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: #4A5663;
+}
+
+QToolButton#AieTapPatternButton:disabled {
+    color: rgba(230, 234, 240, 0.36);
+    border-color: #31363C;
 }
 
 QPushButton#AieSymbolsPrimaryButton,
@@ -1035,7 +1083,8 @@ QComboBox#AieSymbolsFilterField QAbstractItemView {
     selection-color: #FFFFFF;
 }
 
-QTableView#AieSymbolsTable {
+QTableView#AieSymbolsTable,
+QTableWidget#AiePropertiesObjectFifosTable {
     background: transparent;
     border: none;
     outline: none;
@@ -1045,16 +1094,19 @@ QTableView#AieSymbolsTable {
     gridline-color: transparent;
 }
 
-QTableView#AieSymbolsTable::item {
+QTableView#AieSymbolsTable::item,
+QTableWidget#AiePropertiesObjectFifosTable::item {
     padding: 5px 8px;
     border: none;
 }
 
-QTableView#AieSymbolsTable::item:hover {
+QTableView#AieSymbolsTable::item:hover,
+QTableWidget#AiePropertiesObjectFifosTable::item:hover {
     background: rgba(255, 255, 255, 0.04);
 }
 
-QTableView#AieSymbolsTable QHeaderView::section {
+QTableView#AieSymbolsTable QHeaderView::section,
+QTableWidget#AiePropertiesObjectFifosTable QHeaderView::section {
     background: rgba(255, 255, 255, 0.02);
     color: rgba(230, 234, 240, 0.72);
     border: none;

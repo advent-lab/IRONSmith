@@ -20,6 +20,7 @@
 #include "aieplugin/hlir_sync/HlirSyncService.hpp"
 
 #include "codeeditor/api/ICodeEditorService.hpp"
+#include "canvas/api/ICanvasDocumentService.hpp"
 #include "core/CoreConstants.hpp"
 #include "core/api/IHeaderInfo.hpp"
 #include "core/api/ISidebarRegistry.hpp"
@@ -156,8 +157,8 @@ void AiePlugin::registerPropertiesSidebarTool(const RuntimeDependencies& deps)
     spec.order = 1;
     spec.toolTip = QStringLiteral("Selection Properties");
 
-    const auto factory = [this](QWidget* parent) -> QWidget* {
-        return new AiePropertiesPanel(m_service, parent);
+    const auto factory = [this, canvasDocuments = QPointer<Canvas::Api::ICanvasDocumentService>(deps.canvasDocumentService)](QWidget* parent) -> QWidget* {
+        return new AiePropertiesPanel(m_service, canvasDocuments, parent);
     };
 
     QString error;

@@ -227,6 +227,20 @@ void CanvasLinkingController::setLinkingMode(CanvasController::LinkingMode mode)
         m_view->update();
 }
 
+void CanvasLinkingController::setObjectFifoDefaults(CanvasController::ObjectFifoDefaults defaults)
+{
+    defaults.name = defaults.name.trimmed();
+    if (defaults.name.isEmpty())
+        defaults.name = QStringLiteral("of");
+    defaults.depth = std::max(1, defaults.depth);
+    defaults.type.typeId = defaults.type.typeId.trimmed();
+    defaults.type.valueType = defaults.type.valueType.trimmed().toLower();
+    if (defaults.type.valueType.isEmpty())
+        defaults.type.valueType = QStringLiteral("i32");
+    defaults.type.dimensions = defaults.type.dimensions.trimmed();
+    m_objectFifoDefaults = std::move(defaults);
+}
+
 void CanvasLinkingController::resetLinkingSession()
 {
     m_wiring = false;
@@ -486,11 +500,10 @@ CanvasLinkingController::defaultObjectFifoConfig(const PortRef& start,
         return std::nullopt;
 
     CanvasWire::ObjectFifoConfig config;
-    config.name = QStringLiteral("of");
-    config.depth = 2;
+    config.name = m_objectFifoDefaults.name;
+    config.depth = m_objectFifoDefaults.depth;
     config.operation = CanvasWire::ObjectFifoOperation::Fifo;
-    config.type.valueType = QStringLiteral("i32");
-    config.type.dimensions.clear();
+    config.type = m_objectFifoDefaults.type;
 
     if (ddrOperation.has_value()) {
         config.operation = *ddrOperation;

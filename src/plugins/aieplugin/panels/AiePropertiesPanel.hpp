@@ -16,6 +16,7 @@ class QPushButton;
 class QSpinBox;
 class QComboBox;
 class QGroupBox;
+class QTableWidget;
 QT_END_NAMESPACE
 
 namespace Utils {
@@ -26,8 +27,10 @@ namespace Canvas {
 class CanvasBlock;
 class CanvasDocument;
 class CanvasView;
+class CanvasController;
 namespace Api {
 class ICanvasHost;
+class ICanvasDocumentService;
 }
 }
 
@@ -40,7 +43,9 @@ class AiePropertiesPanel final : public QWidget
     Q_OBJECT
 
 public:
-    explicit AiePropertiesPanel(AieService* service, QWidget* parent = nullptr);
+    explicit AiePropertiesPanel(AieService* service,
+                                Canvas::Api::ICanvasDocumentService* canvasDocuments,
+                                QWidget* parent = nullptr);
 
 private:
     enum class SelectionKind : uint8_t {
@@ -48,6 +53,7 @@ private:
         Tile,
         FifoWire,
         HubPivotWire,
+        DdrTransferHub,
         DdrBlock,
         Unsupported
     };
@@ -55,29 +61,46 @@ private:
     void buildUi();
     void bindCanvasSignalsIfNeeded();
     void refreshSelection();
+    void refreshObjectFifoSection();
+    void refreshObjectFifoDefaultsUi();
+    void applyObjectFifoRowEdits(int row);
+    void applyObjectFifoTypeSelection(int row,
+                                      const QString& display,
+                                      const QString& typeId,
+                                      const QString& valueType,
+                                      const QString& dimensions);
     void showSelectionState(SelectionKind kind, const QString& summary, const QString& detail = QString());
 
     Canvas::CanvasBlock* selectedBlock() const;
     Canvas::CanvasWire* selectedFifoWire() const;
+    Canvas::CanvasController* canvasController() const;
 
     void applyTileLabel();
     void applyTileStereotype();
-    void applyFifoProperties();
     void applyHubPivotProperties();
+    void applyDdrTransferHubTap();
+    void applyObjectFifoDefaults();
     void rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock);
     void applyDdrEntry(Canvas::ObjectId fifoWireId, Canvas::ObjectId ddrWireId,
                        const QString& name, const QString& dims, const QString& type,
                        bool isMatrix = false,
                        const Canvas::CanvasWire::TensorTilerConfig& tap = {});
+    Canvas::CanvasWire* selectedDdrTransferWire() const;
 
     QPointer<AieService> m_service;
     QPointer<Canvas::Api::ICanvasHost> m_canvasHost;
+    QPointer<Canvas::Api::ICanvasDocumentService> m_canvasDocuments;
     QPointer<Canvas::CanvasDocument> m_document;
     QPointer<Canvas::CanvasView> m_canvasView;
 
     QPointer<Utils::SidebarPanelFrame> m_frame;
     QPointer<QLabel> m_summaryLabel;
     QPointer<QLabel> m_detailLabel;
+    QPointer<QGroupBox> m_objectFifosGroup;
+    QPointer<QTableWidget> m_objectFifosTable;
+    QPointer<QLineEdit> m_objectFifoDefaultNameEdit;
+    QPointer<QSpinBox> m_objectFifoDefaultDepthSpin;
+    QPointer<QComboBox> m_objectFifoDefaultTypeCombo;
 
     QPointer<QGroupBox> m_tileGroup;
     QPointer<QLabel> m_tileIdValue;
@@ -89,13 +112,6 @@ private:
     QPointer<QWidget> m_tileKernelRow;
     QPointer<QLabel> m_tileKernelRowLabel;
 
-    QPointer<QGroupBox> m_fifoGroup;
-    QPointer<QLabel> m_fifoWireIdValue;
-    QPointer<QLineEdit> m_fifoNameEdit;
-    QPointer<QSpinBox> m_fifoDepthSpin;
-    QPointer<QComboBox> m_fifoTypeCombo;
-    QPointer<QLineEdit> m_fifoDimensionsEdit;
-
     QPointer<QGroupBox> m_hubPivotGroup;
     QPointer<QLineEdit> m_hubPivotNameEdit;
     QPointer<QLabel>    m_hubPivotFifoLabel;
@@ -106,10 +122,15 @@ private:
     QPointer<QLabel>    m_hubValueTypeValue;
     QPointer<QLabel>    m_hubDimensionsValue;
 
+    QPointer<QGroupBox> m_ddrTransferGroup;
+    QPointer<QLabel>    m_ddrTransferModeValue;
+    QPointer<QComboBox> m_ddrTransferTapCombo;
+
     QPointer<QGroupBox> m_ddrGroup;
     QPointer<QWidget>   m_ddrContent;
 
     bool m_updatingUi = false;
+    bool m_updatingObjectFifoTable = false;
 };
 
 } // namespace Aie::Internal

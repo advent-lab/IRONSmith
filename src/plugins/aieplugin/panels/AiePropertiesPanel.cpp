@@ -4,35 +4,59 @@
 #include "aieplugin/panels/AiePropertiesPanel.hpp"
 
 #include "aieplugin/AieService.hpp"
+#include "aieplugin/symbol_table/SymbolTableTypes.hpp"
 
 #include "canvas/CanvasBlock.hpp"
+#include "canvas/CanvasController.hpp"
 #include "canvas/CanvasDocument.hpp"
 #include "canvas/CanvasItem.hpp"
+#include "canvas/CanvasSymbolContent.hpp"
 #include "canvas/CanvasView.hpp"
 #include "canvas/CanvasWire.hpp"
+#include "canvas/api/ICanvasDocumentService.hpp"
 #include "canvas/api/ICanvasHost.hpp"
+#include "canvas/utils/CanvasLinkHubStyle.hpp"
 
 #include <utils/ui/SidebarPanelFrame.hpp>
 
 #include <QtCore/QSet>
+#include <QtCore/QSignalBlocker>
 #include <QtCore/QTimer>
 #include <QtCore/QtGlobal>
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QFrame>
 #include <QtWidgets/QFormLayout>
 #include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QHeaderView>
 #include <QtWidgets/QGroupBox>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QScrollArea>
 #include <QtWidgets/QSpinBox>
+#include <QtWidgets/QStyledItemDelegate>
+#include <QtWidgets/QTableWidget>
+#include <QtWidgets/QTableWidgetItem>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
+
+#include <functional>
 
 namespace Aie::Internal {
 
 namespace {
+
+using namespace Qt::StringLiterals;
+
+const QString kSymbolsMetadataKey = u"symbols"_s;
+const QString kObjectFifoDefaultsKey = u"objectFifoDefaults"_s;
+const QString kObjectFifoDefaultNameKey = u"name"_s;
+const QString kObjectFifoDefaultDepthKey = u"depth"_s;
+const QString kObjectFifoDefaultTypeIdKey = u"typeId"_s;
+constexpr int kObjectFifoWireIdRole = Qt::UserRole;
+constexpr int kObjectFifoTypeIdRole = Qt::UserRole + 1;
+constexpr int kObjectFifoTypeValueTypeRole = Qt::UserRole + 2;
+constexpr int kObjectFifoTypeDimensionsRole = Qt::UserRole + 3;
 
 QString formatBounds(const QRectF& bounds)
 {
@@ -44,16 +68,314 @@ QString formatBounds(const QRectF& bounds)
         .arg(normalized.height(), 0, 'f', 1);
 }
 
+struct FifoTypeOption final {
+    QString id;
+    QString name;
+    QString dtype;
+    QString dimensions;
+};
+
+struct TapOption final {
+    QString id;
+    QString name;
+};
+
+QString canonicalObjectFifoValueType(QString valueType)
+{
+    valueType = valueType.trimmed().toLower();
+    if (valueType == QStringLiteral("int8"))
+        return QStringLiteral("i8");
+    if (valueType == QStringLiteral("int16"))
+        return QStringLiteral("i16");
+    if (valueType == QStringLiteral("int32"))
+        return QStringLiteral("i32");
+    if (valueType == QStringLiteral("int64"))
+        return QStringLiteral("i64");
+    if (valueType == QStringLiteral("uint8"))
+        return QStringLiteral("ui8");
+    if (valueType == QStringLiteral("uint16"))
+        return QStringLiteral("ui16");
+    if (valueType == QStringLiteral("uint32"))
+        return QStringLiteral("ui32");
+    if (valueType == QStringLiteral("bfloat16"))
+        return QStringLiteral("bf16");
+    if (valueType == QStringLiteral("float16"))
+        return QStringLiteral("f16");
+    if (valueType == QStringLiteral("float32"))
+        return QStringLiteral("f32");
+    if (valueType == QStringLiteral("float64"))
+        return QStringLiteral("f64");
+    return valueType.isEmpty() ? QStringLiteral("i32") : valueType;
+}
+
+QVector<FifoTypeOption> fifoTypeOptionsFromMetadata(const QJsonObject& metadata)
+{
+    QVector<SymbolRecord> symbols;
+    const Utils::Result parseResult =
+        parseSymbolsMetadata(metadata.value(kSymbolsMetadataKey).toObject(), symbols);
+    if (!parseResult)
+        return {};
+
+    QVector<FifoTypeOption> options;
+    for (const SymbolRecord& symbol : symbols) {
+        if (symbol.kind != SymbolKind::TypeAbstraction)
+            continue;
+
+        FifoTypeOption option;
+        option.id = symbol.id;
+        option.name = symbol.name;
+        option.dtype = canonicalObjectFifoValueType(symbol.type.dtype);
+        option.dimensions = symbol.type.shapeTokens.join(QStringLiteral("x"));
+        options.push_back(std::move(option));
+    }
+    return options;
+}
+
+QVector<TapOption> tapOptionsFromMetadata(const QJsonObject& metadata)
+{
+    QVector<SymbolRecord> symbols;
+    const Utils::Result parseResult =
+        parseSymbolsMetadata(metadata.value(kSymbolsMetadataKey).toObject(), symbols);
+    if (!parseResult)
+        return {};
+
+    QVector<TapOption> options;
+    for (const SymbolRecord& symbol : symbols) {
+        if (symbol.kind != SymbolKind::TensorAccessPattern)
+            continue;
+        options.push_back({symbol.id, symbol.name.trimmed()});
+    }
+    return options;
+}
+
+QString tapLabel(const TapOption& option)
+{
+    return option.name.trimmed().isEmpty() ? QStringLiteral("Unnamed TAP") : option.name.trimmed();
+}
+
+QString objectFifoTypeLabel(const FifoTypeOption& option)
+{
+    return option.name.trimmed().isEmpty() ? QStringLiteral("Unnamed Type") : option.name.trimmed();
+}
+
+QString objectFifoTypeSummary(const Canvas::CanvasWire::ObjectFifoConfig& fifo)
+{
+    const QString dtype = fifo.type.valueType.trimmed().isEmpty()
+        ? QStringLiteral("i32")
+        : fifo.type.valueType.trimmed();
+    const QString dims = fifo.type.dimensions.trimmed();
+    return dims.isEmpty()
+        ? dtype
+        : QStringLiteral("%1 [%2]").arg(dtype, dims);
+}
+
+std::optional<FifoTypeOption> findFifoTypeOption(
+    const QVector<FifoTypeOption>& options,
+    const Canvas::CanvasWire::ObjectFifoTypeAbstraction& type)
+{
+    const QString typeId = type.typeId.trimmed();
+    if (!typeId.isEmpty()) {
+        for (const FifoTypeOption& option : options) {
+            if (option.id == typeId)
+                return option;
+        }
+    }
+
+    const QString canonicalValueType = canonicalObjectFifoValueType(type.valueType);
+    const QString dimensions = type.dimensions.trimmed();
+    for (const FifoTypeOption& option : options) {
+        if (canonicalObjectFifoValueType(option.dtype) == canonicalValueType &&
+            option.dimensions.trimmed() == dimensions) {
+            return option;
+        }
+    }
+    return std::nullopt;
+}
+
+class ObjectFifoNameDelegate final : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    QWidget* createEditor(QWidget* parent,
+                          const QStyleOptionViewItem&,
+                          const QModelIndex&) const override
+    {
+        auto* editor = new QLineEdit(parent);
+        editor->setObjectName(QStringLiteral("AiePropertiesField"));
+        editor->setFrame(false);
+        return editor;
+    }
+};
+
+class ObjectFifoDepthDelegate final : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    QWidget* createEditor(QWidget* parent,
+                          const QStyleOptionViewItem&,
+                          const QModelIndex&) const override
+    {
+        auto* editor = new QSpinBox(parent);
+        editor->setObjectName(QStringLiteral("AiePropertiesField"));
+        editor->setFrame(false);
+        editor->setRange(1, 4096);
+        return editor;
+    }
+};
+
+class ObjectFifoTypeDelegate final : public QStyledItemDelegate
+{
+public:
+    using OptionsProvider = std::function<QVector<FifoTypeOption>()>;
+    using CommitCallback = std::function<void(int, const QString&, const QString&, const QString&, const QString&)>;
+
+    ObjectFifoTypeDelegate(OptionsProvider optionsProvider,
+                           CommitCallback commitCallback,
+                           QObject* parent = nullptr)
+        : QStyledItemDelegate(parent)
+        , m_optionsProvider(std::move(optionsProvider))
+        , m_commitCallback(std::move(commitCallback))
+    {}
+
+    QWidget* createEditor(QWidget* parent,
+                          const QStyleOptionViewItem&,
+                          const QModelIndex& index) const override
+    {
+        auto* editor = new QComboBox(parent);
+        editor->setObjectName(QStringLiteral("AiePropertiesField"));
+        editor->setProperty("fifoTypeEditorReady", false);
+
+        const QVector<FifoTypeOption> options = m_optionsProvider ? m_optionsProvider() : QVector<FifoTypeOption>{};
+        editor->addItem(QStringLiteral("None"), QString{});
+        editor->setItemData(0, QStringLiteral("i32"), kObjectFifoTypeValueTypeRole);
+        editor->setItemData(0, QString{}, kObjectFifoTypeDimensionsRole);
+        for (const FifoTypeOption& option : options) {
+            editor->addItem(objectFifoTypeLabel(option), option.id);
+            const int itemIndex = editor->count() - 1;
+            editor->setItemData(itemIndex, option.dtype, kObjectFifoTypeValueTypeRole);
+            editor->setItemData(itemIndex, option.dimensions, kObjectFifoTypeDimensionsRole);
+        }
+
+        const QString currentTypeId = index.data(kObjectFifoTypeIdRole).toString().trimmed();
+        const QString currentValueType = index.data(kObjectFifoTypeValueTypeRole).toString().trimmed();
+        const QString currentDimensions = index.data(kObjectFifoTypeDimensionsRole).toString().trimmed();
+        bool hasCurrentMatch = false;
+        if (!currentTypeId.isEmpty()) {
+            hasCurrentMatch = (editor->findData(currentTypeId) >= 0);
+        } else {
+            for (int itemIndex = 0; itemIndex < editor->count(); ++itemIndex) {
+                if (editor->itemData(itemIndex, kObjectFifoTypeValueTypeRole).toString().trimmed() == currentValueType &&
+                    editor->itemData(itemIndex, kObjectFifoTypeDimensionsRole).toString().trimmed() == currentDimensions) {
+                    hasCurrentMatch = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasCurrentMatch &&
+            (!currentValueType.isEmpty() || !currentDimensions.isEmpty()) &&
+            !index.data(Qt::DisplayRole).toString().trimmed().isEmpty()) {
+            editor->addItem(index.data(Qt::DisplayRole).toString(), currentTypeId);
+            const int itemIndex = editor->count() - 1;
+            editor->setItemData(itemIndex, currentValueType, kObjectFifoTypeValueTypeRole);
+            editor->setItemData(itemIndex, currentDimensions, kObjectFifoTypeDimensionsRole);
+        }
+
+        const int row = index.row();
+        connect(editor, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, editor, row](int currentIndex) {
+            if (currentIndex < 0 || !editor->property("fifoTypeEditorReady").toBool())
+                return;
+            const QString display = editor->currentText();
+            const QString typeId = editor->currentData().toString().trimmed();
+            const QString valueType = canonicalObjectFifoValueType(
+                editor->currentData(kObjectFifoTypeValueTypeRole).toString());
+            const QString dimensions =
+                editor->currentData(kObjectFifoTypeDimensionsRole).toString().trimmed();
+            if (m_commitCallback)
+                m_commitCallback(row, display, typeId, valueType, dimensions);
+            auto* delegate = const_cast<ObjectFifoTypeDelegate*>(this);
+            emit delegate->closeEditor(editor);
+        });
+        return editor;
+    }
+
+    void setEditorData(QWidget* editor, const QModelIndex& index) const override
+    {
+        auto* combo = qobject_cast<QComboBox*>(editor);
+        if (!combo)
+            return;
+
+        const QString currentTypeId = index.data(kObjectFifoTypeIdRole).toString().trimmed();
+        const QString currentValueType = index.data(kObjectFifoTypeValueTypeRole).toString().trimmed();
+        const QString currentDimensions = index.data(kObjectFifoTypeDimensionsRole).toString().trimmed();
+
+        int selectedIndex = currentTypeId.isEmpty() ? -1 : combo->findData(currentTypeId);
+        if (selectedIndex < 0) {
+            for (int itemIndex = 0; itemIndex < combo->count(); ++itemIndex) {
+                if (combo->itemData(itemIndex, kObjectFifoTypeValueTypeRole).toString().trimmed() == currentValueType &&
+                    combo->itemData(itemIndex, kObjectFifoTypeDimensionsRole).toString().trimmed() == currentDimensions) {
+                    selectedIndex = itemIndex;
+                    break;
+                }
+            }
+        }
+
+        combo->setCurrentIndex(selectedIndex >= 0 ? selectedIndex : 0);
+        combo->setProperty("fifoTypeEditorReady", true);
+    }
+
+    void setModelData(QWidget* editor,
+                      QAbstractItemModel* model,
+                      const QModelIndex& index) const override
+    {
+        auto* combo = qobject_cast<QComboBox*>(editor);
+        if (!combo || !model)
+            return;
+
+        model->setData(index, combo->currentText(), Qt::DisplayRole);
+        model->setData(index, combo->currentData().toString().trimmed(), kObjectFifoTypeIdRole);
+        model->setData(index,
+                       canonicalObjectFifoValueType(
+                           combo->currentData(kObjectFifoTypeValueTypeRole).toString()),
+                       kObjectFifoTypeValueTypeRole);
+        model->setData(index,
+                       combo->currentData(kObjectFifoTypeDimensionsRole).toString().trimmed(),
+                       kObjectFifoTypeDimensionsRole);
+    }
+
+private:
+    OptionsProvider m_optionsProvider;
+    CommitCallback m_commitCallback;
+};
+
 } // namespace
 
-AiePropertiesPanel::AiePropertiesPanel(AieService* service, QWidget* parent)
+AiePropertiesPanel::AiePropertiesPanel(AieService* service,
+                                       Canvas::Api::ICanvasDocumentService* canvasDocuments,
+                                       QWidget* parent)
     : QWidget(parent)
     , m_service(service)
+    , m_canvasDocuments(canvasDocuments)
 {
     setObjectName(QStringLiteral("AiePropertiesPanel"));
     setAttribute(Qt::WA_StyledBackground, true);
 
     buildUi();
+
+    if (m_canvasDocuments) {
+        connect(m_canvasDocuments, &Canvas::Api::ICanvasDocumentService::documentOpened,
+                this, [this](const Canvas::Api::CanvasDocumentHandle&) { refreshSelection(); });
+        connect(m_canvasDocuments, &Canvas::Api::ICanvasDocumentService::documentClosed,
+                this, [this](const Canvas::Api::CanvasDocumentHandle&,
+                             Canvas::Api::CanvasDocumentCloseReason) { refreshSelection(); });
+        connect(m_canvasDocuments, &Canvas::Api::ICanvasDocumentService::documentDirtyChanged,
+                this, [this](const Canvas::Api::CanvasDocumentHandle&, bool) {
+                    refreshObjectFifoSection();
+                });
+    }
+
     bindCanvasSignalsIfNeeded();
     refreshSelection();
 
@@ -102,6 +424,95 @@ void AiePropertiesPanel::buildUi()
     auto* fieldsLayout = new QVBoxLayout(fieldsHost);
     fieldsLayout->setContentsMargins(0, 0, 0, 0);
     fieldsLayout->setSpacing(10);
+
+    const auto makeSectionHeading = [](const QString& text, QWidget* parent) -> QLabel* {
+        auto* label = new QLabel(text, parent);
+        label->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+        return label;
+    };
+
+    auto* objectFifosGroup = new QGroupBox(QStringLiteral("Object FIFOs"), fieldsHost);
+    objectFifosGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
+    auto* objectFifosLayout = new QVBoxLayout(objectFifosGroup);
+    objectFifosLayout->setContentsMargins(12, 12, 12, 12);
+    objectFifosLayout->setSpacing(8);
+
+    auto* fifoInventoryHeading = makeSectionHeading(QStringLiteral("Inventory"), objectFifosGroup);
+    objectFifosLayout->addWidget(fifoInventoryHeading);
+
+    auto* objectFifoListSurface = new QFrame(objectFifosGroup);
+    objectFifoListSurface->setObjectName(QStringLiteral("AieSymbolsListSurface"));
+    auto* objectFifoListLayout = new QVBoxLayout(objectFifoListSurface);
+    objectFifoListLayout->setContentsMargins(0, 0, 0, 0);
+    objectFifoListLayout->setSpacing(0);
+
+    auto* objectFifosTable = new QTableWidget(objectFifoListSurface);
+    objectFifosTable->setObjectName(QStringLiteral("AiePropertiesObjectFifosTable"));
+    objectFifosTable->setColumnCount(3);
+    objectFifosTable->setHorizontalHeaderLabels(
+        {QStringLiteral("Name"), QStringLiteral("Type"), QStringLiteral("Depth")});
+    objectFifosTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    objectFifosTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    objectFifosTable->setEditTriggers(QAbstractItemView::SelectedClicked |
+                                      QAbstractItemView::DoubleClicked |
+                                      QAbstractItemView::EditKeyPressed);
+    objectFifosTable->setShowGrid(false);
+    objectFifosTable->setAlternatingRowColors(false);
+    objectFifosTable->setFocusPolicy(Qt::StrongFocus);
+    objectFifosTable->setWordWrap(false);
+    objectFifosTable->verticalHeader()->setVisible(false);
+    objectFifosTable->verticalHeader()->setDefaultSectionSize(30);
+    objectFifosTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    objectFifosTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    objectFifosTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    objectFifosTable->setMinimumHeight(176);
+    objectFifosTable->setItemDelegateForColumn(0, new ObjectFifoNameDelegate(objectFifosTable));
+    objectFifosTable->setItemDelegateForColumn(1, new ObjectFifoTypeDelegate(
+        [this]() {
+            return fifoTypeOptionsFromMetadata(
+                m_canvasDocuments ? m_canvasDocuments->activeMetadata() : QJsonObject{});
+        },
+        [this](int row,
+               const QString& display,
+               const QString& typeId,
+               const QString& valueType,
+               const QString& dimensions) {
+            applyObjectFifoTypeSelection(row, display, typeId, valueType, dimensions);
+        },
+        objectFifosTable));
+    objectFifosTable->setItemDelegateForColumn(2, new ObjectFifoDepthDelegate(objectFifosTable));
+    objectFifoListLayout->addWidget(objectFifosTable, 1);
+    objectFifosLayout->addWidget(objectFifoListSurface, 1);
+
+    auto* fifoDefaultsHeading = makeSectionHeading(QStringLiteral("Defaults"), objectFifosGroup);
+    objectFifosLayout->addWidget(fifoDefaultsHeading);
+
+    auto* defaultsHost = new QWidget(objectFifosGroup);
+    auto* defaultsForm = new QFormLayout(defaultsHost);
+    defaultsForm->setContentsMargins(0, 0, 0, 0);
+    defaultsForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    defaultsForm->setHorizontalSpacing(10);
+    defaultsForm->setVerticalSpacing(8);
+    defaultsForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    auto* objectFifoDefaultNameEdit = new QLineEdit(defaultsHost);
+    objectFifoDefaultNameEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    auto* objectFifoDefaultDepthSpin = new QSpinBox(defaultsHost);
+    objectFifoDefaultDepthSpin->setObjectName(QStringLiteral("AiePropertiesField"));
+    objectFifoDefaultDepthSpin->setRange(1, 4096);
+    auto* objectFifoDefaultTypeCombo = new QComboBox(defaultsHost);
+    objectFifoDefaultTypeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+
+    defaultsForm->addRow(makeSectionHeading(QStringLiteral("Name"), defaultsHost), objectFifoDefaultNameEdit);
+    defaultsForm->addRow(makeSectionHeading(QStringLiteral("Type Abstraction"), defaultsHost), objectFifoDefaultTypeCombo);
+    defaultsForm->addRow(makeSectionHeading(QStringLiteral("Depth"), defaultsHost), objectFifoDefaultDepthSpin);
+    objectFifosLayout->addWidget(defaultsHost);
+
+    m_objectFifosGroup = objectFifosGroup;
+    m_objectFifosTable = objectFifosTable;
+    m_objectFifoDefaultNameEdit = objectFifoDefaultNameEdit;
+    m_objectFifoDefaultDepthSpin = objectFifoDefaultDepthSpin;
+    m_objectFifoDefaultTypeCombo = objectFifoDefaultTypeCombo;
 
     auto* tileGroup = new QGroupBox(QStringLiteral("Tile"), fieldsHost);
     tileGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
@@ -163,50 +574,6 @@ void AiePropertiesPanel::buildUi()
     m_tileKernelRow = kernelRow;
     m_tileKernelRowLabel = kernelRowLabel;
 
-    auto* fifoGroup = new QGroupBox(QStringLiteral("FIFO Annotation"), fieldsHost);
-    fifoGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
-    auto* fifoForm = new QFormLayout(fifoGroup);
-    fifoForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
-    fifoForm->setContentsMargins(12, 12, 12, 12);
-    fifoForm->setHorizontalSpacing(10);
-    fifoForm->setVerticalSpacing(8);
-    fifoForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-
-    const auto makeFifoKeyLabel = [fifoGroup](const QString& text) -> QLabel* {
-        auto* label = new QLabel(text, fifoGroup);
-        label->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
-        return label;
-    };
-
-    auto* fifoWireIdValue = new QLabel(fifoGroup);
-    fifoWireIdValue->setObjectName(QStringLiteral("AiePropertiesValueLabel"));
-    fifoWireIdValue->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    auto* fifoNameEdit = new QLineEdit(fifoGroup);
-    fifoNameEdit->setObjectName(QStringLiteral("AiePropertiesField"));
-    auto* fifoDepthSpin = new QSpinBox(fifoGroup);
-    fifoDepthSpin->setObjectName(QStringLiteral("AiePropertiesField"));
-    fifoDepthSpin->setRange(1, 4096);
-    auto* fifoTypeCombo = new QComboBox(fifoGroup);
-    fifoTypeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
-    fifoTypeCombo->addItem(QStringLiteral("i8"));
-    fifoTypeCombo->addItem(QStringLiteral("i16"));
-    fifoTypeCombo->addItem(QStringLiteral("i32"));
-    auto* fifoDimensionsEdit = new QLineEdit(fifoGroup);
-    fifoDimensionsEdit->setObjectName(QStringLiteral("AiePropertiesField"));
-
-    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Wire ID")), fifoWireIdValue);
-    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Name")), fifoNameEdit);
-    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Depth")), fifoDepthSpin);
-    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Value Type")), fifoTypeCombo);
-    fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Dimensions")), fifoDimensionsEdit);
-
-    m_fifoGroup = fifoGroup;
-    m_fifoWireIdValue = fifoWireIdValue;
-    m_fifoNameEdit = fifoNameEdit;
-    m_fifoDepthSpin = fifoDepthSpin;
-    m_fifoTypeCombo = fifoTypeCombo;
-    m_fifoDimensionsEdit = fifoDimensionsEdit;
-
     // --- Hub Pivot group (Split / Join wires) ---
     auto* hubPivotGroup = new QGroupBox(QStringLiteral("Split / Join"), fieldsHost);
     hubPivotGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
@@ -263,14 +630,36 @@ void AiePropertiesPanel::buildUi()
     m_hubValueTypeValue  = hubValueTypeValue;
     m_hubDimensionsValue = hubDimensionsValue;
 
+    auto* ddrTransferGroup = new QGroupBox(QStringLiteral("DDR Transfer"), fieldsHost);
+    ddrTransferGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
+    auto* ddrTransferForm = new QFormLayout(ddrTransferGroup);
+    ddrTransferForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    ddrTransferForm->setContentsMargins(12, 12, 12, 12);
+    ddrTransferForm->setHorizontalSpacing(10);
+    ddrTransferForm->setVerticalSpacing(8);
+    ddrTransferForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    auto* ddrTransferModeValue = new QLabel(ddrTransferGroup);
+    ddrTransferModeValue->setObjectName(QStringLiteral("AiePropertiesValueLabel"));
+    auto* ddrTransferTapCombo = new QComboBox(ddrTransferGroup);
+    ddrTransferTapCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+
+    ddrTransferForm->addRow(makeKeyLabel(QStringLiteral("Mode")), ddrTransferModeValue);
+    ddrTransferForm->addRow(makeKeyLabel(QStringLiteral("Tensor Access Pattern")), ddrTransferTapCombo);
+
+    m_ddrTransferGroup = ddrTransferGroup;
+    m_ddrTransferModeValue = ddrTransferModeValue;
+    m_ddrTransferTapCombo = ddrTransferTapCombo;
+
     auto* ddrGroup = new QGroupBox(QStringLiteral("DDR Runtime"), fieldsHost);
     ddrGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
     new QVBoxLayout(ddrGroup);
     m_ddrGroup = ddrGroup;
 
+    fieldsLayout->addWidget(objectFifosGroup);
     fieldsLayout->addWidget(tileGroup);
-    fieldsLayout->addWidget(fifoGroup);
     fieldsLayout->addWidget(hubPivotGroup);
+    fieldsLayout->addWidget(ddrTransferGroup);
     fieldsLayout->addWidget(ddrGroup);
     fieldsLayout->addStretch(1);
 
@@ -288,19 +677,37 @@ void AiePropertiesPanel::buildUi()
     connect(tileStereotypeClearBtn, &QPushButton::clicked, this,
             &AiePropertiesPanel::applyTileStereotype);
 
-    connect(fifoNameEdit, &QLineEdit::editingFinished,
-            this, &AiePropertiesPanel::applyFifoProperties);
-    connect(fifoDepthSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-            this, [this](int) { applyFifoProperties(); });
-    connect(fifoTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int) { applyFifoProperties(); });
-    connect(fifoDimensionsEdit, &QLineEdit::editingFinished,
-            this, &AiePropertiesPanel::applyFifoProperties);
-
     connect(hubPivotNameEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyHubPivotProperties);
     connect(hubPivotFifoEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyHubPivotProperties);
+    connect(ddrTransferTapCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int) { applyDdrTransferHubTap(); });
+
+    connect(objectFifoDefaultNameEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyObjectFifoDefaults);
+    connect(objectFifoDefaultDepthSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int) { applyObjectFifoDefaults(); });
+    connect(objectFifoDefaultTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int) { applyObjectFifoDefaults(); });
+    connect(objectFifosTable, &QTableWidget::itemSelectionChanged, this, [this]() {
+        if (m_updatingObjectFifoTable || !m_objectFifosTable || !m_canvasView)
+            return;
+        const auto items = m_objectFifosTable->selectedItems();
+        if (items.isEmpty())
+            return;
+        if (auto* item = m_objectFifosTable->item(items.front()->row(), 0)) {
+            const QString idText = item->data(Qt::UserRole).toString();
+            if (const auto parsed = Canvas::ObjectId::fromString(idText); parsed.has_value())
+                m_canvasView->setSelectedItem(*parsed);
+        }
+    });
+    connect(objectFifosTable, &QTableWidget::itemChanged, this,
+            [this](QTableWidgetItem* item) {
+                if (!item)
+                    return;
+                applyObjectFifoRowEdits(item->row());
+            });
 }
 
 void AiePropertiesPanel::bindCanvasSignalsIfNeeded()
@@ -336,6 +743,254 @@ void AiePropertiesPanel::bindCanvasSignalsIfNeeded()
     }
 }
 
+Canvas::CanvasController* AiePropertiesPanel::canvasController() const
+{
+    return m_canvasHost ? m_canvasHost->controller() : nullptr;
+}
+
+void AiePropertiesPanel::refreshObjectFifoDefaultsUi()
+{
+    if (!m_objectFifoDefaultNameEdit || !m_objectFifoDefaultDepthSpin || !m_objectFifoDefaultTypeCombo)
+        return;
+
+    const QJsonObject metadata = m_canvasDocuments ? m_canvasDocuments->activeMetadata() : QJsonObject{};
+    const QJsonObject defaultsObject = metadata.value(kObjectFifoDefaultsKey).toObject();
+    const QVector<FifoTypeOption> typeOptions = fifoTypeOptionsFromMetadata(metadata);
+
+    const QString persistedName = defaultsObject.value(kObjectFifoDefaultNameKey).toString().trimmed();
+    const int persistedDepth = std::max(1, defaultsObject.value(kObjectFifoDefaultDepthKey).toInt(2));
+    const QString persistedTypeId = defaultsObject.value(kObjectFifoDefaultTypeIdKey).toString().trimmed();
+
+    Canvas::CanvasController::ObjectFifoDefaults defaults =
+        canvasController() ? canvasController()->objectFifoDefaults()
+                           : Canvas::CanvasController::ObjectFifoDefaults{};
+
+    if (!persistedName.isEmpty())
+        defaults.name = persistedName;
+    defaults.depth = persistedDepth;
+    defaults.type.typeId = persistedTypeId;
+
+    QString selectedTypeId = persistedTypeId;
+    if (!selectedTypeId.isEmpty()) {
+        for (const FifoTypeOption& option : typeOptions) {
+            if (option.id != selectedTypeId)
+                continue;
+            defaults.type.valueType = option.dtype;
+            defaults.type.dimensions = option.dimensions;
+            break;
+        }
+    }
+
+    m_updatingUi = true;
+    QSignalBlocker nameBlock(m_objectFifoDefaultNameEdit);
+    QSignalBlocker depthBlock(m_objectFifoDefaultDepthSpin);
+    QSignalBlocker typeBlock(m_objectFifoDefaultTypeCombo);
+
+    m_objectFifoDefaultNameEdit->setText(defaults.name);
+    m_objectFifoDefaultDepthSpin->setValue(std::max(1, defaults.depth));
+
+    m_objectFifoDefaultTypeCombo->clear();
+    m_objectFifoDefaultTypeCombo->addItem(QStringLiteral("None"), QString{});
+    m_objectFifoDefaultTypeCombo->setItemData(0, QStringLiteral("i32"), Qt::UserRole + 1);
+    m_objectFifoDefaultTypeCombo->setItemData(0, QString{}, Qt::UserRole + 2);
+    for (const FifoTypeOption& option : typeOptions) {
+        m_objectFifoDefaultTypeCombo->addItem(objectFifoTypeLabel(option), option.id);
+        const int index = m_objectFifoDefaultTypeCombo->count() - 1;
+        m_objectFifoDefaultTypeCombo->setItemData(index, option.dtype, Qt::UserRole + 1);
+        m_objectFifoDefaultTypeCombo->setItemData(index, option.dimensions, Qt::UserRole + 2);
+    }
+
+    int selectedIndex = 0;
+    if (!selectedTypeId.isEmpty()) {
+        const int found = m_objectFifoDefaultTypeCombo->findData(selectedTypeId);
+        if (found >= 0)
+            selectedIndex = found;
+    } else {
+        for (int index = 1; index < m_objectFifoDefaultTypeCombo->count(); ++index) {
+            if (canonicalObjectFifoValueType(
+                    m_objectFifoDefaultTypeCombo->itemData(index, Qt::UserRole + 1).toString()) ==
+                    canonicalObjectFifoValueType(defaults.type.valueType) &&
+                m_objectFifoDefaultTypeCombo->itemData(index, Qt::UserRole + 2).toString() == defaults.type.dimensions) {
+                selectedIndex = index;
+                break;
+            }
+        }
+    }
+    m_objectFifoDefaultTypeCombo->setCurrentIndex(selectedIndex);
+    m_updatingUi = false;
+
+    if (canvasController())
+        canvasController()->setObjectFifoDefaults(defaults);
+}
+
+void AiePropertiesPanel::refreshObjectFifoSection()
+{
+    if (!m_objectFifosTable)
+        return;
+
+    if (m_objectFifosGroup)
+        m_objectFifosGroup->setVisible(m_canvasHost && m_canvasHost->canvasActive() && m_document);
+
+    refreshObjectFifoDefaultsUi();
+
+    m_updatingObjectFifoTable = true;
+    QSignalBlocker tableBlock(m_objectFifosTable);
+    m_objectFifosTable->clearContents();
+    m_objectFifosTable->setRowCount(0);
+
+    if (!m_document || !m_canvasHost || !m_canvasHost->canvasActive()) {
+        m_updatingObjectFifoTable = false;
+        return;
+    }
+
+    const QVector<FifoTypeOption> typeOptions = fifoTypeOptionsFromMetadata(
+        m_canvasDocuments ? m_canvasDocuments->activeMetadata() : QJsonObject{});
+
+    int row = 0;
+    for (const auto& item : m_document->items()) {
+        auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
+        if (!wire || !wire->hasObjectFifo())
+            continue;
+
+        const auto fifo = wire->objectFifo().value();
+        if (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Fill ||
+            fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Drain) {
+            continue;
+        }
+        m_objectFifosTable->insertRow(row);
+
+        auto* nameItem = new QTableWidgetItem(fifo.name);
+        nameItem->setData(kObjectFifoWireIdRole, wire->id().toString());
+        nameItem->setFlags(nameItem->flags() | Qt::ItemIsEditable);
+
+        auto* typeItem = new QTableWidgetItem;
+        typeItem->setFlags(typeItem->flags() | Qt::ItemIsEditable);
+        if (const auto matchedType = findFifoTypeOption(typeOptions, fifo.type); matchedType.has_value()) {
+            typeItem->setText(objectFifoTypeLabel(*matchedType));
+            typeItem->setData(kObjectFifoTypeIdRole, matchedType->id);
+            typeItem->setData(kObjectFifoTypeValueTypeRole, matchedType->dtype);
+            typeItem->setData(kObjectFifoTypeDimensionsRole, matchedType->dimensions);
+        } else {
+            typeItem->setText(objectFifoTypeSummary(fifo));
+            typeItem->setData(kObjectFifoTypeIdRole, QString{});
+            typeItem->setData(kObjectFifoTypeValueTypeRole, fifo.type.valueType.trimmed());
+            typeItem->setData(kObjectFifoTypeDimensionsRole, fifo.type.dimensions.trimmed());
+        }
+
+        auto* depthItem = new QTableWidgetItem(QString::number(fifo.depth));
+        depthItem->setFlags(depthItem->flags() | Qt::ItemIsEditable);
+
+        m_objectFifosTable->setItem(row, 0, nameItem);
+        m_objectFifosTable->setItem(row, 1, typeItem);
+        m_objectFifosTable->setItem(row, 2, depthItem);
+        ++row;
+    }
+
+    const Canvas::ObjectId selectedId = m_canvasView ? m_canvasView->selectedItem() : Canvas::ObjectId{};
+    if (!selectedId.isNull()) {
+        const QString selectedText = selectedId.toString();
+        for (int index = 0; index < m_objectFifosTable->rowCount(); ++index) {
+            auto* item = m_objectFifosTable->item(index, 0);
+            if (!item || item->data(Qt::UserRole).toString() != selectedText)
+                continue;
+            m_objectFifosTable->selectRow(index);
+            m_objectFifosTable->scrollToItem(item, QAbstractItemView::PositionAtCenter);
+            break;
+        }
+    }
+
+    m_updatingObjectFifoTable = false;
+}
+
+void AiePropertiesPanel::applyObjectFifoRowEdits(int row)
+{
+    if (m_updatingObjectFifoTable || !m_document || !m_objectFifosTable)
+        return;
+
+    auto* nameItem = m_objectFifosTable->item(row, 0);
+    auto* typeItem = m_objectFifosTable->item(row, 1);
+    auto* depthItem = m_objectFifosTable->item(row, 2);
+    if (!nameItem || !typeItem || !depthItem)
+        return;
+
+    const QString wireIdText = nameItem->data(kObjectFifoWireIdRole).toString();
+    const auto wireId = Canvas::ObjectId::fromString(wireIdText);
+    if (!wireId.has_value())
+        return;
+
+    auto* wire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(*wireId));
+    if (!wire || !wire->hasObjectFifo())
+        return;
+
+    Canvas::CanvasWire::ObjectFifoConfig config = wire->objectFifo().value();
+    const QString normalizedName = nameItem->text().trimmed().isEmpty()
+        ? QStringLiteral("of")
+        : nameItem->text().trimmed();
+
+    bool depthOk = false;
+    int normalizedDepth = depthItem->text().trimmed().toInt(&depthOk);
+    if (!depthOk)
+        normalizedDepth = config.depth;
+    normalizedDepth = std::max(1, normalizedDepth);
+
+    QString nextValueType = canonicalObjectFifoValueType(
+        typeItem->data(kObjectFifoTypeValueTypeRole).toString());
+    QString nextDimensions = typeItem->data(kObjectFifoTypeDimensionsRole).toString().trimmed();
+    const QString nextTypeId = typeItem->data(kObjectFifoTypeIdRole).toString().trimmed();
+
+    const bool changed = (config.name != normalizedName) ||
+                         (config.depth != normalizedDepth) ||
+                         (config.type.typeId.trimmed() != nextTypeId) ||
+                         (canonicalObjectFifoValueType(config.type.valueType) != nextValueType) ||
+                         (config.type.dimensions.trimmed() != nextDimensions);
+
+    {
+        QSignalBlocker blocker(m_objectFifosTable);
+        m_updatingObjectFifoTable = true;
+        nameItem->setText(normalizedName);
+        depthItem->setText(QString::number(normalizedDepth));
+        m_updatingObjectFifoTable = false;
+    }
+
+    if (!changed)
+        return;
+
+    config.name = normalizedName;
+    config.depth = normalizedDepth;
+    config.type.typeId = nextTypeId;
+    config.type.valueType = nextValueType;
+    config.type.dimensions = nextDimensions;
+
+    wire->setObjectFifo(config);
+    m_document->notifyChanged();
+}
+
+void AiePropertiesPanel::applyObjectFifoTypeSelection(int row,
+                                                      const QString& display,
+                                                      const QString& typeId,
+                                                      const QString& valueType,
+                                                      const QString& dimensions)
+{
+    if (!m_objectFifosTable)
+        return;
+
+    auto* typeItem = m_objectFifosTable->item(row, 1);
+    if (!typeItem)
+        return;
+
+    {
+        QSignalBlocker blocker(m_objectFifosTable);
+        m_updatingObjectFifoTable = true;
+        typeItem->setText(display.trimmed());
+        typeItem->setData(kObjectFifoTypeIdRole, typeId.trimmed());
+        typeItem->setData(kObjectFifoTypeValueTypeRole, canonicalObjectFifoValueType(valueType));
+        typeItem->setData(kObjectFifoTypeDimensionsRole, dimensions.trimmed());
+        m_updatingObjectFifoTable = false;
+    }
+
+    applyObjectFifoRowEdits(row);
+}
+
 void AiePropertiesPanel::showSelectionState(SelectionKind kind,
                                             const QString& summary,
                                             const QString& detail)
@@ -348,15 +1003,17 @@ void AiePropertiesPanel::showSelectionState(SelectionKind kind,
     }
 
     const bool showTile     = (kind == SelectionKind::Tile);
-    const bool showFifo     = (kind == SelectionKind::FifoWire);
     const bool showHubPivot = (kind == SelectionKind::HubPivotWire);
+    const bool showDdrTransferHub = (kind == SelectionKind::DdrTransferHub);
     const bool showDdr      = (kind == SelectionKind::DdrBlock);
+    if (m_objectFifosGroup)
+        m_objectFifosGroup->setVisible(m_canvasHost && m_canvasHost->canvasActive() && m_document);
     if (m_tileGroup)
         m_tileGroup->setVisible(showTile);
-    if (m_fifoGroup)
-        m_fifoGroup->setVisible(showFifo);
     if (m_hubPivotGroup)
         m_hubPivotGroup->setVisible(showHubPivot);
+    if (m_ddrTransferGroup)
+        m_ddrTransferGroup->setVisible(showDdrTransferHub);
     if (m_ddrGroup)
         m_ddrGroup->setVisible(showDdr);
 }
@@ -384,9 +1041,44 @@ Canvas::CanvasWire* AiePropertiesPanel::selectedFifoWire() const
     return wire;
 }
 
+Canvas::CanvasWire* AiePropertiesPanel::selectedDdrTransferWire() const
+{
+    auto* block = selectedBlock();
+    if (!block || !block->isLinkHub() || !m_document)
+        return nullptr;
+
+    for (const auto& item : m_document->items()) {
+        auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
+        if (!wire)
+            continue;
+
+        const bool touchesHub =
+            (wire->a().attached.has_value() && wire->a().attached->itemId == block->id()) ||
+            (wire->b().attached.has_value() && wire->b().attached->itemId == block->id());
+        if (!touchesHub)
+            continue;
+
+        auto endpointBlock = [&](const Canvas::CanvasWire::Endpoint& endpoint) -> Canvas::CanvasBlock* {
+            if (!endpoint.attached.has_value())
+                return nullptr;
+            return dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(endpoint.attached->itemId));
+        };
+
+        auto* blockA = endpointBlock(wire->a());
+        auto* blockB = endpointBlock(wire->b());
+        if ((blockA && blockA->specId().trimmed() == QStringLiteral("ddr")) ||
+            (blockB && blockB->specId().trimmed() == QStringLiteral("ddr"))) {
+            return wire;
+        }
+    }
+
+    return nullptr;
+}
+
 void AiePropertiesPanel::refreshSelection()
 {
     bindCanvasSignalsIfNeeded();
+    refreshObjectFifoSection();
 
     if (!m_canvasHost || !m_document || !m_canvasView || !m_canvasHost->canvasActive()) {
         showSelectionState(SelectionKind::None,
@@ -412,6 +1104,45 @@ void AiePropertiesPanel::refreshSelection()
                                QStringLiteral("DDR block selected"),
                                QStringLiteral("Configure runtime inputs and outputs."));
             return;
+        }
+
+        if (block->isLinkHub()) {
+            const auto* symbolContent = dynamic_cast<const Canvas::BlockContentSymbol*>(block->content());
+            const QString symbol = symbolContent ? symbolContent->symbol().trimmed() : QString();
+            const bool isDistribute = symbol == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Distribute).symbol;
+            const bool isCollect = symbol == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Collect).symbol;
+            if (isDistribute || isCollect) {
+                const QVector<TapOption> tapOptions = tapOptionsFromMetadata(
+                    m_canvasDocuments ? m_canvasDocuments->activeMetadata() : QJsonObject{});
+                Canvas::CanvasWire* ddrWire = selectedDdrTransferWire();
+                const QString selectedTapId =
+                    ddrWire && ddrWire->hasObjectFifo()
+                        ? ddrWire->objectFifo()->type.tapSymbolId.trimmed()
+                        : QString();
+
+                m_updatingUi = true;
+                if (m_ddrTransferModeValue)
+                    m_ddrTransferModeValue->setText(isDistribute ? QStringLiteral("Distribute") : QStringLiteral("Collect"));
+                if (m_ddrTransferTapCombo) {
+                    QSignalBlocker blocker(m_ddrTransferTapCombo);
+                    m_ddrTransferTapCombo->clear();
+                    m_ddrTransferTapCombo->addItem(QStringLiteral("None"), QString{});
+                    for (const TapOption& option : tapOptions)
+                        m_ddrTransferTapCombo->addItem(tapLabel(option), option.id);
+                    const int tapIndex = selectedTapId.isEmpty() ? 0 : m_ddrTransferTapCombo->findData(selectedTapId);
+                    m_ddrTransferTapCombo->setCurrentIndex(tapIndex >= 0 ? tapIndex : 0);
+                    m_ddrTransferTapCombo->setEnabled(ddrWire != nullptr);
+                }
+                m_updatingUi = false;
+
+                showSelectionState(SelectionKind::DdrTransferHub,
+                                   isDistribute ? QStringLiteral("Distribute hub selected")
+                                                : QStringLiteral("Collect hub selected"),
+                                   ddrWire
+                                       ? QStringLiteral("Assign a Tensor Access Pattern from the Symbols panel.")
+                                       : QStringLiteral("Connect this hub to DDR before assigning a Tensor Access Pattern."));
+                return;
+            }
         }
 
         m_updatingUi = true;
@@ -541,25 +1272,9 @@ void AiePropertiesPanel::refreshSelection()
             return;
         }
 
-        m_updatingUi = true;
-        if (m_fifoWireIdValue)
-            m_fifoWireIdValue->setText(wire->id().toString());
-        if (m_fifoNameEdit)
-            m_fifoNameEdit->setText(fifo.name);
-        if (m_fifoDepthSpin)
-            m_fifoDepthSpin->setValue(fifo.depth);
-        if (m_fifoTypeCombo) {
-            const QString valueType = fifo.type.valueType.trimmed().toLower();
-            const int index = m_fifoTypeCombo->findText(valueType);
-            m_fifoTypeCombo->setCurrentIndex(index >= 0 ? index : m_fifoTypeCombo->findText(QStringLiteral("i32")));
-        }
-        if (m_fifoDimensionsEdit)
-            m_fifoDimensionsEdit->setText(fifo.type.dimensions);
-        m_updatingUi = false;
-
         showSelectionState(SelectionKind::FifoWire,
-                           QStringLiteral("FIFO annotation selected"),
-                           QStringLiteral("Edit name, depth, dimensions, and value type."));
+                           QStringLiteral("Object FIFO selected"),
+                           QStringLiteral("Edit name, type abstraction, and depth in the Object FIFOs table."));
         return;
     }
 
@@ -604,88 +1319,6 @@ void AiePropertiesPanel::applyTileStereotype()
     m_updatingUi = false;
 }
 
-void AiePropertiesPanel::applyFifoProperties()
-{
-    if (m_updatingUi || !m_document || !m_fifoNameEdit || !m_fifoDepthSpin ||
-        !m_fifoTypeCombo || !m_fifoDimensionsEdit) {
-        return;
-    }
-
-    auto* wire = selectedFifoWire();
-    if (!wire)
-        return;
-
-    Canvas::CanvasWire::ObjectFifoConfig config = wire->objectFifo().value();
-    config.name       = m_fifoNameEdit->text().trimmed();
-    config.depth      = m_fifoDepthSpin->value();
-    config.type.valueType  = m_fifoTypeCombo->currentText().trimmed().toLower();
-
-    // Validate new dimensions against the DDR total buffer size.
-    // The FIFO size must be a divisor of the total (element counts).
-    const QString newDims = m_fifoDimensionsEdit->text().trimmed();
-    if (!newDims.isEmpty()) {
-        // Find which endpoint is a SHIM, then find the DDR↔SHIM wire for it.
-        const auto findShimDdrWire = [&]() -> Canvas::CanvasWire* {
-            if (!wire->a().attached.has_value() || !wire->b().attached.has_value())
-                return nullptr;
-            auto* bkA = dynamic_cast<Canvas::CanvasBlock*>(
-                m_document->findItem(wire->a().attached->itemId));
-            auto* bkB = dynamic_cast<Canvas::CanvasBlock*>(
-                m_document->findItem(wire->b().attached->itemId));
-            if (!bkA || !bkB) return nullptr;
-            Canvas::CanvasBlock* shimBlock =
-                bkA->specId().startsWith(QLatin1StringView("shim")) ? bkA :
-                bkB->specId().startsWith(QLatin1StringView("shim")) ? bkB : nullptr;
-            if (!shimBlock) return nullptr;
-            for (const auto& item : m_document->items()) {
-                auto* w = dynamic_cast<Canvas::CanvasWire*>(item.get());
-                if (!w || !w->a().attached.has_value() || !w->b().attached.has_value())
-                    continue;
-                auto* wA = dynamic_cast<Canvas::CanvasBlock*>(
-                    m_document->findItem(w->a().attached->itemId));
-                auto* wB = dynamic_cast<Canvas::CanvasBlock*>(
-                    m_document->findItem(w->b().attached->itemId));
-                if (!wA || !wB) continue;
-                const bool aDdr = wA->specId() == QLatin1StringView("ddr");
-                const bool bDdr = wB->specId() == QLatin1StringView("ddr");
-                if ((aDdr && wB->id() == shimBlock->id()) ||
-                    (bDdr && wA->id() == shimBlock->id()))
-                    return w;
-            }
-            return nullptr;
-        };
-
-        // Helper: product of all 'x'-separated integer parts
-        const auto elemCount = [](const QString& dims) -> int {
-            int n = 1;
-            for (const QString& part : dims.split(u'x', Qt::SkipEmptyParts))
-                n *= part.trimmed().toInt();
-            return n;
-        };
-
-        auto* ddrWire = findShimDdrWire();
-        if (ddrWire && ddrWire->hasObjectFifo()) {
-            const QString totalDims = ddrWire->objectFifo().value().type.dimensions.trimmed();
-            if (!totalDims.isEmpty()) {
-                const int total = elemCount(totalDims);
-                const int fifo  = elemCount(newDims);
-                if (total > 0 && fifo > 0 && total % fifo != 0) {
-                    // Not a divisor — revert the field and bail
-                    m_updatingUi = true;
-                    m_fifoDimensionsEdit->setText(config.type.dimensions);
-                    m_updatingUi = false;
-                    return;
-                }
-            }
-        }
-    }
-
-    config.type.dimensions = newDims;
-
-    wire->setObjectFifo(config);
-    m_document->notifyChanged();
-}
-
 void AiePropertiesPanel::applyHubPivotProperties()
 {
     if (m_updatingUi || !m_document || !m_hubPivotNameEdit || !m_hubPivotFifoEdit)
@@ -701,6 +1334,75 @@ void AiePropertiesPanel::applyHubPivotProperties()
 
     wire->setObjectFifo(config);
     m_document->notifyChanged();
+}
+
+void AiePropertiesPanel::applyDdrTransferHubTap()
+{
+    if (m_updatingUi || !m_document || !m_ddrTransferTapCombo)
+        return;
+
+    auto* ddrWire = selectedDdrTransferWire();
+    auto* block = selectedBlock();
+    if (!ddrWire || !block)
+        return;
+
+    Canvas::CanvasWire::ObjectFifoConfig config;
+    if (ddrWire->hasObjectFifo()) {
+        config = ddrWire->objectFifo().value();
+    } else {
+        config.depth = 1;
+        const auto* symbolContent = dynamic_cast<const Canvas::BlockContentSymbol*>(block->content());
+        const QString symbol = symbolContent ? symbolContent->symbol().trimmed() : QString();
+        if (symbol == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Distribute).symbol)
+            config.operation = Canvas::CanvasWire::ObjectFifoOperation::Fill;
+        else if (symbol == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Collect).symbol)
+            config.operation = Canvas::CanvasWire::ObjectFifoOperation::Drain;
+    }
+
+    const QString nextTapId = m_ddrTransferTapCombo->currentData().toString().trimmed();
+    if (config.type.tapSymbolId.trimmed() == nextTapId)
+        return;
+
+    config.type.tapSymbolId = nextTapId;
+    ddrWire->setObjectFifo(config);
+    m_document->notifyChanged();
+}
+
+void AiePropertiesPanel::applyObjectFifoDefaults()
+{
+    if (m_updatingUi || !m_objectFifoDefaultNameEdit || !m_objectFifoDefaultDepthSpin || !m_objectFifoDefaultTypeCombo)
+        return;
+
+    Canvas::CanvasController::ObjectFifoDefaults defaults;
+    defaults.name = m_objectFifoDefaultNameEdit->text().trimmed();
+    if (defaults.name.isEmpty())
+        defaults.name = QStringLiteral("of");
+    defaults.depth = m_objectFifoDefaultDepthSpin->value();
+    defaults.type.valueType = canonicalObjectFifoValueType(
+        m_objectFifoDefaultTypeCombo->currentData(Qt::UserRole + 1).toString());
+    defaults.type.typeId = m_objectFifoDefaultTypeCombo->currentData().toString().trimmed();
+    defaults.type.dimensions =
+        m_objectFifoDefaultTypeCombo->currentData(Qt::UserRole + 2).toString().trimmed();
+
+    if (auto* controller = canvasController())
+        controller->setObjectFifoDefaults(defaults);
+
+    if (!m_canvasDocuments || !m_canvasDocuments->hasOpenDocument())
+        return;
+
+    QJsonObject metadata = m_canvasDocuments->activeMetadata();
+    QJsonObject defaultsObject = metadata.value(kObjectFifoDefaultsKey).toObject();
+    defaultsObject.insert(kObjectFifoDefaultNameKey, defaults.name);
+    defaultsObject.insert(kObjectFifoDefaultDepthKey, defaults.depth);
+
+    const QString typeId = m_objectFifoDefaultTypeCombo->currentData().toString().trimmed();
+    if (typeId.isEmpty())
+        defaultsObject.remove(kObjectFifoDefaultTypeIdKey);
+    else
+        defaultsObject.insert(kObjectFifoDefaultTypeIdKey, typeId);
+
+    metadata.insert(kObjectFifoDefaultsKey, defaultsObject);
+    m_canvasDocuments->updateActiveMetadata(metadata);
 }
 
 void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)

@@ -59,6 +59,8 @@ public:
     };
 
     struct ObjectFifoTypeAbstraction final {
+        QString typeId;
+        QString tapSymbolId;
         QString dimensions;
         QString valueType = QStringLiteral("i32");
         DimensionMode mode = DimensionMode::Vector;

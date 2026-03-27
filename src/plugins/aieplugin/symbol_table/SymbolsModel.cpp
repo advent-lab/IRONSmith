@@ -148,6 +148,10 @@ bool SymbolsFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex& sour
         return false;
     if (m_filterKind == SymbolFilterKind::Types && kind != SymbolKind::TypeAbstraction)
         return false;
+    if (m_filterKind == SymbolFilterKind::TensorAccessPatterns
+        && kind != SymbolKind::TensorAccessPattern) {
+        return false;
+    }
 
     if (m_searchText.isEmpty())
         return true;

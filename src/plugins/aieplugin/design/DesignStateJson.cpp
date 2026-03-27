@@ -270,6 +270,10 @@ QJsonObject serializeDesignState(const DesignState& state)
             objectFifo.insert(u"operation"_s, objectFifoOperationToString(link.objectFifo.operation));
             objectFifo.insert(u"dimensions"_s, link.objectFifo.type.dimensions);
             objectFifo.insert(u"valueType"_s, link.objectFifo.type.valueType);
+            if (!link.objectFifo.type.typeId.trimmed().isEmpty())
+                objectFifo.insert(u"typeId"_s, link.objectFifo.type.typeId);
+            if (!link.objectFifo.type.tapSymbolId.trimmed().isEmpty())
+                objectFifo.insert(u"tapSymbolId"_s, link.objectFifo.type.tapSymbolId);
             if (!link.objectFifo.hubName.isEmpty())
                 objectFifo.insert(u"hubName"_s, link.objectFifo.hubName);
             obj.insert(u"objectFifo"_s, objectFifo);
@@ -503,6 +507,8 @@ Utils::Result parseDesignState(const QJsonObject& json, DesignState& out)
                         link.objectFifo.depth = objectFifoObject.value(u"depth"_s).toInt(2);
                         link.objectFifo.operation =
                             objectFifoOperationFromString(objectFifoObject.value(u"operation"_s).toString());
+                        link.objectFifo.type.typeId = objectFifoObject.value(u"typeId"_s).toString();
+                        link.objectFifo.type.tapSymbolId = objectFifoObject.value(u"tapSymbolId"_s).toString();
                         link.objectFifo.type.dimensions = objectFifoObject.value(u"dimensions"_s).toString();
                         link.objectFifo.type.valueType = objectFifoObject.value(u"valueType"_s).toString();
                         link.objectFifo.hubName = objectFifoObject.value(u"hubName"_s).toString();

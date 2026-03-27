@@ -326,6 +326,8 @@ Utils::Result buildDesignStateFromCanvas(Canvas::CanvasDocument& doc,
             link.objectFifo.name = objectFifo.name;
             link.objectFifo.depth = objectFifo.depth;
             link.objectFifo.operation = toDesignObjectFifoOperation(objectFifo.operation);
+            link.objectFifo.type.typeId = objectFifo.type.typeId;
+            link.objectFifo.type.tapSymbolId = objectFifo.type.tapSymbolId;
             link.objectFifo.type.dimensions = objectFifo.type.dimensions;
             link.objectFifo.type.valueType = objectFifo.type.valueType;
             link.objectFifo.hubName = objectFifo.hubName;
@@ -483,6 +485,8 @@ Utils::Result applyDesignStateToCanvas(const DesignState& state,
             objectFifo.name = link.objectFifo.name;
             objectFifo.depth = link.objectFifo.depth;
             objectFifo.operation = toCanvasObjectFifoOperation(link.objectFifo.operation);
+            objectFifo.type.typeId = link.objectFifo.type.typeId;
+            objectFifo.type.tapSymbolId = link.objectFifo.type.tapSymbolId;
             objectFifo.type.dimensions = link.objectFifo.type.dimensions;
             objectFifo.type.valueType = link.objectFifo.type.valueType;
             objectFifo.hubName = link.objectFifo.hubName;

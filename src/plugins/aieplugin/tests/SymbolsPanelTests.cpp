@@ -15,7 +15,9 @@
 #include <QtWidgets/QGroupBox>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QPushButton>
+#include <QtWidgets/QScrollArea>
 #include <QtWidgets/QSpinBox>
+#include <QtWidgets/QToolButton>
 
 namespace {
 
@@ -132,6 +134,16 @@ QLineEdit* findLineEditByPlaceholder(QWidget& parent, const QString& placeholder
     return nullptr;
 }
 
+QPushButton* findPushButtonByText(QWidget& parent, const QString& text)
+{
+    const auto buttons = parent.findChildren<QPushButton*>();
+    for (auto* button : buttons) {
+        if (button && button->text() == text)
+            return button;
+    }
+    return nullptr;
+}
+
 void fireEditingFinished(QLineEdit* edit)
 {
     ASSERT_NE(edit, nullptr);
@@ -171,7 +183,7 @@ TEST(SymbolsPanelTests, PanelInteractionsUpdateControllerWithoutCrashing)
     fireEditingFinished(constantValueEdit);
     QApplication::processEvents();
 
-    auto* addTypeButton = panel.findChild<QPushButton*>(QStringLiteral("AieSymbolsSecondaryButton"));
+    auto* addTypeButton = findPushButtonByText(panel, QStringLiteral("New Type"));
     ASSERT_NE(addTypeButton, nullptr);
     addTypeButton->click();
     QApplication::processEvents();
@@ -212,4 +224,65 @@ TEST(SymbolsPanelTests, PanelInteractionsUpdateControllerWithoutCrashing)
     EXPECT_EQ(symbols.at(1).name, QStringLiteral("in_ty"));
     EXPECT_EQ(refreshedAxis0Edit->text(), QStringLiteral("N"));
     EXPECT_EQ(symbols.at(1).type.shapeTokens, (QStringList{QStringLiteral("N"), QStringLiteral("1")}));
+}
+
+TEST(SymbolsPanelTests, TapEditorCreatesAndUpdatesTapSymbols)
+{
+    ensureApp();
+
+    FakeCanvasDocumentService documentService;
+    Aie::Internal::SymbolsController controller;
+    controller.setCanvasDocumentService(&documentService);
+    documentService.open();
+
+    Aie::Internal::SymbolsPanel panel(&controller);
+    QApplication::processEvents();
+
+    auto* addTapButton = findPushButtonByText(panel, QStringLiteral("New TAP"));
+    ASSERT_NE(addTapButton, nullptr);
+    addTapButton->click();
+    QApplication::processEvents();
+
+    auto* tapGroup = findGroupBoxByTitle(panel, QStringLiteral("Tensor Access Pattern"));
+    ASSERT_NE(tapGroup, nullptr);
+    auto* tapNameEdit = findLineEditByPlaceholder(*tapGroup, QStringLiteral("Identifier"));
+    ASSERT_NE(tapNameEdit, nullptr);
+    tapNameEdit->setText(QStringLiteral("tap_main"));
+    fireEditingFinished(tapNameEdit);
+
+    const auto spinBoxes = tapGroup->findChildren<QSpinBox*>();
+    ASSERT_GE(spinBoxes.size(), 3);
+    spinBoxes[0]->setValue(8);
+    spinBoxes[1]->setValue(32);
+    spinBoxes[2]->setValue(3);
+    QApplication::processEvents();
+
+    const QVector<Aie::Internal::SymbolRecord> symbols = controller.symbols();
+    ASSERT_EQ(symbols.size(), 1);
+    ASSERT_EQ(symbols.at(0).kind, Aie::Internal::SymbolKind::TensorAccessPattern);
+    EXPECT_EQ(symbols.at(0).name, QStringLiteral("tap_main"));
+    EXPECT_EQ(symbols.at(0).tap.rows, 8);
+    EXPECT_EQ(symbols.at(0).tap.cols, 32);
+    EXPECT_EQ(symbols.at(0).tap.offset, 3);
+    EXPECT_EQ(symbols.at(0).tap.sizes, (QVector<int>{4, 4, 4}));
+    EXPECT_EQ(symbols.at(0).tap.strides, (QVector<int>{16, 64, 1}));
+}
+
+TEST(SymbolsPanelTests, PanelWrapsContentInScrollAreaToPreserveUsableWidth)
+{
+    ensureApp();
+
+    FakeCanvasDocumentService documentService;
+    Aie::Internal::SymbolsController controller;
+    controller.setCanvasDocumentService(&documentService);
+    documentService.open();
+
+    Aie::Internal::SymbolsPanel panel(&controller);
+
+    auto* scrollArea = panel.findChild<QScrollArea*>(QStringLiteral("AieSymbolsScrollArea"));
+    ASSERT_NE(scrollArea, nullptr);
+    EXPECT_TRUE(scrollArea->widgetResizable());
+    ASSERT_NE(scrollArea->widget(), nullptr);
+    EXPECT_GE(scrollArea->widget()->minimumWidth(), 420);
+    EXPECT_GE(scrollArea->widget()->minimumHeight(), 760);
 }

@@ -41,6 +41,12 @@ public:
 	enum class LinkingMode { Normal, Split, Join, Broadcast, Distribute, Collect, Fifo, ForwardFifo };
 	Q_ENUM(LinkingMode)
 
+    struct ObjectFifoDefaults final {
+        QString name = QStringLiteral("of");
+        int depth = 2;
+        CanvasWire::ObjectFifoTypeAbstraction type;
+    };
+
 	CanvasController(CanvasDocument* doc, CanvasView* view, CanvasSelectionModel* selection, QObject* parent = nullptr);
 	~CanvasController() override;
 
@@ -49,6 +55,7 @@ public:
 	bool isLinkingInProgress() const noexcept;
 	bool isEndpointDragActive() const noexcept;
     bool isBoundProducerPlacementActive() const noexcept;
+    ObjectFifoDefaults objectFifoDefaults() const noexcept;
 	ObjectId linkStartItem() const noexcept;
 	PortId linkStartPort() const noexcept;
 	QPointF linkPreviewScene() const noexcept;
@@ -61,8 +68,10 @@ public slots:
 	void onCanvasContextMenuRequested(const QPointF& scenePos, const QPoint& globalPos, Qt::KeyboardModifiers mods);
 	void onCanvasWheel(const QPointF& scenePos, const QPoint& angleDelta, const QPoint& pixelDelta, Qt::KeyboardModifiers mods);
 	void onCanvasKeyPressed(int key, Qt::KeyboardModifiers mods);
+    void cancelBoundProducerPlacement();
 	void setMode(Mode mode);
 	void setLinkingMode(LinkingMode mode);
+    void setObjectFifoDefaults(const ObjectFifoDefaults& defaults);
 
 signals:
 	void modeChanged(CanvasController::Mode mode);
