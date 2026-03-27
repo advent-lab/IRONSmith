@@ -451,6 +451,36 @@ public:
         bool useTap = false,
         const ComponentId& tapId = ComponentId());
 
+    /// Add fill with inline TensorAccessPattern computed from distribute-hub geometry.
+    /// @param name     Fill operation name (unique per arm, e.g. "A_arm0")
+    /// @param fifoId   FIFO component to fill
+    /// @param inputName Runtime sequence parameter name (same for all arms of a hub, e.g. "A")
+    /// @param tileId   SHIM tile performing the DMA
+    /// @param totalSize Total element count of the DDR buffer
+    /// @param numArms  Number of arms in the distribute hub
+    /// @param armIndex Zero-based index of this arm
+    /// @param fifoSize Element count per individual FIFO transfer (chunk depth)
+    HlirResult<void> runtimeAddFillDistributed(
+        const std::string& name,
+        const ComponentId& fifoId,
+        const std::string& inputName,
+        const ComponentId& tileId,
+        int totalSize,
+        int numArms,
+        int armIndex,
+        int fifoSize);
+
+    /// Add drain with inline TensorAccessPattern computed from collect-hub geometry.
+    HlirResult<void> runtimeAddDrainDistributed(
+        const std::string& name,
+        const ComponentId& fifoId,
+        const std::string& outputName,
+        const ComponentId& tileId,
+        int totalSize,
+        int numArms,
+        int armIndex,
+        int fifoSize);
+
     /// Build runtime sequence
     /// @return Success or errors
     HlirResult<void> runtimeBuild();

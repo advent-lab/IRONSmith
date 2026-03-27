@@ -384,7 +384,10 @@ bool CanvasDocument::resolveHubArmLabelForEndpoint(ObjectId itemId,
     if (!block || !block->isLinkHub())
         return false;
 
-    // Find portId's 0-based position among ports of the same role on this hub block.
+    // Find portId's role and count how many ports share that role.
+    // The pivot port is the lone port of its role (1 input for split/distribute,
+    // 1 output for join/collect). Arm ports are the many ports of the other role.
+    // Only label ports where count > 1 — those are the actual arm ports.
     PortRole role = PortRole::Dynamic;
     for (const auto& port : block->ports()) {
         if (port.id == portId) {
@@ -394,6 +397,14 @@ bool CanvasDocument::resolveHubArmLabelForEndpoint(ObjectId itemId,
     }
     if (role == PortRole::Dynamic)
         return false;
+
+    int count = 0;
+    for (const auto& port : block->ports()) {
+        if (port.role == role)
+            ++count;
+    }
+    if (count <= 1)
+        return false; // pivot port — not an arm
 
     int index = 0;
     for (const auto& port : block->ports()) {

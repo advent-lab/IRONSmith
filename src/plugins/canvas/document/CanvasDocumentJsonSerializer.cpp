@@ -459,7 +459,19 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
             obj.insert(u"arrowPolicy"_s, arrowPolicyToString(wire->arrowPolicy()));
             if (wire->hasColorOverride())
                 obj.insert(u"colorOverride"_s, colorToString(wire->colorOverride()));
-            if (wire->hasObjectFifo()) {
+            if (wire->hasFillDrain()) {
+                const auto& fd = wire->fillDrain().value();
+                QJsonObject fdObj;
+                fdObj.insert(u"paramName"_s, fd.paramName);
+                fdObj.insert(u"isFill"_s,    fd.isFill);
+                fdObj.insert(u"totalDims"_s, fd.totalDims);
+                fdObj.insert(u"valueType"_s, fd.valueType);
+                if (fd.symbolRef.has_value() && !fd.symbolRef->isEmpty())
+                    fdObj.insert(u"symbolRef"_s, *fd.symbolRef);
+                if (!fd.fifoName.isEmpty())
+                    fdObj.insert(u"fifoName"_s, fd.fifoName);
+                obj.insert(u"fillDrain"_s, fdObj);
+            } else if (wire->hasObjectFifo()) {
                 const auto& fifo = wire->objectFifo().value();
                 QJsonObject fifoObject;
                 fifoObject.insert(u"name"_s, fifo.name);
@@ -563,6 +575,7 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
         QColor colorOverride;
         bool hasColorOverride = false;
         std::optional<CanvasWire::ObjectFifoConfig> objectFifo;
+        std::optional<CanvasWire::FillDrainConfig>  fillDrain;
         QVector<FabricCoord> routeOverride;
     };
 
@@ -789,6 +802,21 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                 wire.hasColorOverride = true;
             }
 
+            // New format: dedicated fillDrain object.
+            const QJsonObject fillDrainObject = item.value(u"fillDrain"_s).toObject();
+            if (!fillDrainObject.isEmpty()) {
+                CanvasWire::FillDrainConfig fd;
+                fd.paramName = fillDrainObject.value(u"paramName"_s).toString(QStringLiteral("buf"));
+                fd.isFill    = fillDrainObject.value(u"isFill"_s).toBool(true);
+                fd.totalDims = fillDrainObject.value(u"totalDims"_s).toString();
+                fd.valueType = fillDrainObject.value(u"valueType"_s).toString(QStringLiteral("i32"));
+                const QString fdSymRef = fillDrainObject.value(u"symbolRef"_s).toString();
+                if (!fdSymRef.isEmpty())
+                    fd.symbolRef = fdSymRef;
+                fd.fifoName = fillDrainObject.value(u"fifoName"_s).toString();
+                wire.fillDrain = fd;
+            }
+
             const QJsonObject objectFifoObject = item.value(u"objectFifo"_s).toObject();
             if (!objectFifoObject.isEmpty()) {
                 CanvasWire::ObjectFifoConfig objectFifo;
@@ -817,7 +845,22 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                     tap.patternRepeat = tapObj.value(u"patternRepeat"_s).toString();
                     objectFifo.type.tap = tap;
                 }
-                wire.objectFifo = objectFifo;
+                // Backward-compat migration: old Fill/Drain wires stored as objectFifo
+                // with operation=fill/drain — convert them to FillDrainConfig.
+                if (!wire.fillDrain.has_value() &&
+                    (objectFifo.operation == CanvasWire::ObjectFifoOperation::Fill ||
+                     objectFifo.operation == CanvasWire::ObjectFifoOperation::Drain)) {
+                    CanvasWire::FillDrainConfig fd;
+                    fd.isFill    = (objectFifo.operation == CanvasWire::ObjectFifoOperation::Fill);
+                    fd.paramName = objectFifo.name;
+                    fd.totalDims = objectFifo.type.dimensions;
+                    fd.valueType = objectFifo.type.valueType;
+                    if (objectFifo.type.symbolRef.has_value())
+                        fd.symbolRef = objectFifo.type.symbolRef;
+                    wire.fillDrain = fd;
+                } else {
+                    wire.objectFifo = objectFifo;
+                }
             }
 
             const QJsonArray routeArray = item.value(u"routeOverride"_s).toArray();
@@ -882,7 +925,9 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
         wire->setArrowPolicy(parsed.arrowPolicy);
         if (parsed.hasColorOverride)
             wire->setColorOverride(parsed.colorOverride);
-        if (parsed.objectFifo.has_value())
+        if (parsed.fillDrain.has_value())
+            wire->setFillDrain(*parsed.fillDrain);
+        else if (parsed.objectFifo.has_value())
             wire->setObjectFifo(*parsed.objectFifo);
         if (!parsed.routeOverride.isEmpty()) {
             std::vector<FabricCoord> route;

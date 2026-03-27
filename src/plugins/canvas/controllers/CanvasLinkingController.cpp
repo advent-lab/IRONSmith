@@ -481,9 +481,25 @@ void CanvasLinkingController::applyLinkingModeDefaults(CanvasWire& wire,
     const auto config = defaultObjectFifoConfig(start, end);
     if (!config.has_value()) {
         wire.clearObjectFifo();
+        wire.clearFillDrain();
         return;
     }
 
+    // DDR-side wires (Fill/Drain) are modelled as FillDrainConfig, not ObjectFifo.
+    if (config->operation == CanvasWire::ObjectFifoOperation::Fill ||
+        config->operation == CanvasWire::ObjectFifoOperation::Drain) {
+        CanvasWire::FillDrainConfig fd;
+        fd.isFill    = (config->operation == CanvasWire::ObjectFifoOperation::Fill);
+        fd.paramName = config->name;
+        fd.totalDims = config->type.dimensions;
+        fd.valueType = config->type.valueType;
+        if (config->type.symbolRef.has_value())
+            fd.symbolRef = config->type.symbolRef;
+        wire.setFillDrain(fd);
+        return;
+    }
+
+    wire.clearFillDrain();
     wire.setObjectFifo(*config);
 }
 

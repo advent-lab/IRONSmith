@@ -739,14 +739,89 @@ void AiePropertiesPanel::buildUi()
 
     auto* ddrGroup = new QGroupBox(QStringLiteral("DDR Runtime"), fieldsHost);
     ddrGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
-    new QVBoxLayout(ddrGroup);
+    auto* ddrGroupLayout = new QVBoxLayout(ddrGroup);
+    ddrGroupLayout->setContentsMargins(12, 8, 12, 12);
+    ddrGroupLayout->setSpacing(4);
+    {
+        auto* ddrInputsLabel = new QLabel(QStringLiteral("Inputs"), ddrGroup);
+        ddrInputsLabel->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+        auto* ddrInputsTable = new QTableWidget(0, 2, ddrGroup);
+        ddrInputsTable->setObjectName(QStringLiteral("AiePropertiesField"));
+        ddrInputsTable->setHorizontalHeaderLabels({QStringLiteral("Name"), QStringLiteral("Total Size")});
+        ddrInputsTable->horizontalHeader()->setStretchLastSection(true);
+        ddrInputsTable->verticalHeader()->setVisible(false);
+        ddrInputsTable->verticalHeader()->setDefaultSectionSize(26);
+        ddrInputsTable->setEditTriggers(QAbstractItemView::AllEditTriggers);
+        ddrInputsTable->setSelectionMode(QAbstractItemView::NoSelection);
+        ddrInputsTable->setMaximumHeight(3 * 26 + 34); // header + 3 rows
+
+        auto* ddrOutputsLabel = new QLabel(QStringLiteral("Outputs"), ddrGroup);
+        ddrOutputsLabel->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+        auto* ddrOutputsTable = new QTableWidget(0, 2, ddrGroup);
+        ddrOutputsTable->setObjectName(QStringLiteral("AiePropertiesField"));
+        ddrOutputsTable->setHorizontalHeaderLabels({QStringLiteral("Name"), QStringLiteral("Total Size")});
+        ddrOutputsTable->horizontalHeader()->setStretchLastSection(true);
+        ddrOutputsTable->verticalHeader()->setVisible(false);
+        ddrOutputsTable->verticalHeader()->setDefaultSectionSize(26);
+        ddrOutputsTable->setEditTriggers(QAbstractItemView::AllEditTriggers);
+        ddrOutputsTable->setSelectionMode(QAbstractItemView::NoSelection);
+        ddrOutputsTable->setMaximumHeight(3 * 26 + 34); // header + 3 rows
+
+        ddrGroupLayout->addWidget(ddrInputsLabel);
+        ddrGroupLayout->addWidget(ddrInputsTable);
+        ddrGroupLayout->addWidget(ddrOutputsLabel);
+        ddrGroupLayout->addWidget(ddrOutputsTable);
+
+        m_ddrInputsTable = ddrInputsTable;
+        m_ddrOutputsTable = ddrOutputsTable;
+    }
     m_ddrGroup = ddrGroup;
+
+    auto* ddrPivotWireGroup = new QGroupBox(QStringLiteral("DDR Pivot Wire"), fieldsHost);
+    ddrPivotWireGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
+    {
+        auto* ddrPivotForm = new QFormLayout(ddrPivotWireGroup);
+        ddrPivotForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+        ddrPivotForm->setContentsMargins(12, 12, 12, 12);
+        ddrPivotForm->setHorizontalSpacing(10);
+        ddrPivotForm->setVerticalSpacing(8);
+        ddrPivotForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        auto* ddrPivotParamEdit = new QLineEdit(ddrPivotWireGroup);
+        ddrPivotParamEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+        ddrPivotParamEdit->setPlaceholderText(QStringLiteral("e.g. A or buf"));
+        auto* ddrPivotLbl = new QLabel(QStringLiteral("Param Name"), ddrPivotWireGroup);
+        ddrPivotLbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+        ddrPivotForm->addRow(ddrPivotLbl, ddrPivotParamEdit);
+        m_ddrPivotParamEdit = ddrPivotParamEdit;
+    }
+    m_ddrPivotWireGroup = ddrPivotWireGroup;
+
+    auto* armWireGroup = new QGroupBox(QStringLiteral("Arm Wire"), fieldsHost);
+    armWireGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
+    auto* armWireForm = new QFormLayout(armWireGroup);
+    armWireForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    armWireForm->setContentsMargins(12, 12, 12, 12);
+    armWireForm->setHorizontalSpacing(10);
+    armWireForm->setVerticalSpacing(8);
+    armWireForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    auto* armFifoEdit = new QLineEdit(armWireGroup);
+    armFifoEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    armFifoEdit->setPlaceholderText(QStringLiteral("e.g. inA1"));
+    {
+        auto* lbl = new QLabel(QStringLiteral("Target FIFO"), armWireGroup);
+        lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+        armWireForm->addRow(lbl, armFifoEdit);
+    }
+    m_armWireGroup = armWireGroup;
+    m_armFifoEdit  = armFifoEdit;
 
     fieldsLayout->addWidget(tileGroup);
     fieldsLayout->addWidget(hubPivotGroup);
     fieldsLayout->addWidget(fifoGroup);
     fieldsLayout->addWidget(ddrTransferGroup);
     fieldsLayout->addWidget(ddrGroup);
+    fieldsLayout->addWidget(ddrPivotWireGroup);
+    fieldsLayout->addWidget(armWireGroup);
     fieldsLayout->addWidget(objectFifosGroup);
     fieldsLayout->addStretch(1);
 
@@ -781,6 +856,22 @@ void AiePropertiesPanel::buildUi()
             this, &AiePropertiesPanel::applyFifoAnnotation);
     connect(ddrTransferTapCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int) { applyDdrTransferHubTap(); });
+
+    if (m_ddrInputsTable) {
+        connect(m_ddrInputsTable, &QTableWidget::cellChanged,
+                this, [this](int row, int) { applyDdrTableRow(true, row); });
+    }
+    if (m_ddrOutputsTable) {
+        connect(m_ddrOutputsTable, &QTableWidget::cellChanged,
+                this, [this](int row, int) { applyDdrTableRow(false, row); });
+    }
+    if (m_ddrPivotParamEdit) {
+        connect(m_ddrPivotParamEdit, &QLineEdit::editingFinished,
+                this, &AiePropertiesPanel::applyDdrPivotParam);
+    }
+
+    connect(armFifoEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyArmWireEntry);
 
     connect(objectFifoDefaultNameEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyObjectFifoDefaults);
@@ -1103,11 +1194,13 @@ void AiePropertiesPanel::showSelectionState(SelectionKind kind,
         m_detailLabel->setText(detail);
     }
 
-    const bool showTile     = (kind == SelectionKind::Tile);
-    const bool showHubPivot = (kind == SelectionKind::HubPivotWire);
-    const bool showFifo     = (kind == SelectionKind::FifoWire);
+    const bool showTile         = (kind == SelectionKind::Tile);
+    const bool showHubPivot     = (kind == SelectionKind::HubPivotWire);
+    const bool showFifo         = (kind == SelectionKind::FifoWire);
     const bool showDdrTransferHub = (kind == SelectionKind::DdrTransferHub);
-    const bool showDdr      = (kind == SelectionKind::DdrBlock);
+    const bool showDdr          = (kind == SelectionKind::DdrBlock);
+    const bool showDdrPivot     = (kind == SelectionKind::DdrPivotWire);
+    const bool showArmWire      = (kind == SelectionKind::ArmWire);
     if (m_objectFifosGroup)
         m_objectFifosGroup->setVisible(m_canvasHost && m_canvasHost->canvasActive() && m_document);
     if (m_tileGroup)
@@ -1120,6 +1213,10 @@ void AiePropertiesPanel::showSelectionState(SelectionKind kind,
         m_ddrTransferGroup->setVisible(showDdrTransferHub);
     if (m_ddrGroup)
         m_ddrGroup->setVisible(showDdr);
+    if (m_ddrPivotWireGroup)
+        m_ddrPivotWireGroup->setVisible(showDdrPivot);
+    if (m_armWireGroup)
+        m_armWireGroup->setVisible(showArmWire);
 }
 
 // Returns the first FIFO wire whose endpoint A or B is attached to blockId.
@@ -1278,7 +1375,7 @@ void AiePropertiesPanel::refreshSelection()
     if (auto* block = dynamic_cast<Canvas::CanvasBlock*>(item)) {
         if (block->specId().trimmed() == QStringLiteral("ddr")) {
             if (!m_updatingUi)
-                rebuildDdrGroup(block);
+                refreshDdrGroup(block);
             showSelectionState(SelectionKind::DdrBlock,
                                QStringLiteral("DDR block selected"),
                                QStringLiteral("Configure runtime inputs and outputs."));
@@ -1335,7 +1432,53 @@ void AiePropertiesPanel::refreshSelection()
     }
 
     if (auto* wire = dynamic_cast<Canvas::CanvasWire*>(item)) {
+        // Check if this is a hub arm wire or DDR pivot wire (no ObjectFifo).
         if (!wire->hasObjectFifo()) {
+            const auto& epA = wire->a();
+            const auto& epB = wire->b();
+            Canvas::CanvasBlock* blkA = nullptr;
+            Canvas::CanvasBlock* blkB = nullptr;
+            bool aIsDdr = false, bIsDdr = false;
+            bool aIsHub = false, bIsHub = false;
+            if (epA.attached.has_value() && epB.attached.has_value()) {
+                blkA = dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(epA.attached->itemId));
+                blkB = dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(epB.attached->itemId));
+                aIsDdr = blkA && blkA->specId().trimmed() == QStringLiteral("ddr");
+                bIsDdr = blkB && blkB->specId().trimmed() == QStringLiteral("ddr");
+                aIsHub = blkA && blkA->isLinkHub();
+                bIsHub = blkB && blkB->isLinkHub();
+            }
+            // DDR pivot wire: one endpoint DDR, one endpoint hub.
+            if ((aIsDdr && bIsHub) || (bIsDdr && aIsHub)) {
+                m_ddrPivotWireId = wire->id();
+                m_updatingUi = true;
+                if (m_ddrPivotParamEdit) {
+                    const QString cur = wire->hasFillDrain()
+                        ? wire->fillDrain()->paramName : QString{};
+                    m_ddrPivotParamEdit->setText(cur);
+                }
+                m_updatingUi = false;
+                showSelectionState(SelectionKind::DdrPivotWire,
+                                   QStringLiteral("DDR pivot wire selected"),
+                                   QStringLiteral("Type the buffer parameter name."));
+                return;
+            }
+            // Arm wire: one endpoint is a hub, neither is DDR.
+            const bool isArmWire = !aIsDdr && !bIsDdr && (aIsHub || bIsHub);
+            if (isArmWire) {
+                m_armWireId = wire->id();
+                m_updatingUi = true;
+                if (m_armFifoEdit) {
+                    const QString cur = wire->hasFillDrain()
+                        ? wire->fillDrain()->fifoName : QString{};
+                    m_armFifoEdit->setText(cur);
+                }
+                m_updatingUi = false;
+                showSelectionState(SelectionKind::ArmWire,
+                                   QStringLiteral("Arm wire selected"),
+                                   QStringLiteral("Type the target FIFO name."));
+                return;
+            }
             showSelectionState(SelectionKind::Unsupported,
                                QStringLiteral("Wire selected"),
                                QStringLiteral("Only FIFO annotation wires are editable in this panel."));
@@ -1589,6 +1732,10 @@ void AiePropertiesPanel::applyDdrTransferHubTap()
     if (!ddrWire || !block)
         return;
 
+    // FillDrain wires auto-compute TAPs from totalDims/numArms — no tapSymbolId applies.
+    if (ddrWire->hasFillDrain())
+        return;
+
     Canvas::CanvasWire::ObjectFifoConfig config;
     if (ddrWire->hasObjectFifo()) {
         config = ddrWire->objectFifo().value();
@@ -1648,348 +1795,207 @@ void AiePropertiesPanel::applyObjectFifoDefaults()
     m_canvasDocuments->updateActiveMetadata(metadata);
 }
 
-void AiePropertiesPanel::rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock)
+void AiePropertiesPanel::refreshDdrGroup(Canvas::CanvasBlock* ddrBlock)
 {
-    if (!m_document || !m_ddrGroup)
+    if (!m_document || !m_ddrInputsTable || !m_ddrOutputsTable)
         return;
 
-    // Remove old dynamic content
-    if (m_ddrContent) {
-        delete m_ddrContent;
-        m_ddrContent = nullptr;
-    }
+    struct Entry {
+        Canvas::ObjectId wireId;
+        QString name;
+        QString dims;
+    };
+    QList<Entry> fillEntries, drainEntries;
 
-    const auto& items = m_document->items();
-
-    // Pass 1: find fill SHIMs (DDR→SHIM) and drain SHIMs (SHIM→DDR).
-    // Also keep the DDR↔SHIM wire itself — its ObjectFifo dimensions = total DDR buffer size.
-    QSet<Canvas::ObjectId> fillShimIds;
-    QSet<Canvas::ObjectId> drainShimIds;
-    QHash<Canvas::ObjectId, Canvas::CanvasWire*> fillShimDdrWires;
-    QHash<Canvas::ObjectId, Canvas::CanvasWire*> drainShimDdrWires;
-
-    for (const auto& item : items) {
+    for (const auto& item : m_document->items()) {
         auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
         if (!wire) continue;
         const auto& epA = wire->a();
         const auto& epB = wire->b();
         if (!epA.attached.has_value() || !epB.attached.has_value()) continue;
 
-        auto* blockA = dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(epA.attached->itemId));
-        auto* blockB = dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(epB.attached->itemId));
-        if (!blockA || !blockB) continue;
+        const bool aIsDdr = (epA.attached->itemId == ddrBlock->id());
+        const bool bIsDdr = (epB.attached->itemId == ddrBlock->id());
+        if (!aIsDdr && !bIsDdr) continue;
 
-        if (blockA->id() == ddrBlock->id()
-                && blockB->specId().startsWith(QLatin1StringView("shim"))) {
-            fillShimIds.insert(blockB->id());
-            fillShimDdrWires.insert(blockB->id(), wire);
-        } else if (blockB->id() == ddrBlock->id()
-                && blockA->specId().startsWith(QLatin1StringView("shim"))) {
-            drainShimIds.insert(blockA->id());
-            drainShimDdrWires.insert(blockA->id(), wire);
+        bool isFill;
+        if (wire->hasFillDrain()) {
+            isFill = wire->fillDrain()->isFill;
+        } else {
+            const Canvas::PortRef& otherRef = aIsDdr ? epB.attached.value() : epA.attached.value();
+            auto* otherBlock = dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(otherRef.itemId));
+            if (!otherBlock) continue;
+            Canvas::PortRole role = Canvas::PortRole::Dynamic;
+            for (const auto& port : otherBlock->ports()) {
+                if (port.id == otherRef.portId) { role = port.role; break; }
+            }
+            if (role == Canvas::PortRole::Consumer)
+                isFill = true;
+            else if (role == Canvas::PortRole::Producer)
+                isFill = false;
+            else
+                continue;
         }
-    }
 
-    // Pass 2: find FIFO wires where the SHIM is producer (fill) or consumer (drain).
-    struct FifoEntry {
-        Canvas::CanvasWire* fifoWire;  // SHIM→compute (transfer size)
-        Canvas::CanvasWire* ddrWire;   // DDR→SHIM (total buffer size)
-    };
-    QList<FifoEntry> fillEntries;
-    QList<FifoEntry> drainEntries;
-
-    for (const auto& item : items) {
-        auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
-        if (!wire) continue;
-        const auto& epA = wire->a();
-        const auto& epB = wire->b();
-        if (!epA.attached.has_value() || !epB.attached.has_value()) continue;
-
-        auto* blockA = dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(epA.attached->itemId));
-        auto* blockB = dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(epB.attached->itemId));
-        if (!blockA || !blockB) continue;
-        if (blockA->specId() == QStringLiteral("ddr") || blockB->specId() == QStringLiteral("ddr"))
-            continue;
-
-        if (fillShimIds.contains(blockA->id()))
-            fillEntries.append(FifoEntry{wire, fillShimDdrWires.value(blockA->id())});
-        else if (drainShimIds.contains(blockB->id()))
-            drainEntries.append(FifoEntry{wire, drainShimDdrWires.value(blockB->id())});
-    }
-
-    // Build the dynamic content widget
-    auto* content = new QWidget(m_ddrGroup);
-    content->setObjectName(QStringLiteral("AieDdrContent"));
-    auto* contentLayout = new QVBoxLayout(content);
-    contentLayout->setContentsMargins(0, 4, 0, 0);
-    contentLayout->setSpacing(4);
-    m_ddrContent = content;
-
-    // Helper: section header label
-    const auto makeHeader = [content](const QString& title) -> QLabel* {
-        auto* lbl = new QLabel(title, content);
-        lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
-        return lbl;
-    };
-
-    // Collect TypeAbstraction symbol names for DDR symbol combos.
-    QStringList typeSymbolNames;
-    QStringList dimsCandidates;
-    if (m_symbolsController) {
-        for (const auto& sym : m_symbolsController->symbols()) {
-            if (sym.kind == SymbolKind::TypeAbstraction)
-                typeSymbolNames.append(sym.name);
+        Entry e;
+        e.wireId = wire->id();
+        if (wire->hasFillDrain()) {
+            e.name = wire->fillDrain()->paramName;
+            e.dims = wire->fillDrain()->totalDims;
         }
-        dimsCandidates = m_symbolsController->dimensionReferenceCandidates();
+        if (e.name.isEmpty()) {
+            const int idx = isFill ? fillEntries.size() : drainEntries.size();
+            e.name = isFill ? QString(QChar(u'A' + idx))
+                            : (QStringLiteral("out") + QString::number(idx));
+        }
+
+        if (isFill) fillEntries.append(e);
+        else        drainEntries.append(e);
     }
 
-    // Helper: one row of [name][totalDims][type] for a fill/drain param.
-    // fifoWire: SHIM→compute wire (name and valueType)
-    // ddrWire:  DDR→SHIM wire (total buffer dimensions for main())
-    const auto makeRow = [this, content, contentLayout, typeSymbolNames, dimsCandidates](
-            Canvas::CanvasWire* fifoWire, Canvas::CanvasWire* ddrWire, const QString& defaultName)
     {
-        QString name = defaultName;
-        QString dims = QStringLiteral("1024");
-        QString type = QStringLiteral("i32");
-        bool isMatrix = false;
-        QString ddrSymbol;
-        Canvas::CanvasWire::TensorTilerConfig tapCfg;
-        if (fifoWire->hasObjectFifo()) {
-            const auto& cfg = fifoWire->objectFifo().value();
-            if (!cfg.name.isEmpty())           name = cfg.name;
-            if (!cfg.type.valueType.isEmpty()) type = cfg.type.valueType;
-            ddrSymbol = cfg.type.symbolRef.value_or(QString{});
+        const QSignalBlocker b(m_ddrInputsTable);
+        m_ddrInputsTable->setRowCount(fillEntries.size());
+        for (int i = 0; i < fillEntries.size(); ++i) {
+            const auto& e = fillEntries[i];
+            auto* nameItem = new QTableWidgetItem(e.name);
+            nameItem->setData(Qt::UserRole, QVariant::fromValue(e.wireId));
+            m_ddrInputsTable->setItem(i, 0, nameItem);
+            m_ddrInputsTable->setItem(i, 1, new QTableWidgetItem(e.dims));
         }
-        // Total buffer size and TAP config live on the DDR→SHIM wire
-        if (ddrWire && ddrWire->hasObjectFifo()) {
-            const auto& ddrCfg = ddrWire->objectFifo().value();
-            const QString d = ddrCfg.type.dimensions.trimmed();
-            if (!d.isEmpty()) dims = d;
-            isMatrix = (ddrCfg.type.mode == Canvas::CanvasWire::DimensionMode::Matrix);
-            if (ddrCfg.type.tap.has_value())
-                tapCfg = *ddrCfg.type.tap;
-        }
-
-        // ── Symbol row ───────────────────────────────────────────────────────
-        auto* symbolRow = new QWidget(content);
-        auto* symbolRowLayout = new QHBoxLayout(symbolRow);
-        symbolRowLayout->setContentsMargins(0, 0, 0, 0);
-        symbolRowLayout->setSpacing(4);
-        auto* symLbl = new QLabel(QStringLiteral("Symbol:"), symbolRow);
-        symLbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
-        auto* ddrSymbolCombo = new QComboBox(symbolRow);
-        ddrSymbolCombo->setObjectName(QStringLiteral("AiePropertiesField"));
-        ddrSymbolCombo->addItem(QStringLiteral("None"));
-        for (const QString& sn : typeSymbolNames)
-            ddrSymbolCombo->addItem(sn);
-        {
-            const int si = ddrSymbol.isEmpty() ? 0 : ddrSymbolCombo->findText(ddrSymbol);
-            ddrSymbolCombo->setCurrentIndex(si >= 0 ? si : 0);
-        }
-        symbolRowLayout->addWidget(symLbl);
-        symbolRowLayout->addWidget(ddrSymbolCombo, 1);
-        contentLayout->addWidget(symbolRow);
-
-        // ── Top row: Name | Dims | Type | Mode ──────────────────────────────
-        auto* row = new QWidget(content);
-        auto* rowLayout = new QHBoxLayout(row);
-        rowLayout->setContentsMargins(0, 0, 0, 0);
-        rowLayout->setSpacing(4);
-
-        auto* nameEdit = new QLineEdit(name, row);
-        nameEdit->setObjectName(QStringLiteral("AiePropertiesField"));
-        nameEdit->setFixedWidth(55);
-        nameEdit->setPlaceholderText(QStringLiteral("name"));
-
-        auto* dimsEdit = new QLineEdit(dims, row);
-        dimsEdit->setObjectName(QStringLiteral("AiePropertiesField"));
-        dimsEdit->setPlaceholderText(QStringLiteral("e.g. 1024 or MxN"));
-        if (!dimsCandidates.isEmpty()) {
-            auto* dimsCompleter = new QCompleter(dimsCandidates, dimsEdit);
-            dimsCompleter->setCaseSensitivity(Qt::CaseInsensitive);
-            dimsEdit->setCompleter(dimsCompleter);
-        }
-
-        auto* typeCombo = new QComboBox(row);
-        typeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
-        typeCombo->addItems({QStringLiteral("i8"), QStringLiteral("i16"), QStringLiteral("i32")});
-        const int tidx = typeCombo->findText(type.trimmed().toLower());
-        typeCombo->setCurrentIndex(tidx >= 0 ? tidx : typeCombo->findText(QStringLiteral("i32")));
-
-        auto* modeCombo = new QComboBox(row);
-        modeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
-        modeCombo->addItems({QStringLiteral("Vector"), QStringLiteral("Matrix")});
-        modeCombo->setCurrentIndex(isMatrix ? 1 : 0);
-
-        const bool ddrUsingSymbol = (ddrSymbolCombo->currentIndex() > 0);
-        dimsEdit->setEnabled(!ddrUsingSymbol);
-        typeCombo->setEnabled(!ddrUsingSymbol);
-
-        rowLayout->addWidget(nameEdit);
-        rowLayout->addWidget(dimsEdit, 1);
-        rowLayout->addWidget(typeCombo);
-        rowLayout->addWidget(modeCombo);
-        contentLayout->addWidget(row);
-
-        // ── TAP section (only shown in Matrix mode) ──────────────────────────
-        auto* tapWidget = new QWidget(content);
-        tapWidget->setVisible(isMatrix);
-        auto* tapForm = new QFormLayout(tapWidget);
-        tapForm->setContentsMargins(16, 2, 0, 4);
-        tapForm->setSpacing(3);
-        tapForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
-
-        const auto makeTapField = [tapWidget](const QString& val, const QString& placeholder) {
-            auto* e = new QLineEdit(val, tapWidget);
-            e->setObjectName(QStringLiteral("AiePropertiesField"));
-            e->setPlaceholderText(placeholder);
-            return e;
-        };
-        auto* tileDimsEdit   = makeTapField(tapCfg.tileDims,      QStringLiteral("e.g. 1 x 512"));
-        auto* tileCountsEdit = makeTapField(tapCfg.tileCounts,    QStringLiteral("e.g. rows x cols // 512"));
-        auto* repeatEdit     = makeTapField(tapCfg.patternRepeat, QStringLiteral("1"));
-
-        tapForm->addRow(QStringLiteral("Tile Dimensions"), tileDimsEdit);
-        tapForm->addRow(QStringLiteral("Tile Counts"),     tileCountsEdit);
-        tapForm->addRow(QStringLiteral("Pattern Repeat"),  repeatEdit);
-        contentLayout->addWidget(tapWidget);
-
-        connect(modeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                tapWidget, [tapWidget](int idx) { tapWidget->setVisible(idx == 1); });
-
-        // ── Apply function ───────────────────────────────────────────────────
-        const Canvas::ObjectId fifoWireId = fifoWire->id();
-        const Canvas::ObjectId ddrWireId  = ddrWire ? ddrWire->id() : Canvas::ObjectId{};
-        const auto applyFn = [this, fifoWireId, ddrWireId,
-                               nameEdit, dimsEdit, typeCombo, modeCombo,
-                               ddrSymbolCombo,
-                               tileDimsEdit, tileCountsEdit, repeatEdit]() {
-            Canvas::CanvasWire::TensorTilerConfig tap;
-            tap.tileDims      = tileDimsEdit->text().trimmed();
-            tap.tileCounts    = tileCountsEdit->text().trimmed();
-            tap.patternRepeat = repeatEdit->text().trimmed();
-            tap.pruneStep     = false;
-            tap.index         = 0;
-            const QString symName = (ddrSymbolCombo && ddrSymbolCombo->currentIndex() > 0)
-                ? ddrSymbolCombo->currentText() : QString{};
-            applyDdrEntry(fifoWireId, ddrWireId,
-                          nameEdit->text(), dimsEdit->text(), typeCombo->currentText(),
-                          modeCombo->currentIndex() == 1, tap, symName);
-        };
-        connect(nameEdit,       &QLineEdit::editingFinished, this, applyFn);
-        connect(dimsEdit,       &QLineEdit::editingFinished, this, applyFn);
-        connect(tileDimsEdit,   &QLineEdit::editingFinished, this, applyFn);
-        connect(tileCountsEdit, &QLineEdit::editingFinished, this, applyFn);
-        connect(repeatEdit,     &QLineEdit::editingFinished, this, applyFn);
-        connect(typeCombo,  QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [applyFn](int) { applyFn(); });
-        connect(modeCombo,  QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [applyFn](int) { applyFn(); });
-        connect(ddrSymbolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this, ddrSymbolCombo, dimsEdit, typeCombo, applyFn](int idx) {
-                    const bool sym = (idx > 0);
-                    dimsEdit->setEnabled(!sym);
-                    typeCombo->setEnabled(!sym);
-                    if (sym && m_symbolsController) {
-                        const QString symName = ddrSymbolCombo->currentText();
-                        for (const auto& s : m_symbolsController->symbols()) {
-                            if (s.name == symName && s.kind == SymbolKind::TypeAbstraction) {
-                                dimsEdit->setText(s.type.shapeTokens.join(u'x'));
-                                const int ti = typeCombo->findText(shortValueType(s.type.dtype));
-                                if (ti >= 0) typeCombo->setCurrentIndex(ti);
-                                break;
-                            }
-                        }
-                    }
-                    applyFn();
-                });
-    };
-
-    // Inputs section
-    contentLayout->addWidget(makeHeader(QStringLiteral("Inputs")));
-    if (fillEntries.isEmpty()) {
-        auto* none = new QLabel(QStringLiteral("No fill connections"), content);
-        none->setObjectName(QStringLiteral("AiePropertiesDetailLabel"));
-        contentLayout->addWidget(none);
-    } else {
-        for (int i = 0; i < fillEntries.size(); ++i)
-            makeRow(fillEntries[i].fifoWire, fillEntries[i].ddrWire, QString(QChar(u'A' + i)));
     }
-
-    // Outputs section
-    contentLayout->addWidget(makeHeader(QStringLiteral("Outputs")));
-    if (drainEntries.isEmpty()) {
-        auto* none = new QLabel(QStringLiteral("No drain connections"), content);
-        none->setObjectName(QStringLiteral("AiePropertiesDetailLabel"));
-        contentLayout->addWidget(none);
-    } else {
-        for (int i = 0; i < drainEntries.size(); ++i)
-            makeRow(drainEntries[i].fifoWire, drainEntries[i].ddrWire, QStringLiteral("out") + QString::number(i));
+    {
+        const QSignalBlocker b(m_ddrOutputsTable);
+        m_ddrOutputsTable->setRowCount(drainEntries.size());
+        for (int i = 0; i < drainEntries.size(); ++i) {
+            const auto& e = drainEntries[i];
+            auto* nameItem = new QTableWidgetItem(e.name);
+            nameItem->setData(Qt::UserRole, QVariant::fromValue(e.wireId));
+            m_ddrOutputsTable->setItem(i, 0, nameItem);
+            m_ddrOutputsTable->setItem(i, 1, new QTableWidgetItem(e.dims));
+        }
     }
-
-    qobject_cast<QVBoxLayout*>(m_ddrGroup->layout())->addWidget(content);
 }
 
-void AiePropertiesPanel::applyDdrEntry(Canvas::ObjectId fifoWireId,
-                                        Canvas::ObjectId ddrWireId,
-                                        const QString& name,
-                                        const QString& dims,
-                                        const QString& type,
-                                        bool isMatrix,
-                                        const Canvas::CanvasWire::TensorTilerConfig& tap,
-                                        const QString& symbolRef)
+void AiePropertiesPanel::applyDdrTableRow(bool isFill, int row)
 {
-    if (m_updatingUi || !m_document)
-        return;
+    if (m_updatingUi || !m_document) return;
+    auto* table = isFill ? m_ddrInputsTable.data() : m_ddrOutputsTable.data();
+    if (!table || row < 0 || row >= table->rowCount()) return;
 
-    // Write name and value type to the FIFO wire (SHIM→compute)
-    auto* fifoWire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(fifoWireId));
-    if (fifoWire) {
-        Canvas::CanvasWire::ObjectFifoConfig cfg;
-        if (fifoWire->hasObjectFifo())
-            cfg = fifoWire->objectFifo().value();
-        else
-            cfg.depth = 2;
-        cfg.name           = name.trimmed();
-        cfg.type.valueType = type.trimmed().toLower();
-        cfg.type.symbolRef = symbolRef.isEmpty() ? std::nullopt : std::optional<QString>(symbolRef);
-        fifoWire->setObjectFifo(cfg);
+    auto* nameItem = table->item(row, 0);
+    auto* dimsItem = table->item(row, 1);
+    if (!nameItem) return;
+
+    const Canvas::ObjectId wireId = qvariant_cast<Canvas::ObjectId>(nameItem->data(Qt::UserRole));
+    if (wireId.isNull()) return;
+    auto* wire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(wireId));
+    if (!wire) return;
+
+    Canvas::CanvasWire::FillDrainConfig fd;
+    if (wire->hasFillDrain()) {
+        fd = wire->fillDrain().value();
+    } else {
+        fd.isFill = isFill;
     }
+    fd.paramName = nameItem->text().trimmed();
+    fd.totalDims = dimsItem ? dimsItem->text().trimmed() : fd.totalDims;
 
-    // Write total buffer dimensions, mode, TAP to the DDR→SHIM wire
-    auto* ddrWire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(ddrWireId));
-    if (ddrWire) {
-        Canvas::CanvasWire::ObjectFifoConfig cfg;
-        if (ddrWire->hasObjectFifo())
-            cfg = ddrWire->objectFifo().value();
-        else
-            cfg.depth = 1;
-        if (!symbolRef.isEmpty()) {
-            // Resolve concrete dims/type from the symbol for downstream code.
-            if (m_symbolsController) {
-                for (const auto& sym : m_symbolsController->symbols()) {
-                    if (sym.name == symbolRef && sym.kind == SymbolKind::TypeAbstraction) {
-                        cfg.type.dimensions = sym.type.shapeTokens.join(u'x');
-                        cfg.type.valueType  = sym.type.dtype;
-                        break;
-                    }
+    wire->setFillDrain(fd);
+
+    m_updatingUi = true;
+    m_document->notifyChanged();
+    m_updatingUi = false;
+}
+
+void AiePropertiesPanel::applyDdrPivotParam()
+{
+    if (m_updatingUi || !m_document || !m_ddrPivotParamEdit || m_ddrPivotWireId.isNull()) return;
+    auto* wire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(m_ddrPivotWireId));
+    if (!wire) return;
+
+    Canvas::CanvasWire::FillDrainConfig fd;
+    if (wire->hasFillDrain()) {
+        fd = wire->fillDrain().value();
+    } else {
+        bool isFill = true;
+        for (const auto* ep : {&wire->b(), &wire->a()}) {
+            if (!ep->attached.has_value()) continue;
+            auto* blk = dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(ep->attached->itemId));
+            if (!blk || blk->specId().trimmed() == QStringLiteral("ddr")) continue;
+            for (const auto& port : blk->ports()) {
+                if (port.id == ep->attached->portId) {
+                    isFill = (port.role == Canvas::PortRole::Consumer);
+                    break;
                 }
             }
-        } else {
-            cfg.type.dimensions = dims.trimmed();
+            break;
         }
-        cfg.type.mode = isMatrix
-            ? Canvas::CanvasWire::DimensionMode::Matrix
-            : Canvas::CanvasWire::DimensionMode::Vector;
-        if (isMatrix && !tap.tileDims.isEmpty())
-            cfg.type.tap = tap;
-        else
-            cfg.type.tap.reset();
-        ddrWire->setObjectFifo(cfg);
+        fd.isFill = isFill;
+    }
+    fd.paramName = m_ddrPivotParamEdit->text().trimmed();
+    wire->setFillDrain(fd);
+
+    m_updatingUi = true;
+    m_document->notifyChanged();
+    m_updatingUi = false;
+}
+
+void AiePropertiesPanel::applyArmWireEntry()
+{
+    if (m_updatingUi || !m_document || !m_armFifoEdit || m_armWireId.isNull())
+        return;
+
+    auto* armWire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(m_armWireId));
+    if (!armWire)
+        return;
+
+    const QString typed = m_armFifoEdit->text().trimmed();
+
+    // Validate: check that a FIFO wire with this name exists in the document.
+    bool valid = false;
+    if (!typed.isEmpty()) {
+        for (const auto& item : m_document->items()) {
+            auto* w = dynamic_cast<Canvas::CanvasWire*>(item.get());
+            if (!w || !w->hasObjectFifo()) continue;
+            if (w->objectFifo()->operation != Canvas::CanvasWire::ObjectFifoOperation::Fifo) continue;
+            if (w->objectFifo()->name == typed) { valid = true; break; }
+        }
+    }
+    // If invalid, revert the edit field to the previously stored value (or clear it).
+    if (!valid && !typed.isEmpty()) {
+        m_updatingUi = true;
+        const QString prev = armWire->hasFillDrain() ? armWire->fillDrain()->fifoName : QString{};
+        m_armFifoEdit->setText(prev);
+        m_updatingUi = false;
+        return;
     }
 
-    m_updatingUi = true;  // prevent rebuildDdrGroup re-entry during notifyChanged
+    Canvas::CanvasWire::FillDrainConfig fd;
+    if (armWire->hasFillDrain()) {
+        fd = armWire->fillDrain().value();
+    } else {
+        // Infer isFill from hub port role.
+        const auto& epA = armWire->a();
+        const auto& epB = armWire->b();
+        for (const Canvas::CanvasWire::Endpoint* ep : {&epA, &epB}) {
+            if (!ep->attached.has_value()) continue;
+            auto* blk = dynamic_cast<Canvas::CanvasBlock*>(m_document->findItem(ep->attached->itemId));
+            if (!blk || !blk->isLinkHub()) continue;
+            for (const auto& port : blk->ports()) {
+                if (port.id == ep->attached->portId) {
+                    fd.isFill = (port.role == Canvas::PortRole::Producer);
+                    break;
+                }
+            }
+            break;
+        }
+    }
+    fd.fifoName = typed;
+
+    armWire->setFillDrain(fd);
+
+    m_updatingUi = true;
     m_document->notifyChanged();
     m_updatingUi = false;
 }

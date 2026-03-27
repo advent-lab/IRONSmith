@@ -1058,6 +1058,56 @@ HlirResult<void> HlirBridge::runtimeAddDrain(
     return parseJsonResult<void>(jsonRes.value());
 }
 
+HlirResult<void> HlirBridge::runtimeAddFillDistributed(
+    const std::string& name,
+    const ComponentId& fifoId,
+    const std::string& inputName,
+    const ComponentId& tileId,
+    int totalSize,
+    int numArms,
+    int armIndex,
+    int fifoSize)
+{
+    PyObject* args = Py_BuildValue("(ssssiiii)",
+        name.c_str(), fifoId.value.c_str(),
+        inputName.c_str(), tileId.value.c_str(),
+        totalSize, numArms, armIndex, fifoSize);
+
+    auto pyRes = callBuilderMethod("runtime_add_fill_distributed", args);
+    Py_DECREF(args);
+
+    if (!pyRes) return std::unexpected(pyRes.error());
+    auto jsonRes = extractJsonString(pyRes.value());
+    Py_DECREF(pyRes.value());
+    if (!jsonRes) return std::unexpected(jsonRes.error());
+    return parseJsonResult<void>(jsonRes.value());
+}
+
+HlirResult<void> HlirBridge::runtimeAddDrainDistributed(
+    const std::string& name,
+    const ComponentId& fifoId,
+    const std::string& outputName,
+    const ComponentId& tileId,
+    int totalSize,
+    int numArms,
+    int armIndex,
+    int fifoSize)
+{
+    PyObject* args = Py_BuildValue("(ssssiiii)",
+        name.c_str(), fifoId.value.c_str(),
+        outputName.c_str(), tileId.value.c_str(),
+        totalSize, numArms, armIndex, fifoSize);
+
+    auto pyRes = callBuilderMethod("runtime_add_drain_distributed", args);
+    Py_DECREF(args);
+
+    if (!pyRes) return std::unexpected(pyRes.error());
+    auto jsonRes = extractJsonString(pyRes.value());
+    Py_DECREF(pyRes.value());
+    if (!jsonRes) return std::unexpected(jsonRes.error());
+    return parseJsonResult<void>(jsonRes.value());
+}
+
 HlirResult<void> HlirBridge::runtimeBuild() {
     PyObject* args = PyTuple_New(0);
 

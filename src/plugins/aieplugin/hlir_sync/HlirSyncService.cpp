@@ -1552,7 +1552,18 @@ void HlirSyncService::buildWorkers()
 
 void HlirSyncService::buildRuntime()
 {
-    // Create a runtime sequence with Fill/Drain ops driven by DDR↔SHIM wires.
+    // Create a runtime sequence with Fill/Drain ops driven by Distribute/Collect hubs.
+    //
+    // Topology for hub-based designs:
+    //   DDR ──[Fill pivot wire]──> Distribute hub ──[arm wires]──> SHIM tiles
+    //   SHIM tiles ──[FIFO wires]──> Compute tiles
+    //   SHIM tiles <──[arm wires]── Collect hub <──[Drain pivot wire]── DDR
+    //
+    // rt.sequence: one argument per hub (= one DDR buffer), NOT one per SHIM arm.
+    // rt.fill/drain: one call per arm, each with a TensorAccessPattern offset.
+    //
+    // Falls back to the direct DDR↔SHIM path for designs without hubs.
+
     if (!m_document || !m_bridge)
         return;
 
@@ -1565,20 +1576,54 @@ void HlirSyncService::buildRuntime()
     }
 
     const QLatin1StringView ddrSpecId{"ddr"};
-
     const auto& items = m_document->items();
 
-    // --- Pass 1: Find fill SHIMs (DDR → SHIM) and drain SHIMs (SHIM → DDR).
-    //     Also retain the DDR↔SHIM wire: its ObjectFifo dimensions = total DDR buffer size. ---
-    QSet<Canvas::ObjectId> fillShimIds;
-    QSet<Canvas::ObjectId> drainShimIds;
-    QHash<Canvas::ObjectId, Canvas::CanvasWire*> fillShimDdrWires;
-    QHash<Canvas::ObjectId, Canvas::CanvasWire*> drainShimDdrWires;
+    // Helper: parse "MxN" or "N" dimension string into a flat element count.
+    const auto parseTotalElements = [](const QString& dims) -> int {
+        int total = 1;
+        for (const QString& d : dims.split(u'x', Qt::SkipEmptyParts))
+            total *= d.trimmed().toInt();
+        return total;
+    };
+
+    // -------------------------------------------------------------------------
+    // Pass 1: Find Distribute/Collect hubs attached to DDR blocks.
+    //   Distribute hub → one fill group  (DDR → hub → SHIMs → compute)
+    //   Collect  hub  → one drain group  (compute → SHIMs → hub → DDR)
+    // -------------------------------------------------------------------------
+    struct HubGroup {
+        Canvas::ObjectId    hubBlockId;
+        Canvas::CanvasWire* ddrWire = nullptr; // DDR↔hub pivot wire (total buffer size)
+        bool                isFill  = true;    // true=Distribute, false=Collect
+        std::string         paramName;
+
+        struct ArmEntry {
+            hlir::ComponentId   fifoId;
+            hlir::ComponentId   shimTileId;
+            Canvas::CanvasWire* fifoWire = nullptr; // SHIM→compute FIFO wire
+            int                 armIndex = 0;
+        };
+        QList<ArmEntry> arms;
+    };
+
+    // Pre-build hub port-role lookup for direction inference on unannotated wires.
+    QHash<Canvas::ObjectId, QHash<Canvas::PortId, Canvas::PortRole>> hubPortRoles;
+    for (const auto& item : items) {
+        auto* hub = dynamic_cast<Canvas::CanvasBlock*>(item.get());
+        if (!hub || !hub->isLinkHub()) continue;
+        QHash<Canvas::PortId, Canvas::PortRole> roles;
+        for (const auto& port : hub->ports())
+            roles[port.id] = port.role;
+        hubPortRoles[hub->id()] = roles;
+    }
+
+    QList<HubGroup> hubGroups;
+    // Track hub block IDs so we can look up groups quickly in Pass 2.
+    QHash<Canvas::ObjectId, int> hubGroupIndex; // hubBlockId → index in hubGroups
 
     for (const auto& item : items) {
         auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
-        if (!wire)
-            continue;
+        if (!wire) continue;
 
         const auto& epA = wire->a();
         const auto& epB = wire->b();
@@ -1592,225 +1637,331 @@ void HlirSyncService::buildRuntime()
         if (!blockA || !blockB)
             continue;
 
-        const bool aDdr = blockA->specId() == ddrSpecId;
-        const bool bDdr = blockB->specId() == ddrSpecId;
+        const bool aDdr = (blockA->specId() == ddrSpecId);
+        const bool bDdr = (blockB->specId() == ddrSpecId);
+        if (!aDdr && !bDdr)
+            continue; // wire must involve DDR
 
-        if (aDdr && !bDdr) {
-            // DDR → SHIM: blockB is a fill SHIM
-            const auto parsedB = parseTileSpecId(blockB->specId());
-            if (parsedB && parsedB->kind == hlir::TileKind::SHIM) {
-                fillShimIds.insert(blockB->id());
-                fillShimDdrWires.insert(blockB->id(), wire);
-            }
-        } else if (!aDdr && bDdr) {
-            // SHIM → DDR: blockA is a drain SHIM
-            const auto parsedA = parseTileSpecId(blockA->specId());
-            if (parsedA && parsedA->kind == hlir::TileKind::SHIM) {
-                drainShimIds.insert(blockA->id());
-                drainShimDdrWires.insert(blockA->id(), wire);
-            }
+        // The non-DDR endpoint is the hub or direct SHIM.
+        Canvas::CanvasBlock* otherBlock = aDdr ? blockB : blockA;
+        const Canvas::CanvasWire::Endpoint& otherEp = aDdr ? epB : epA;
+
+        // Determine fill/drain direction: annotation first, then topology inference.
+        bool wireIsFill;
+        if (wire->hasFillDrain()) {
+            wireIsFill = wire->fillDrain()->isFill;
+        } else if (wire->hasObjectFifo()) {
+            const auto op = wire->objectFifo()->operation;
+            if (op == Canvas::CanvasWire::ObjectFifoOperation::Fill)
+                wireIsFill = true;
+            else if (op == Canvas::CanvasWire::ObjectFifoOperation::Drain)
+                wireIsFill = false;
+            else
+                continue;
+        } else if (otherBlock->isLinkHub() && otherEp.attached.has_value()) {
+            // Consumer port on hub → hub receives from DDR → Distribute → fill.
+            // Producer port on hub → hub sends to DDR    → Collect   → drain.
+            const auto& roles = hubPortRoles.value(otherBlock->id());
+            const auto role = roles.value(otherEp.attached->portId, Canvas::PortRole::Dynamic);
+            if (role == Canvas::PortRole::Consumer)      wireIsFill = true;
+            else if (role == Canvas::PortRole::Producer)  wireIsFill = false;
+            else                                          continue;
+        } else {
+            continue; // unannotated, not a hub — skip
         }
-    }
 
-    if (fillShimIds.isEmpty() && drainShimIds.isEmpty())
-        return;
+        // Resolve the hub block (or treat a direct SHIM as a 1-arm "hub").
+        Canvas::CanvasBlock* hubBlock = nullptr;
+        if (otherBlock->isLinkHub()) {
+            hubBlock = otherBlock;
+        } else {
+            const auto parsed = parseTileSpecId(otherBlock->specId());
+            if (parsed && parsed->kind == hlir::TileKind::SHIM)
+                hubBlock = otherBlock;
+        }
 
-    // --- Pass 2: Match fill/drain SHIMs to their FIFO wires ---
-    struct ShimFifoEntry {
-        hlir::ComponentId   fifoId;
-        hlir::ComponentId   shimTileId;
-        Canvas::CanvasWire* wire    = nullptr;  // SHIM→compute FIFO wire (transfer size)
-        Canvas::CanvasWire* ddrWire = nullptr;  // DDR→SHIM wire (total buffer size for main())
-        std::string         paramName;
-    };
-
-    QList<ShimFifoEntry> fillEntries;
-    QList<ShimFifoEntry> drainEntries;
-
-    for (const auto& item : items) {
-        auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
-        if (!wire)
+        if (!hubBlock || hubGroupIndex.contains(hubBlock->id()))
             continue;
 
+        HubGroup grp;
+        grp.hubBlockId = hubBlock->id();
+        grp.ddrWire    = wire;
+        grp.isFill     = wireIsFill;
+        hubGroupIndex.insert(hubBlock->id(), hubGroups.size());
+        hubGroups.append(grp);
+    }
+
+    if (hubGroups.isEmpty())
+        return;
+
+    // -------------------------------------------------------------------------
+    // Pass 2: For each hub, enumerate its arm wires that connect to SHIM tiles,
+    //         then find the FIFO wires those SHIMs produce/consume.
+    // -------------------------------------------------------------------------
+
+    // Build a map: SHIM block id → fill/drain FIFO wire and tile id.
+    // (Used for direct-DDR-SHIM fallback and hub arm lookup.)
+    // Multi-valued: each SHIM may produce/consume multiple FIFO wires.
+    QHash<Canvas::ObjectId, QList<Canvas::CanvasWire*>> shimFillFifoWires;  // SHIM → FIFO wires (producer)
+    QHash<Canvas::ObjectId, QList<Canvas::CanvasWire*>> shimDrainFifoWires; // SHIM → FIFO wires (consumer)
+    for (const auto& item : items) {
+        auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
+        if (!wire || !wire->hasObjectFifo())
+            continue;
+        if (wire->objectFifo()->operation != Canvas::CanvasWire::ObjectFifoOperation::Fifo)
+            continue;
         const hlir::ComponentId fifoId = m_fifoMap.value(wire->id());
         if (fifoId.empty())
             continue;
-
         const auto& epA = wire->a();
         const auto& epB = wire->b();
         if (!epA.attached.has_value() || !epB.attached.has_value())
             continue;
-
         auto* blockA = dynamic_cast<Canvas::CanvasBlock*>(
             m_document->findItem(epA.attached->itemId));
         auto* blockB = dynamic_cast<Canvas::CanvasBlock*>(
             m_document->findItem(epB.attached->itemId));
         if (!blockA || !blockB)
             continue;
+        const auto parsedA = parseTileSpecId(blockA->specId());
+        const auto parsedB = parseTileSpecId(blockB->specId());
+        if (parsedA && parsedA->kind == hlir::TileKind::SHIM)
+            shimFillFifoWires[blockA->id()].append(wire);   // SHIM is producer
+        if (parsedB && parsedB->kind == hlir::TileKind::SHIM)
+            shimDrainFifoWires[blockB->id()].append(wire);  // SHIM is consumer
+    }
+    // Helper: pick the FIFO wire for a given SHIM+armWire combination.
+    // If the arm wire has a fifoName set in its FillDrainConfig, match by name.
+    // Otherwise, return the first in the list (works for single-FIFO SHIMs).
+    const auto pickFifoWire = [&](Canvas::ObjectId shimId, Canvas::CanvasWire* armWire, bool isFill)
+        -> Canvas::CanvasWire*
+    {
+        const auto& fifoList = isFill ? shimFillFifoWires.value(shimId)
+                                      : shimDrainFifoWires.value(shimId);
+        if (fifoList.isEmpty()) return nullptr;
+        if (fifoList.size() == 1) return fifoList[0];
+        // Multiple candidates: match by fifoName on the arm wire.
+        if (armWire && armWire->hasFillDrain()) {
+            const QString& targetName = armWire->fillDrain()->fifoName;
+            if (!targetName.isEmpty()) {
+                for (auto* fw : fifoList)
+                    if (fw->hasObjectFifo() && fw->objectFifo()->name == targetName)
+                        return fw;
+            }
+        }
+        return fifoList[0]; // fallback: first available
+    };
 
-        // Producer SHIM is a fill SHIM → Fill (DDR → SHIM → array)
-        if (fillShimIds.contains(blockA->id())) {
-            const hlir::ComponentId shimTileId = m_tileMap.value(blockA->id());
-            if (!shimTileId.empty())
-                fillEntries.append({fifoId, shimTileId, wire, fillShimDdrWires.value(blockA->id())});
+    // For each hub group, find the arm wires → SHIM → FIFO entries.
+    for (auto& grp : hubGroups) {
+        auto* hubBlock = dynamic_cast<Canvas::CanvasBlock*>(
+            m_document->findItem(grp.hubBlockId));
+        const bool hubIsShim = hubBlock && !hubBlock->isLinkHub();
+
+        if (hubIsShim) {
+            // Legacy direct DDR↔SHIM: the "hub" IS the SHIM — single arm.
+            const hlir::ComponentId shimId = m_tileMap.value(grp.hubBlockId);
+            Canvas::CanvasWire* fifoWire = pickFifoWire(grp.hubBlockId, grp.ddrWire, grp.isFill);
+            if (!shimId.empty() && fifoWire) {
+                const hlir::ComponentId fifoId = m_fifoMap.value(fifoWire->id());
+                if (!fifoId.empty())
+                    grp.arms.append({fifoId, shimId, fifoWire, 0});
+            }
+            continue;
         }
 
-        // Consumer SHIM is a drain SHIM → Drain (array → SHIM → DDR)
-        if (drainShimIds.contains(blockB->id())) {
-            const hlir::ComponentId shimTileId = m_tileMap.value(blockB->id());
-            if (!shimTileId.empty())
-                drainEntries.append({fifoId, shimTileId, wire, drainShimDdrWires.value(blockB->id())});
+        // Real hub: find all wires whose endpoint attaches to this hub block.
+        // Those wires go to SHIM tiles — each one is an arm.
+        int armIdx = 0;
+        for (const auto& armItem : items) {
+            auto* armWire = dynamic_cast<Canvas::CanvasWire*>(armItem.get());
+            if (!armWire)
+                continue;
+            const auto& aEp = armWire->a();
+            const auto& bEp = armWire->b();
+
+            Canvas::ObjectId shimBlockId;
+            if (aEp.attached && aEp.attached->itemId == grp.hubBlockId && bEp.attached)
+                shimBlockId = bEp.attached->itemId;
+            else if (bEp.attached && bEp.attached->itemId == grp.hubBlockId && aEp.attached)
+                shimBlockId = aEp.attached->itemId;
+            else
+                continue;
+
+            auto* shimBlock = dynamic_cast<Canvas::CanvasBlock*>(
+                m_document->findItem(shimBlockId));
+            if (!shimBlock)
+                continue;
+            const auto parsed = parseTileSpecId(shimBlock->specId());
+            if (!parsed || parsed->kind != hlir::TileKind::SHIM)
+                continue;
+
+            const hlir::ComponentId shimId = m_tileMap.value(shimBlockId);
+            if (shimId.empty())
+                continue;
+
+            Canvas::CanvasWire* fifoWire = pickFifoWire(shimBlockId, armWire, grp.isFill);
+            if (!fifoWire)
+                continue;
+            const hlir::ComponentId fifoId = m_fifoMap.value(fifoWire->id());
+            if (fifoId.empty())
+                continue;
+
+            grp.arms.append({fifoId, shimId, fifoWire, armIdx++});
         }
     }
 
-    if (fillEntries.isEmpty() && drainEntries.isEmpty())
+    // Remove groups with no resolved arms.
+    hubGroups.erase(std::remove_if(hubGroups.begin(), hubGroups.end(),
+        [](const HubGroup& g) { return g.arms.isEmpty(); }), hubGroups.end());
+
+    if (hubGroups.isEmpty())
         return;
 
-    // Build the runtime sequence with input/output types, params, and fill/drain ops
+    // -------------------------------------------------------------------------
+    // Pass 3: Create runtime, register workers, emit one type/param per hub group.
+    // -------------------------------------------------------------------------
     auto runtimeResult = m_bridge->createRuntime("runtime");
     if (!runtimeResult) {
         qCWarning(hlirSyncLog) << "HlirSyncService: failed to create runtime";
         return;
     }
 
-    // Register each tracked worker with the runtime (StartWorkers).
     for (const hlir::ComponentId& workerId : std::as_const(m_workerMap)) {
         if (!workerId.empty())
             m_bridge->runtimeAddWorker(workerId);
     }
 
-    // rt.sequence type = DDR wire dims (2D host buffer shape matching the TensorTiler2D).
-    // main() buffer size also comes from DDR dims.
-    // Value type comes from the FIFO wire (the actual element dtype); fall back to DDR wire.
-    for (int i = 0; i < fillEntries.size(); ++i) {
+    // Resolve type and param name for each hub group (one rt.sequence arg per hub).
+    const auto resolveGroupType = [&](HubGroup& grp) {
         hlir::ComponentId typeId;
         QString mainSize;
         QString valueType = QStringLiteral("int32");
-        // Prefer FIFO wire value type (the dtype flowing through the transfer)
-        if (auto* w = fillEntries[i].wire; w && w->hasObjectFifo()) {
-            const auto resolved = resolveType(w->objectFifo().value().type, constantsMap);
-            if (!resolved.valueType.isEmpty())
-                valueType = normalizeValueType(resolved.valueType);
-        }
-        // Sequence type and main() size from DDR wire (2D host shape)
-        if (auto* d = fillEntries[i].ddrWire; d && d->hasObjectFifo()) {
-            const auto resolved = resolveType(d->objectFifo().value().type, constantsMap);
-            if (valueType == QStringLiteral("int32") && !resolved.valueType.isEmpty())
-                valueType = normalizeValueType(resolved.valueType);
-            mainSize = resolved.dimensions.trimmed();
-            if (!mainSize.isEmpty()) {
-                if (!resolved.symbolName.isEmpty())
-                    typeId = ensureNamedTensorType(resolved.symbolName, mainSize, valueType);
-                else
-                    typeId = ensureTensorType(mainSize, valueType);
+
+        // Value type: prefer the FIFO wire dtype (actual element dtype).
+        if (!grp.arms.isEmpty()) {
+            if (auto* w = grp.arms[0].fifoWire; w && w->hasObjectFifo()) {
+                const auto resolved = resolveType(w->objectFifo().value().type, constantsMap);
+                if (!resolved.valueType.isEmpty())
+                    valueType = normalizeValueType(resolved.valueType);
             }
         }
-        // Fall back to FIFO transfer dims if DDR wire not yet configured
-        if (typeId.empty()) {
-            if (auto* w = fillEntries[i].wire; w && w->hasObjectFifo()) {
+        // Total size and sequence type: from DDR pivot wire (FillDrainConfig).
+        if (auto* d = grp.ddrWire; d && d->hasFillDrain()) {
+            const auto& fd = d->fillDrain().value();
+            if (valueType == QStringLiteral("int32") && !fd.valueType.isEmpty())
+                valueType = normalizeValueType(fd.valueType);
+            mainSize = fd.totalDims.trimmed();
+            if (!mainSize.isEmpty()) {
+                typeId = (fd.symbolRef.has_value() && !fd.symbolRef->isEmpty())
+                    ? ensureNamedTensorType(*fd.symbolRef, mainSize, valueType)
+                    : ensureTensorType(mainSize, valueType);
+            }
+        }
+        // Fallback: use first arm's FIFO dimensions.
+        if (typeId.empty() && !grp.arms.isEmpty()) {
+            if (auto* w = grp.arms[0].fifoWire; w && w->hasObjectFifo()) {
                 const auto resolved = resolveType(w->objectFifo().value().type, constantsMap);
                 if (!resolved.dimensions.isEmpty()) {
-                    if (!resolved.symbolName.isEmpty())
-                        typeId = ensureNamedTensorType(resolved.symbolName, resolved.dimensions, valueType);
-                    else
-                        typeId = ensureTensorType(resolved.dimensions, valueType);
+                    typeId = resolved.symbolName.isEmpty()
+                        ? ensureTensorType(resolved.dimensions, valueType)
+                        : ensureNamedTensorType(resolved.symbolName, resolved.dimensions, valueType);
+                    if (mainSize.isEmpty())
+                        mainSize = resolved.dimensions.trimmed();
                 }
             }
         }
+        return std::make_pair(typeId, mainSize);
+    };
+
+    QList<HubGroup*> fillGroups, drainGroups;
+    for (auto& grp : hubGroups)
+        (grp.isFill ? fillGroups : drainGroups).append(&grp);
+
+    int fillIdx = 0, drainIdx = 0;
+    for (auto* grp : fillGroups) {
+        auto [typeId, mainSize] = resolveGroupType(*grp);
         if (!typeId.empty())
             m_bridge->runtimeAddInputType(typeId);
         m_bridge->runtimeAddMainSize(mainSize.toStdString());
-    }
 
-    // Output types: same pattern
-    for (int i = 0; i < drainEntries.size(); ++i) {
-        hlir::ComponentId typeId;
-        QString mainSize;
-        QString valueType = QStringLiteral("int32");
-        if (auto* w = drainEntries[i].wire; w && w->hasObjectFifo()) {
-            const auto resolved = resolveType(w->objectFifo().value().type, constantsMap);
-            if (!resolved.valueType.isEmpty())
-                valueType = normalizeValueType(resolved.valueType);
+        // Param name: from DDR pivot wire's FillDrainConfig paramName, then fallback.
+        std::string pname = "input_" + std::to_string(fillIdx++);
+        if (auto* d = grp->ddrWire; d && d->hasFillDrain()) {
+            const QString n = d->fillDrain()->paramName;
+            if (!n.isEmpty()) pname = sanitizePythonName(n).toStdString();
         }
-        if (auto* d = drainEntries[i].ddrWire; d && d->hasObjectFifo()) {
-            const auto resolved = resolveType(d->objectFifo().value().type, constantsMap);
-            if (valueType == QStringLiteral("int32") && !resolved.valueType.isEmpty())
-                valueType = normalizeValueType(resolved.valueType);
-            mainSize = resolved.dimensions.trimmed();
-            if (!mainSize.isEmpty()) {
-                if (!resolved.symbolName.isEmpty())
-                    typeId = ensureNamedTensorType(resolved.symbolName, mainSize, valueType);
-                else
-                    typeId = ensureTensorType(mainSize, valueType);
-            }
-        }
-        if (typeId.empty()) {
-            if (auto* w = drainEntries[i].wire; w && w->hasObjectFifo()) {
-                const auto resolved = resolveType(w->objectFifo().value().type, constantsMap);
-                if (!resolved.dimensions.isEmpty()) {
-                    if (!resolved.symbolName.isEmpty())
-                        typeId = ensureNamedTensorType(resolved.symbolName, resolved.dimensions, valueType);
-                    else
-                        typeId = ensureTensorType(resolved.dimensions, valueType);
-                }
-            }
-        }
+        grp->paramName = pname;
+        m_bridge->runtimeAddParam(pname);
+    }
+    for (auto* grp : drainGroups) {
+        auto [typeId, mainSize] = resolveGroupType(*grp);
         if (!typeId.empty())
             m_bridge->runtimeAddOutputType(typeId);
         m_bridge->runtimeAddMainSize(mainSize.toStdString());
+
+        std::string pname = "output_" + std::to_string(drainIdx++);
+        if (auto* d = grp->ddrWire; d && d->hasFillDrain()) {
+            const QString n = d->fillDrain()->paramName;
+            if (!n.isEmpty()) pname = sanitizePythonName(n).toStdString();
+        }
+        grp->paramName = pname;
+        m_bridge->runtimeAddParam(pname);
     }
 
-    // Param names: use FIFO wire's configured name; fall back to "input_N"/"output_N"
-    for (int i = 0; i < fillEntries.size(); ++i) {
-        std::string name = "input_" + std::to_string(i);
-        if (auto* w = fillEntries[i].wire; w && w->hasObjectFifo()) {
-            const QString n = w->objectFifo().value().name;
-            if (!n.isEmpty()) name = sanitizePythonName(n).toStdString();
-        }
-        fillEntries[i].paramName = name;
-        m_bridge->runtimeAddParam(name);
-    }
-    for (int i = 0; i < drainEntries.size(); ++i) {
-        std::string name = "output_" + std::to_string(i);
-        if (auto* w = drainEntries[i].wire; w && w->hasObjectFifo()) {
-            const QString n = w->objectFifo().value().name;
-            if (!n.isEmpty()) name = sanitizePythonName(n).toStdString();
-        }
-        drainEntries[i].paramName = name;
-        m_bridge->runtimeAddParam(name);
-    }
+    // -------------------------------------------------------------------------
+    // Pass 4: Emit rt.fill / rt.drain — one call per arm with a TAP offset.
+    // -------------------------------------------------------------------------
+    const auto emitArms = [&](HubGroup* grp, bool isFill) {
+        const int numArms   = grp->arms.size();
+        const QString ddrDims = grp->ddrWire && grp->ddrWire->hasFillDrain()
+            ? grp->ddrWire->fillDrain()->totalDims.trimmed()
+            : QString{};
+        const int totalSize = parseTotalElements(ddrDims);
 
-    for (int i = 0; i < fillEntries.size(); ++i) {
-        const std::string& name = fillEntries[i].paramName;
-        hlir::ComponentId tapId;
-        if (auto* d = fillEntries[i].ddrWire; d && d->hasObjectFifo()) {
-            const auto& dc = d->objectFifo().value();
-            if (dc.type.mode == Canvas::CanvasWire::DimensionMode::Matrix && dc.type.tap.has_value()) {
-                const QString tapName = QString::fromStdString(name) + QStringLiteral("_tap");
-                tapId = ensureTensorTiler2D(tapName, *dc.type.tap, dc.type.dimensions);
+        for (const auto& arm : grp->arms) {
+            // fifoSize = element count per FIFO transfer (per arm's FIFO wire dimensions).
+            int fifoSize = 0;
+            if (arm.fifoWire && arm.fifoWire->hasObjectFifo())
+                fifoSize = parseTotalElements(arm.fifoWire->objectFifo()->type.dimensions.trimmed());
+
+            const std::string armName = grp->paramName + "_arm" + std::to_string(arm.armIndex);
+
+            const int chunk = (numArms > 0) ? (totalSize / numArms) : 0;
+            const bool validDistributed = (numArms > 1 && !ddrDims.isEmpty()
+                                           && totalSize > 0 && fifoSize > 0
+                                           && chunk > 0 && chunk >= fifoSize
+                                           && (chunk % fifoSize == 0));
+            if (validDistributed) {
+                // Distributed TAP: TensorAccessPattern with per-arm offset.
+                if (isFill)
+                    m_bridge->runtimeAddFillDistributed(
+                        armName, arm.fifoId, grp->paramName, arm.shimTileId,
+                        totalSize, numArms, arm.armIndex, fifoSize);
+                else
+                    m_bridge->runtimeAddDrainDistributed(
+                        armName, arm.fifoId, grp->paramName, arm.shimTileId,
+                        totalSize, numArms, arm.armIndex, fifoSize);
+            } else {
+                // Single arm or unknown sizes: fall back to legacy fill/drain (with optional TensorTiler2D).
+                // FillDrainConfig does not carry a TensorTilerConfig, so tapId stays empty here.
+                hlir::ComponentId tapId;
+                if (isFill)
+                    m_bridge->runtimeAddFill(armName, arm.fifoId, grp->paramName,
+                                              arm.shimTileId, -1, !tapId.empty(), tapId);
+                else
+                    m_bridge->runtimeAddDrain(armName, arm.fifoId, grp->paramName,
+                                               arm.shimTileId, -1, !tapId.empty(), tapId);
             }
         }
-        m_bridge->runtimeAddFill(name, fillEntries[i].fifoId, name,
-                                  fillEntries[i].shimTileId, -1, !tapId.empty(), tapId);
-    }
-    for (int i = 0; i < drainEntries.size(); ++i) {
-        const std::string& name = drainEntries[i].paramName;
-        hlir::ComponentId tapId;
-        if (auto* d = drainEntries[i].ddrWire; d && d->hasObjectFifo()) {
-            const auto& dc = d->objectFifo().value();
-            if (dc.type.mode == Canvas::CanvasWire::DimensionMode::Matrix && dc.type.tap.has_value()) {
-                const QString tapName = QString::fromStdString(name) + QStringLiteral("_tap");
-                tapId = ensureTensorTiler2D(tapName, *dc.type.tap, dc.type.dimensions);
-            }
-        }
-        m_bridge->runtimeAddDrain(name, drainEntries[i].fifoId, name,
-                                   drainEntries[i].shimTileId, -1, !tapId.empty(), tapId);
-    }
+    };
+
+    for (auto* grp : fillGroups)  emitArms(grp, true);
+    for (auto* grp : drainGroups) emitArms(grp, false);
 
     auto buildResult = m_bridge->runtimeBuild();
-    if (!buildResult) {
+    if (!buildResult)
         qCWarning(hlirSyncLog) << "HlirSyncService: failed to build runtime";
-    }
 }
 
 void HlirSyncService::resetTrackedComponents()

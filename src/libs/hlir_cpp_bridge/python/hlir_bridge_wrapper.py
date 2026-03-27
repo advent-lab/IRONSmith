@@ -727,6 +727,55 @@ class BuilderWrapper:
         except Exception as e:
             return error_response("PYTHON_EXCEPTION", str(e))
 
+    def runtime_add_fill_distributed(self, name: str, fifo_id: str, input_name: str,
+                                      tile_id: str, total_size: int, num_arms: int,
+                                      arm_index: int, fifo_size: int) -> str:
+        """Add a fill with an inline TensorAccessPattern for distribute-hub geometry.
+
+        Emits:
+            rt.fill(placement=<tile>, in_fifo=<fifo>.prod(), source=<input>,
+                    tap=TensorAccessPattern(
+                        tensor_dims=[total_size],
+                        offset=(total_size // num_arms) * arm_index,
+                        sizes=[(total_size // num_arms) // fifo_size, fifo_size],
+                        strides=[fifo_size, 1]))
+        """
+        try:
+            from aie.helpers.taplib import TensorAccessPattern
+            fifo = self._lookup_component(fifo_id)
+            tile = self._lookup_component(tile_id)
+            chunk = total_size // num_arms
+            tap = TensorAccessPattern(
+                tensor_dims=[total_size],
+                offset=chunk * arm_index,
+                sizes=[chunk // fifo_size, fifo_size],
+                strides=[fifo_size, 1],
+            )
+            self.runtime.add_fill(name, fifo, input_name, tile, tap=tap)
+            return success_response()
+        except Exception as e:
+            return error_response("PYTHON_EXCEPTION", str(e))
+
+    def runtime_add_drain_distributed(self, name: str, fifo_id: str, output_name: str,
+                                       tile_id: str, total_size: int, num_arms: int,
+                                       arm_index: int, fifo_size: int) -> str:
+        """Add a drain with an inline TensorAccessPattern for collect-hub geometry."""
+        try:
+            from aie.helpers.taplib import TensorAccessPattern
+            fifo = self._lookup_component(fifo_id)
+            tile = self._lookup_component(tile_id)
+            chunk = total_size // num_arms
+            tap = TensorAccessPattern(
+                tensor_dims=[total_size],
+                offset=chunk * arm_index,
+                sizes=[chunk // fifo_size, fifo_size],
+                strides=[fifo_size, 1],
+            )
+            self.runtime.add_drain(name, fifo, output_name, tile, tap=tap)
+            return success_response()
+        except Exception as e:
+            return error_response("PYTHON_EXCEPTION", str(e))
+
     def runtime_build(self) -> str:
         """Build runtime sequence."""
         try:

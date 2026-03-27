@@ -107,6 +107,128 @@ QString tileName(const ParsedSpec& spec)
     return QStringLiteral("Tile");
 }
 
+/// An entry representing one FillDrain wire plus the resolved SHIM arm tiles.
+/// Handles both hub-based topology (DDR ↔ Distribute/Collect hub ↔ SHIMs)
+/// and direct DDR ↔ SHIM wires.
+struct FillDrainEntry {
+    Canvas::CanvasWire*         wire;
+    bool                        isFill;     // true = Distribute (DDR → SHIMs), false = Collect (SHIMs → DDR)
+    Canvas::CanvasBlock*        ddrBlock;
+    Canvas::CanvasBlock*        otherBlock; // hub or direct SHIM
+    QList<Canvas::CanvasBlock*> shimArms;   // resolved SHIM tiles
+};
+
+QList<FillDrainEntry> collectFillDrainEntries(const Canvas::CanvasDocument& doc)
+{
+    // Pre-build port-role lookup for every hub block so we can infer fill/drain
+    // direction for wires that carry no annotation (neither FillDrainConfig nor
+    // ObjectFifoConfig with Fill/Drain operation).
+    QHash<Canvas::ObjectId, QHash<Canvas::PortId, Canvas::PortRole>> hubPortRoles;
+    for (const auto& item : doc.items()) {
+        auto* hub = dynamic_cast<Canvas::CanvasBlock*>(item.get());
+        if (!hub || !hub->isLinkHub()) continue;
+        QHash<Canvas::PortId, Canvas::PortRole> roles;
+        for (const auto& port : hub->ports())
+            roles[port.id] = port.role;
+        hubPortRoles[hub->id()] = roles;
+    }
+
+    QList<FillDrainEntry> result;
+
+    for (const auto& item : doc.items()) {
+        auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
+        if (!wire) continue;
+
+        const auto& epA = wire->a();
+        const auto& epB = wire->b();
+        if (!epA.attached.has_value() || !epB.attached.has_value())
+            continue;
+
+        auto* blkA = dynamic_cast<Canvas::CanvasBlock*>(doc.findItem(epA.attached->itemId));
+        auto* blkB = dynamic_cast<Canvas::CanvasBlock*>(doc.findItem(epB.attached->itemId));
+        if (!blkA || !blkB) continue;
+
+        // Detection is purely topology-based: one endpoint must be the DDR block.
+        Canvas::CanvasBlock* ddrBlock   = nullptr;
+        Canvas::CanvasBlock* otherBlock = nullptr;
+        const Canvas::CanvasWire::Endpoint* hubEp = nullptr; // endpoint at the non-DDR side
+        if (blkA->specId().trimmed() == QLatin1StringView("ddr")) {
+            ddrBlock = blkA; otherBlock = blkB; hubEp = &epB;
+        } else if (blkB->specId().trimmed() == QLatin1StringView("ddr")) {
+            ddrBlock = blkB; otherBlock = blkA; hubEp = &epA;
+        } else {
+            continue;
+        }
+
+        // Determine fill/drain direction — annotation first, then topology inference.
+        bool isFill = true;
+        if (wire->hasFillDrain()) {
+            isFill = wire->fillDrain()->isFill;
+        } else if (wire->hasObjectFifo()) {
+            // Backward-compat: old designs may still carry ObjectFifo Fill/Drain.
+            const auto op = wire->objectFifo()->operation;
+            if (op == Canvas::CanvasWire::ObjectFifoOperation::Fill)
+                isFill = true;
+            else if (op == Canvas::CanvasWire::ObjectFifoOperation::Drain)
+                isFill = false;
+            else
+                continue; // ObjectFifo but not Fill/Drain
+        } else if (otherBlock->isLinkHub() && hubEp->attached.has_value()) {
+            // No annotation: infer from the hub port role.
+            // Consumer port → hub receives from DDR → Distribute → isFill=true.
+            // Producer port → hub sends to DDR    → Collect    → isFill=false.
+            const auto& roles = hubPortRoles.value(otherBlock->id());
+            const auto role = roles.value(hubEp->attached->portId, Canvas::PortRole::Dynamic);
+            if (role == Canvas::PortRole::Consumer)
+                isFill = true;
+            else if (role == Canvas::PortRole::Producer)
+                isFill = false;
+            else
+                continue; // Dynamic role — can't determine direction
+        } else {
+            continue; // Unannotated wire not connected to a hub — skip
+        }
+
+        FillDrainEntry entry;
+        entry.wire       = wire;
+        entry.isFill     = isFill;
+        entry.ddrBlock   = ddrBlock;
+        entry.otherBlock = otherBlock;
+
+        if (otherBlock->isLinkHub()) {
+            // Collect SHIM arm tiles from all other wires touching this hub.
+            for (const auto& wItem : doc.items()) {
+                auto* armWire = dynamic_cast<Canvas::CanvasWire*>(wItem.get());
+                if (!armWire || armWire == wire) continue;
+                const auto& aEp = armWire->a();
+                const auto& bEp = armWire->b();
+                if (!aEp.attached.has_value() || !bEp.attached.has_value()) continue;
+                Canvas::ObjectId armEndpointId;
+                if (aEp.attached->itemId == otherBlock->id())
+                    armEndpointId = bEp.attached->itemId;
+                else if (bEp.attached->itemId == otherBlock->id())
+                    armEndpointId = aEp.attached->itemId;
+                else
+                    continue;
+                auto* armBlock = dynamic_cast<Canvas::CanvasBlock*>(doc.findItem(armEndpointId));
+                if (!armBlock || armBlock->isLinkHub()) continue;
+                const auto armSpec = parseTileSpec(armBlock->specId());
+                if (!armSpec || armSpec->kind != NodeKind::SHIM) continue;
+                entry.shimArms.append(armBlock);
+            }
+        } else {
+            // Direct DDR ↔ SHIM — no hub.
+            const auto spec = parseTileSpec(otherBlock->specId());
+            if (spec && spec->kind == NodeKind::SHIM)
+                entry.shimArms.append(otherBlock);
+        }
+
+        result.append(entry);
+    }
+
+    return result;
+}
+
 /// Collect all fully-attached wires whose both endpoints have known specIds (tiles or DDR).
 QList<ParsedWire> collectWires(const Canvas::CanvasDocument& doc)
 {
@@ -190,6 +312,7 @@ HubConnections collectHubConnections(const Canvas::CanvasDocument& doc)
         Canvas::CanvasBlock* pivotBlock = nullptr;
         ParsedSpec           pivotSpec{};
         Canvas::PortRole     pivotRole  = Canvas::PortRole::Dynamic;
+        bool                 ddrIsPivot = false; // true for Distribute/Collect hubs
 
         struct ArmEntry { Canvas::CanvasBlock* block; ParsedSpec spec; };
         QList<ArmEntry> armTiles;
@@ -216,8 +339,15 @@ HubConnections collectHubConnections(const Canvas::CanvasDocument& doc)
                 if (!blkA || blkA->isLinkHub())
                     continue;
                 const auto specA = parseTileSpec(blkA->specId());
-                if (!specA || specA->kind == NodeKind::DDR)
+                if (!specA)
                     continue;
+                if (specA->kind == NodeKind::DDR) {
+                    // Distribute/Collect hub: DDR is the pivot.
+                    // DDR has no DMA channel limit — record pivotRole only.
+                    pivotRole  = portRoles.value(epB.attached->portId, Canvas::PortRole::Dynamic);
+                    ddrIsPivot = true;
+                    continue;
+                }
                 pivotBlock = blkA;
                 pivotSpec  = *specA;
                 pivotRole  = portRoles.value(epB.attached->portId, Canvas::PortRole::Dynamic);
@@ -234,7 +364,9 @@ HubConnections collectHubConnections(const Canvas::CanvasDocument& doc)
             }
         }
 
-        if (!pivotBlock || armTiles.isEmpty())
+        // Distribute/Collect hubs (ddrIsPivot) carry DDR↔SHIM data paths.
+        // Like direct DDR↔SHIM wires, these do NOT consume SHIM DMA channels.
+        if (ddrIsPivot || !pivotBlock || armTiles.isEmpty())
             continue;
 
         if (pivotRole == Canvas::PortRole::Consumer && isBroadcastHub(hubBlock)) {
@@ -290,20 +422,20 @@ public:
 
         int fillCount = 0;
         int drainCount = 0;
-        for (const auto& w : collectWires(*ctx.document)) {
-            if (w.isFill())  ++fillCount;
-            if (w.isDrain()) ++drainCount;
+        for (const auto& entry : collectFillDrainEntries(*ctx.document)) {
+            if (entry.isFill)  ++fillCount;
+            else               ++drainCount;
         }
 
         if (fillCount == 0)
             issues.append({VerificationIssue::Severity::Error,
-                QStringLiteral("No Fill defined — connect DDR to a SHIM tile "
-                               "(DDR \u2192 SHIM \u2192 array).")});
+                QStringLiteral("No Fill defined — connect DDR to a Distribute hub or SHIM tile "
+                               "(DDR \u2192 Distribute \u2192 SHIMs \u2192 array).")});
 
         if (drainCount == 0)
             issues.append({VerificationIssue::Severity::Error,
-                QStringLiteral("No Drain defined — connect a SHIM tile to DDR "
-                               "(array \u2192 SHIM \u2192 DDR).")});
+                QStringLiteral("No Drain defined — connect a Collect hub or SHIM tile to DDR "
+                               "(array \u2192 SHIMs \u2192 Collect \u2192 DDR).")});
 
         return issues;
     }
@@ -329,24 +461,25 @@ public:
         if (!ctx.document)
             return issues;
 
-        const auto wires = collectWires(*ctx.document);
-
         // SHIM blocks that produce at least one outgoing object FIFO (SHIM → MEM/AIE).
         QSet<Canvas::CanvasBlock*> shimsWithOutgoingFifo;
-        for (const auto& w : wires) {
+        for (const auto& w : collectWires(*ctx.document)) {
             if (w.isObjectFifo() && w.producerSpec.kind == NodeKind::SHIM)
                 shimsWithOutgoingFifo.insert(w.producerBlock);
         }
 
-        // Every fill SHIM must have an outgoing FIFO.
-        for (const auto& w : wires) {
-            if (!w.isFill())
+        // Every fill SHIM arm (reachable via Distribute hub or direct DDR→SHIM) must
+        // have at least one outgoing FIFO into the array.
+        for (const auto& entry : collectFillDrainEntries(*ctx.document)) {
+            if (!entry.isFill)
                 continue;
-            // consumerBlock is the SHIM tile in a DDR → SHIM wire.
-            if (!shimsWithOutgoingFifo.contains(w.consumerBlock)) {
-                issues.append({VerificationIssue::Severity::Error,
-                    QStringLiteral("Fill at %1: no FIFO leads from this SHIM into the array.")
-                    .arg(tileName(w.consumerSpec))});
+            for (auto* shim : entry.shimArms) {
+                if (!shimsWithOutgoingFifo.contains(shim)) {
+                    const auto spec = parseTileSpec(shim->specId());
+                    issues.append({VerificationIssue::Severity::Error,
+                        QStringLiteral("Fill at %1: no FIFO leads from this SHIM into the array.")
+                        .arg(spec ? tileName(*spec) : shim->specId())});
+                }
             }
         }
 
@@ -374,24 +507,25 @@ public:
         if (!ctx.document)
             return issues;
 
-        const auto wires = collectWires(*ctx.document);
-
         // SHIM blocks that consume at least one incoming object FIFO (MEM/AIE → SHIM).
         QSet<Canvas::CanvasBlock*> shimsWithIncomingFifo;
-        for (const auto& w : wires) {
+        for (const auto& w : collectWires(*ctx.document)) {
             if (w.isObjectFifo() && w.consumerSpec.kind == NodeKind::SHIM)
                 shimsWithIncomingFifo.insert(w.consumerBlock);
         }
 
-        // Every drain SHIM must have an incoming FIFO.
-        for (const auto& w : wires) {
-            if (!w.isDrain())
+        // Every drain SHIM arm (reachable via Collect hub or direct SHIM→DDR) must
+        // have at least one incoming FIFO from the array.
+        for (const auto& entry : collectFillDrainEntries(*ctx.document)) {
+            if (entry.isFill)
                 continue;
-            // producerBlock is the SHIM tile in a SHIM → DDR wire.
-            if (!shimsWithIncomingFifo.contains(w.producerBlock)) {
-                issues.append({VerificationIssue::Severity::Error,
-                    QStringLiteral("Drain at %1: no FIFO leads into this SHIM from the array.")
-                    .arg(tileName(w.producerSpec))});
+            for (auto* shim : entry.shimArms) {
+                if (!shimsWithIncomingFifo.contains(shim)) {
+                    const auto spec = parseTileSpec(shim->specId());
+                    issues.append({VerificationIssue::Severity::Error,
+                        QStringLiteral("Drain at %1: no FIFO leads into this SHIM from the array.")
+                        .arg(spec ? tileName(*spec) : shim->specId())});
+                }
             }
         }
 
@@ -649,6 +783,7 @@ public:
                 continue;
 
             // Find the source (SPLIT) or destination (JOIN) FIFO wire and read its type.
+            // For Distribute/Collect hubs the "source" is a FillDrain wire — use its totalDims.
             int fifoElemCount = 1024;
             for (const auto& wItem : items) {
                 auto* wire = dynamic_cast<Canvas::CanvasWire*>(wItem.get());
@@ -659,6 +794,17 @@ public:
                 const auto& epB = wire->b();
                 if (!epA.attached.has_value() || !epB.attached.has_value())
                     continue;
+
+                // Distribute/Collect hub: FillDrain wire connects the hub to DDR.
+                if (wire->hasFillDrain()) {
+                    const bool aIsHub = (epA.attached->itemId == hubBlock->id());
+                    const bool bIsHub = (epB.attached->itemId == hubBlock->id());
+                    if (aIsHub || bIsHub) {
+                        fifoElemCount = elementCountFromDims(wire->fillDrain()->totalDims);
+                        break;
+                    }
+                    continue;
+                }
 
                 auto* blkA = dynamic_cast<Canvas::CanvasBlock*>(
                     ctx.document->findItem(epA.attached->itemId));
@@ -794,13 +940,20 @@ DesignStats collectStats(const VerificationContext& ctx)
 
     for (const auto& w : collectWires(*ctx.document)) {
         if (w.isObjectFifo()) ++stats.fifos;
-        if (w.isFill())       ++stats.fills;
-        if (w.isDrain())      ++stats.drains;
-
         if (w.producerSpec.kind != NodeKind::DDR)
             connectedTiles.insert(w.producerBlock, w.producerSpec);
         if (w.consumerSpec.kind != NodeKind::DDR)
             connectedTiles.insert(w.consumerBlock, w.consumerSpec);
+    }
+
+    // Count fills and drains from FillDrain wires (handles hub-based topology).
+    for (const auto& entry : collectFillDrainEntries(*ctx.document)) {
+        if (entry.isFill)  ++stats.fills;
+        else               ++stats.drains;
+        for (auto* shim : entry.shimArms) {
+            const auto spec = parseTileSpec(shim->specId());
+            if (spec) connectedTiles.insert(shim, *spec);
+        }
     }
 
     // Also count tiles that are only reachable via split/join arm wires,

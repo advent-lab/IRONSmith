@@ -78,6 +78,18 @@ public:
         QString hubName;
     };
 
+    // Dedicated configuration for DDR-side fill/drain wires (replacing the
+    // ObjectFifo Fill/Drain operation pattern). One FillDrainConfig per DDR
+    // connection: DDR→distribute-hub (isFill=true) or collect-hub→DDR (false).
+    struct FillDrainConfig final {
+        QString paramName = QStringLiteral("buf"); // rt.sequence parameter name
+        bool    isFill    = true;                  // true=Fill (DDR→array), false=Drain
+        QString totalDims;                          // total DDR buffer dims, e.g. "128"
+        QString valueType = QStringLiteral("i32"); // element dtype
+        std::optional<QString> symbolRef;          // optional TypeAbstraction symbol name
+        QString fifoName;                           // for hub arm wires: target FIFO name (e.g. "inA1")
+    };
+
     struct Endpoint final {
         std::optional<PortRef> attached;
         QPointF freeScene{0.0, 0.0};
@@ -110,6 +122,11 @@ public:
     const std::optional<ObjectFifoConfig>& objectFifo() const noexcept { return m_objectFifo; }
     void setObjectFifo(ObjectFifoConfig config);
     void clearObjectFifo();
+
+    bool hasFillDrain() const noexcept { return m_fillDrain.has_value(); }
+    const std::optional<FillDrainConfig>& fillDrain() const noexcept { return m_fillDrain; }
+    void setFillDrain(FillDrainConfig config);
+    void clearFillDrain();
 
     void draw(QPainter& p, const CanvasRenderContext& ctx) const override;
     QRectF boundsScene() const override;
@@ -147,6 +164,7 @@ private:
     bool m_hasColorOverride = false;
     QColor m_colorOverride;
     std::optional<ObjectFifoConfig> m_objectFifo;
+    std::optional<FillDrainConfig>  m_fillDrain;
 };
 
 } // namespace Canvas
