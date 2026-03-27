@@ -21,9 +21,12 @@ class QHeaderView;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QCheckBox;
+class QGridLayout;
 class QSpinBox;
 class QStackedWidget;
 class QTableView;
+class QToolButton;
 QT_END_NAMESPACE
 
 namespace Utils {
@@ -35,6 +38,7 @@ namespace Aie::Internal {
 class SymbolsController;
 class SymbolsModel;
 class SymbolsFilterModel;
+class TapPreviewWidget;
 
 class AIEPLUGIN_EXPORT SymbolsPanel final : public QWidget
 {
@@ -47,6 +51,7 @@ private:
     void buildUi();
     void buildEditorPages();
     void rebuildDimensionEditors(int rank);
+    void rebuildTapPatternEditors();
     void bindController();
     void refreshPanelState();
     void refreshSelection();
@@ -57,16 +62,22 @@ private:
     void updateActionState();
     void requestConstantCommit();
     void requestTypeCommit();
+    void requestTapCommit();
     void flushPendingCommit();
 
     void commitConstantEdits();
     void commitTypeEdits();
+    void commitTapEdits();
     void deleteSelectedSymbol();
+    void addTapPatternRow();
+    void moveTapPatternRow(int row, int delta);
+    void removeTapPatternRow(int row);
 
     QString selectedSymbolIdFromView() const;
     QString currentEditorName() const;
     QString currentConstantPreview() const;
     QString currentTypePreview() const;
+    QString currentTapPreview() const;
 
     QPointer<SymbolsController> m_controller;
     QPointer<Utils::SidebarPanelFrame> m_frame;
@@ -74,6 +85,7 @@ private:
     QPointer<QLabel> m_detailLabel;
     QPointer<QPushButton> m_addConstantButton;
     QPointer<QPushButton> m_addTypeButton;
+    QPointer<QPushButton> m_addTapButton;
     QPointer<QPushButton> m_deleteButton;
     QPointer<QComboBox> m_filterCombo;
     QPointer<QTableView> m_tableView;
@@ -83,6 +95,8 @@ private:
     QPointer<QWidget> m_emptyEditorPage;
     QPointer<QGroupBox> m_constantEditorCard;
     QPointer<QGroupBox> m_typeEditorCard;
+    QPointer<QWidget> m_tapEditorPage;
+    QPointer<QGroupBox> m_tapEditorCard;
     QPointer<QLineEdit> m_constantNameEdit;
     QPointer<QLineEdit> m_constantValueEdit;
     QPointer<QLabel> m_constantReferencesLabel;
@@ -93,13 +107,28 @@ private:
     QPointer<QFormLayout> m_typeDimensionsForm;
     QPointer<QComboBox> m_typeDTypeCombo;
     QPointer<QLabel> m_typePreviewLabel;
+    QPointer<QLineEdit> m_tapNameEdit;
+    QPointer<QSpinBox> m_tapRowsSpin;
+    QPointer<QSpinBox> m_tapColsSpin;
+    QPointer<QSpinBox> m_tapOffsetSpin;
+    QPointer<QCheckBox> m_tapShowRepetitionsCheck;
+    QPointer<QWidget> m_tapPatternsHost;
+    QPointer<QGridLayout> m_tapPatternsGrid;
+    QPointer<QToolButton> m_tapAddPatternButton;
+    QPointer<TapPreviewWidget> m_tapPreviewWidget;
     QVector<QPointer<QLineEdit>> m_dimensionEdits;
     QVector<QPointer<QCompleter>> m_dimensionCompleters;
+    QVector<QPointer<QSpinBox>> m_tapSizeSpins;
+    QVector<QPointer<QSpinBox>> m_tapStrideSpins;
+    QVector<QPointer<QToolButton>> m_tapMoveUpButtons;
+    QVector<QPointer<QToolButton>> m_tapMoveDownButtons;
+    QVector<QPointer<QToolButton>> m_tapRemoveButtons;
 
     enum class PendingCommitKind : uint8_t {
         None,
         Constant,
-        Type
+        Type,
+        Tap
     };
 
     QTimer m_commitTimer;

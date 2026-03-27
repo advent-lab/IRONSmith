@@ -22,6 +22,12 @@ const QString kNameKey = u"name"_s;
 const QString kValueKey = u"value"_s;
 const QString kShapeKey = u"shape"_s;
 const QString kDTypeKey = u"dtype"_s;
+const QString kRowsKey = u"rows"_s;
+const QString kColsKey = u"cols"_s;
+const QString kOffsetKey = u"offset"_s;
+const QString kSizesKey = u"sizes"_s;
+const QString kStridesKey = u"strides"_s;
+const QString kShowRepetitionsKey = u"showRepetitions"_s;
 
 const QString kSchemaValue = u"aie.symbols/1"_s;
 constexpr int kSchemaVersionValue = 1;
@@ -34,6 +40,8 @@ QString kindKey(SymbolKind kind)
             return u"constant"_s;
         case SymbolKind::TypeAbstraction:
             return u"type"_s;
+        case SymbolKind::TensorAccessPattern:
+            return u"tap"_s;
     }
 
     return u"constant"_s;
@@ -48,6 +56,10 @@ bool parseKind(const QString& text, SymbolKind& outKind)
     }
     if (normalized == u"type"_s || normalized == u"typeabstraction"_s) {
         outKind = SymbolKind::TypeAbstraction;
+        return true;
+    }
+    if (normalized == u"tap"_s || normalized == u"tensoraccesspattern"_s) {
+        outKind = SymbolKind::TensorAccessPattern;
         return true;
     }
     return false;
@@ -72,6 +84,15 @@ QString shapeTupleText(const QStringList& shapeTokens)
     return QStringLiteral("(%1)").arg(normalized.join(QStringLiteral(", ")));
 }
 
+QString intVectorSummary(const QVector<int>& values)
+{
+    QStringList tokens;
+    tokens.reserve(values.size());
+    for (const int value : values)
+        tokens.push_back(QString::number(value));
+    return QStringLiteral("[%1]").arg(tokens.join(QStringLiteral(", ")));
+}
+
 } // namespace
 
 QString symbolKindDisplayName(SymbolKind kind)
@@ -81,6 +102,8 @@ QString symbolKindDisplayName(SymbolKind kind)
             return QStringLiteral("Constant");
         case SymbolKind::TypeAbstraction:
             return QStringLiteral("Type");
+        case SymbolKind::TensorAccessPattern:
+            return QStringLiteral("TAP");
     }
 
     return QStringLiteral("Constant");
@@ -92,11 +115,22 @@ QString typeAbstractionSummary(const TypeAbstractionSymbolData& typeData)
         .arg(shapeTupleText(typeData.shapeTokens), typeData.dtype.trimmed());
 }
 
+QString tensorAccessPatternSummary(const TensorAccessPatternSymbolData& tapData)
+{
+    return QStringLiteral("%1x%2, off=%3, sizes=%4, strides=%5")
+        .arg(tapData.rows)
+        .arg(tapData.cols)
+        .arg(tapData.offset)
+        .arg(intVectorSummary(tapData.sizes), intVectorSummary(tapData.strides));
+}
+
 QString symbolSummary(const SymbolRecord& symbol)
 {
     if (symbol.kind == SymbolKind::Constant)
         return QString::number(symbol.constant.value);
-    return typeAbstractionSummary(symbol.type);
+    if (symbol.kind == SymbolKind::TypeAbstraction)
+        return typeAbstractionSummary(symbol.type);
+    return tensorAccessPatternSummary(symbol.tap);
 }
 
 QString typeAbstractionPreview(const QString& name, const TypeAbstractionSymbolData& typeData)
@@ -105,11 +139,23 @@ QString typeAbstractionPreview(const QString& name, const TypeAbstractionSymbolD
         .arg(name.trimmed(), shapeTupleText(typeData.shapeTokens), typeData.dtype.trimmed());
 }
 
+QString tensorAccessPatternPreview(const QString& name, const TensorAccessPatternSymbolData& tapData)
+{
+    return QStringLiteral("%1 = TensorAccessPattern((%2, %3), offset=%4, sizes=%5, strides=%6)")
+        .arg(name.trimmed())
+        .arg(tapData.rows)
+        .arg(tapData.cols)
+        .arg(tapData.offset)
+        .arg(intVectorSummary(tapData.sizes), intVectorSummary(tapData.strides));
+}
+
 QString symbolPreview(const SymbolRecord& symbol)
 {
     if (symbol.kind == SymbolKind::Constant)
         return QStringLiteral("%1 = %2").arg(symbol.name.trimmed()).arg(symbol.constant.value);
-    return typeAbstractionPreview(symbol.name, symbol.type);
+    if (symbol.kind == SymbolKind::TypeAbstraction)
+        return typeAbstractionPreview(symbol.name, symbol.type);
+    return tensorAccessPatternPreview(symbol.name, symbol.tap);
 }
 
 QStringList supportedSymbolDtypes()
@@ -171,12 +217,27 @@ QJsonObject serializeSymbolsMetadata(const QVector<SymbolRecord>& symbols)
 
         if (symbol.kind == SymbolKind::Constant) {
             entry.insert(kValueKey, static_cast<qint64>(symbol.constant.value));
-        } else {
+        } else if (symbol.kind == SymbolKind::TypeAbstraction) {
             QJsonArray shape;
             for (const QString& token : symbol.type.shapeTokens)
                 shape.push_back(token.trimmed());
             entry.insert(kShapeKey, shape);
             entry.insert(kDTypeKey, symbol.type.dtype.trimmed());
+        } else {
+            entry.insert(kRowsKey, symbol.tap.rows);
+            entry.insert(kColsKey, symbol.tap.cols);
+            entry.insert(kOffsetKey, symbol.tap.offset);
+
+            QJsonArray sizes;
+            for (const int size : symbol.tap.sizes)
+                sizes.push_back(size);
+            entry.insert(kSizesKey, sizes);
+
+            QJsonArray strides;
+            for (const int stride : symbol.tap.strides)
+                strides.push_back(stride);
+            entry.insert(kStridesKey, strides);
+            entry.insert(kShowRepetitionsKey, symbol.tap.showRepetitions);
         }
 
         entries.push_back(entry);
@@ -231,7 +292,7 @@ Utils::Result parseSymbolsMetadata(const QJsonObject& metadata, QVector<SymbolRe
                                                   .arg(symbol.name));
 
             symbol.constant.value = static_cast<qint64>(valueToken.toDouble());
-        } else {
+        } else if (symbol.kind == SymbolKind::TypeAbstraction) {
             const QJsonArray shape = entry.value(kShapeKey).toArray();
             if (shape.isEmpty()) {
                 return Utils::Result::failure(QStringLiteral("Type symbol '%1' must declare at least one dimension.")
@@ -245,6 +306,41 @@ Utils::Result parseSymbolsMetadata(const QJsonObject& metadata, QVector<SymbolRe
 
             symbol.type.shapeTokens = std::move(tokens);
             symbol.type.dtype = entry.value(kDTypeKey).toString().trimmed();
+        } else {
+            const QJsonValue rowsValue = entry.value(kRowsKey);
+            const QJsonValue colsValue = entry.value(kColsKey);
+            const QJsonValue offsetValue = entry.value(kOffsetKey);
+            const QJsonArray sizes = entry.value(kSizesKey).toArray();
+            const QJsonArray strides = entry.value(kStridesKey).toArray();
+            if (!rowsValue.isDouble() || !colsValue.isDouble() || !offsetValue.isDouble()) {
+                return Utils::Result::failure(QStringLiteral("TAP symbol '%1' is missing dimensions or offset.")
+                                                  .arg(symbol.name));
+            }
+            if (sizes.isEmpty() || strides.isEmpty() || sizes.size() != strides.size()) {
+                return Utils::Result::failure(QStringLiteral("TAP symbol '%1' must declare matching sizes and strides.")
+                                                  .arg(symbol.name));
+            }
+
+            symbol.tap.rows = rowsValue.toInt();
+            symbol.tap.cols = colsValue.toInt();
+            symbol.tap.offset = offsetValue.toInt();
+            symbol.tap.sizes.clear();
+            symbol.tap.strides.clear();
+            symbol.tap.sizes.reserve(sizes.size());
+            symbol.tap.strides.reserve(strides.size());
+            for (const QJsonValue& sizeValue : sizes) {
+                if (!sizeValue.isDouble())
+                    return Utils::Result::failure(QStringLiteral("TAP symbol '%1' has an invalid size entry.")
+                                                      .arg(symbol.name));
+                symbol.tap.sizes.push_back(sizeValue.toInt());
+            }
+            for (const QJsonValue& strideValue : strides) {
+                if (!strideValue.isDouble())
+                    return Utils::Result::failure(QStringLiteral("TAP symbol '%1' has an invalid stride entry.")
+                                                      .arg(symbol.name));
+                symbol.tap.strides.push_back(strideValue.toInt());
+            }
+            symbol.tap.showRepetitions = entry.value(kShowRepetitionsKey).toBool(true);
         }
 
         outSymbols.push_back(symbol);

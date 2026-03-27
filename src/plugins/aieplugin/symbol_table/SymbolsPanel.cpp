@@ -5,6 +5,7 @@
 
 #include "aieplugin/symbol_table/SymbolsController.hpp"
 #include "aieplugin/symbol_table/SymbolsModel.hpp"
+#include "aieplugin/symbol_table/TapPreviewWidget.hpp"
 
 #include <utils/ui/SidebarPanelFrame.hpp>
 
@@ -13,11 +14,14 @@
 #include <QtCore/QStringListModel>
 #include <QtCore/QTimer>
 #include <QtGui/QFontDatabase>
+#include <QtGui/QWheelEvent>
 #include <QtWidgets/QAbstractItemView>
+#include <QtWidgets/QCheckBox>
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QCompleter>
 #include <QtWidgets/QFormLayout>
 #include <QtWidgets/QFrame>
+#include <QtWidgets/QGridLayout>
 #include <QtWidgets/QGroupBox>
 #include <QtWidgets/QHeaderView>
 #include <QtWidgets/QHBoxLayout>
@@ -29,6 +33,7 @@
 #include <QtWidgets/QSplitter>
 #include <QtWidgets/QStackedWidget>
 #include <QtWidgets/QTableView>
+#include <QtWidgets/QToolButton>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
 
@@ -41,6 +46,26 @@ using namespace Qt::StringLiterals;
 constexpr int kAllFilterIndex = 0;
 constexpr int kConstantsFilterIndex = 1;
 constexpr int kTypesFilterIndex = 2;
+constexpr int kTapsFilterIndex = 3;
+
+class TapSpinBox final : public QSpinBox
+{
+public:
+    explicit TapSpinBox(QWidget* parent = nullptr)
+        : QSpinBox(parent)
+    {
+    }
+
+protected:
+    void wheelEvent(QWheelEvent* event) override
+    {
+        if (!hasFocus()) {
+            event->ignore();
+            return;
+        }
+        QSpinBox::wheelEvent(event);
+    }
+};
 
 QFont fixedFont()
 {
@@ -69,6 +94,23 @@ QLineEdit* makeField(QWidget* parent, const QString& placeholder = {})
     edit->setObjectName(QStringLiteral("AiePropertiesField"));
     edit->setPlaceholderText(placeholder);
     return edit;
+}
+
+QSpinBox* makeTapSpinBox(QWidget* parent, int minimum, int maximum)
+{
+    auto* spin = new TapSpinBox(parent);
+    spin->setObjectName(QStringLiteral("AieTapSpinBox"));
+    spin->setRange(minimum, maximum);
+    return spin;
+}
+
+QToolButton* makeTapPatternButton(const QString& text, QWidget* parent)
+{
+    auto* button = new QToolButton(parent);
+    button->setObjectName(QStringLiteral("AieTapPatternButton"));
+    button->setText(text);
+    button->setAutoRaise(false);
+    return button;
 }
 
 QString filterSummary(int visibleCount, int totalCount)
@@ -110,7 +152,7 @@ void SymbolsPanel::buildUi()
 
     auto* frame = new Utils::SidebarPanelFrame(this);
     frame->setTitle(QStringLiteral("Symbols"));
-    frame->setSubtitle(QStringLiteral("Constants and type abstractions"));
+    frame->setSubtitle(QStringLiteral("Constants, type abstractions, and TAPs"));
     frame->setSearchEnabled(true);
     frame->setSearchPlaceholder(QStringLiteral("Search symbols"));
     frame->setHeaderDividerVisible(true);
@@ -118,6 +160,8 @@ void SymbolsPanel::buildUi()
 
     auto* content = new QWidget(frame);
     content->setObjectName(QStringLiteral("AieSymbolsPanelContent"));
+    content->setMinimumWidth(420);
+    content->setMinimumHeight(760);
     auto* contentLayout = new QVBoxLayout(content);
     contentLayout->setContentsMargins(8, 8, 8, 8);
     contentLayout->setSpacing(6);
@@ -147,6 +191,10 @@ void SymbolsPanel::buildUi()
     addTypeButton->setObjectName(QStringLiteral("AieSymbolsSecondaryButton"));
     m_addTypeButton = addTypeButton;
 
+    auto* addTapButton = new QPushButton(QStringLiteral("New TAP"), toolbarCard);
+    addTapButton->setObjectName(QStringLiteral("AieSymbolsSecondaryButton"));
+    m_addTapButton = addTapButton;
+
     auto* deleteButton = new QPushButton(QStringLiteral("Delete"), toolbarCard);
     deleteButton->setObjectName(QStringLiteral("AieSymbolsDangerButton"));
     m_deleteButton = deleteButton;
@@ -156,21 +204,20 @@ void SymbolsPanel::buildUi()
     filterCombo->addItem(QStringLiteral("All Symbols"), static_cast<int>(SymbolFilterKind::All));
     filterCombo->addItem(QStringLiteral("Constants"), static_cast<int>(SymbolFilterKind::Constants));
     filterCombo->addItem(QStringLiteral("Types"), static_cast<int>(SymbolFilterKind::Types));
+    filterCombo->addItem(QStringLiteral("TAPs"), static_cast<int>(SymbolFilterKind::TensorAccessPatterns));
     filterCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     m_filterCombo = filterCombo;
 
     toolbarLayout->addWidget(addConstantButton);
     toolbarLayout->addWidget(addTypeButton);
+    toolbarLayout->addWidget(addTapButton);
     toolbarLayout->addWidget(deleteButton);
     toolbarLayout->addStretch(1);
     toolbarLayout->addWidget(filterCombo, 0);
 
-    auto* splitter = new QSplitter(Qt::Vertical, content);
-    splitter->setObjectName(QStringLiteral("AieSymbolsSplitter"));
-    splitter->setChildrenCollapsible(false);
-
-    auto* listCard = new QFrame(splitter);
+    auto* listCard = new QFrame(content);
     listCard->setObjectName(QStringLiteral("AieSymbolsListSurface"));
+    listCard->setMinimumHeight(220);
     auto* listLayout = new QVBoxLayout(listCard);
     listLayout->setContentsMargins(0, 0, 0, 0);
     listLayout->setSpacing(0);
@@ -196,11 +243,12 @@ void SymbolsPanel::buildUi()
     tableView->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     tableView->setFocusPolicy(Qt::StrongFocus);
     tableView->setWordWrap(false);
+    tableView->setMinimumHeight(180);
     m_tableView = tableView;
 
     listLayout->addWidget(tableView, 1);
 
-    auto* editorHost = new QWidget(splitter);
+    auto* editorHost = new QWidget(content);
     editorHost->setObjectName(QStringLiteral("AieSymbolsEditorHost"));
     auto* editorHostLayout = new QVBoxLayout(editorHost);
     editorHostLayout->setContentsMargins(0, 0, 0, 0);
@@ -213,22 +261,22 @@ void SymbolsPanel::buildUi()
     buildEditorPages();
     editorHostLayout->addWidget(editorStack, 1);
 
-    // Allow each pane to shrink freely so the handle is always draggable.
-    listCard->setMinimumHeight(40);
-    editorHost->setMinimumHeight(40);
-
-    splitter->addWidget(listCard);
-    splitter->addWidget(editorHost);
-    splitter->setStretchFactor(0, 3);
-    splitter->setStretchFactor(1, 4);
-    splitter->setSizes({230, 360});
-
     contentLayout->addWidget(summaryLabel);
     contentLayout->addWidget(detailLabel);
     contentLayout->addWidget(toolbarCard);
-    contentLayout->addWidget(splitter, 1);
+    contentLayout->addWidget(listCard);
+    contentLayout->addWidget(editorHost);
+    contentLayout->addStretch(1);
 
-    frame->setContentWidget(content);
+    auto* scrollArea = new QScrollArea(frame);
+    scrollArea->setObjectName(QStringLiteral("AieSymbolsScrollArea"));
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scrollArea->setWidget(content);
+
+    frame->setContentWidget(scrollArea);
     rootLayout->addWidget(frame);
 
     if (auto* search = frame->searchField()) {
@@ -257,6 +305,15 @@ void SymbolsPanel::buildUi()
         if (result)
             refreshSelection();
     });
+    connect(addTapButton, &QPushButton::clicked, this, [this]() {
+        if (!m_controller)
+            return;
+        QString newId;
+        const Utils::Result result = m_controller->createTensorAccessPattern(&newId);
+        refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+        if (result)
+            refreshSelection();
+    });
     connect(deleteButton, &QPushButton::clicked, this, &SymbolsPanel::deleteSelectedSymbol);
     connect(filterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
         if (!m_filterModel)
@@ -269,6 +326,9 @@ void SymbolsPanel::buildUi()
                 break;
             case kTypesFilterIndex:
                 kind = SymbolFilterKind::Types;
+                break;
+            case kTapsFilterIndex:
+                kind = SymbolFilterKind::TensorAccessPatterns;
                 break;
             case kAllFilterIndex:
             default:
@@ -295,11 +355,11 @@ void SymbolsPanel::buildEditorPages()
     emptyCardLayout->setContentsMargins(12, 12, 12, 12);
     emptyCardLayout->setSpacing(8);
 
-    auto* emptyLabel = new QLabel(QStringLiteral("Create a constant or type, or select an existing symbol to inspect and edit it."), emptyCard);
+    auto* emptyLabel = new QLabel(QStringLiteral("Create a constant, type, or TAP, or select an existing symbol to inspect and edit it."), emptyCard);
     emptyLabel->setWordWrap(true);
     emptyLabel->setObjectName(QStringLiteral("AieSymbolsEmptyStateLabel"));
 
-    auto* exampleLabel = new QLabel(QStringLiteral("Examples:\nN = 1024\nin_ty = np.ndarray[(N,), np.dtype[np.int32]]"), emptyCard);
+    auto* exampleLabel = new QLabel(QStringLiteral("Examples:\nN = 1024\nin_ty = np.ndarray[(N,), np.dtype[np.int32]]\ntap = TensorAccessPattern((16, 16), offset=0, sizes=[4, 4, 4], strides=[16, 64, 1])"), emptyCard);
     exampleLabel->setWordWrap(true);
     exampleLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     exampleLabel->setFont(fixedFont());
@@ -346,17 +406,13 @@ void SymbolsPanel::buildEditorPages()
     m_constantPreviewLabel = constantPreviewLabel;
     m_editorStack->addWidget(constantCard);
 
-    auto* typeScroll = new QScrollArea(m_editorStack);
-    typeScroll->setWidgetResizable(true);
-    typeScroll->setFrameShape(QFrame::NoFrame);
-    typeScroll->setObjectName(QStringLiteral("AieSymbolsEditorScrollArea"));
-
-    auto* typeHost = new QWidget(typeScroll);
-    auto* typeHostLayout = new QVBoxLayout(typeHost);
+    auto* typePage = new QWidget(m_editorStack);
+    typePage->setObjectName(QStringLiteral("AieSymbolsEditorPage"));
+    auto* typeHostLayout = new QVBoxLayout(typePage);
     typeHostLayout->setContentsMargins(0, 0, 0, 0);
     typeHostLayout->setSpacing(0);
 
-    auto* typeCard = new QGroupBox(QStringLiteral("Type Abstraction"), typeHost);
+    auto* typeCard = new QGroupBox(QStringLiteral("Type Abstraction"), typePage);
     typeCard->setObjectName(QStringLiteral("AieSymbolsSection"));
     auto* typeForm = new QFormLayout(typeCard);
     typeForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
@@ -400,7 +456,6 @@ void SymbolsPanel::buildEditorPages()
 
     typeHostLayout->addWidget(typeCard);
     typeHostLayout->addStretch(1);
-    typeScroll->setWidget(typeHost);
 
     m_typeEditorCard = typeCard;
     m_typeNameEdit = typeNameEdit;
@@ -409,9 +464,113 @@ void SymbolsPanel::buildEditorPages()
     m_typeDimensionsForm = dimensionsForm;
     m_typeDTypeCombo = dtypeCombo;
     m_typePreviewLabel = typePreviewLabel;
-    m_editorStack->addWidget(typeScroll);
+    m_editorStack->addWidget(typePage);
+
+    auto* tapPage = new QWidget(m_editorStack);
+    tapPage->setObjectName(QStringLiteral("AieSymbolsEditorPage"));
+    auto* tapHostLayout = new QVBoxLayout(tapPage);
+    tapHostLayout->setContentsMargins(0, 0, 0, 0);
+    tapHostLayout->setSpacing(10);
+
+    auto* tapCard = new QGroupBox(QStringLiteral("Tensor Access Pattern"), tapPage);
+    tapCard->setObjectName(QStringLiteral("AieSymbolsSection"));
+    auto* tapCardLayout = new QVBoxLayout(tapCard);
+    tapCardLayout->setContentsMargins(12, 12, 12, 12);
+    tapCardLayout->setSpacing(10);
+
+    auto* tapNameForm = new QFormLayout();
+    tapNameForm->setContentsMargins(0, 0, 0, 0);
+    tapNameForm->setHorizontalSpacing(10);
+    tapNameForm->setVerticalSpacing(8);
+    tapNameForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+
+    auto* tapNameEdit = makeField(tapCard, QStringLiteral("Identifier"));
+    tapNameForm->addRow(makeKeyLabel(QStringLiteral("Name"), tapCard), tapNameEdit);
+    tapCardLayout->addLayout(tapNameForm);
+
+    auto* tapConfigCard = new QFrame(tapCard);
+    tapConfigCard->setObjectName(QStringLiteral("AieTapEditorCard"));
+    auto* tapConfigLayout = new QGridLayout(tapConfigCard);
+    tapConfigLayout->setContentsMargins(12, 10, 12, 10);
+    tapConfigLayout->setHorizontalSpacing(8);
+    tapConfigLayout->setVerticalSpacing(8);
+
+    auto* tapRowsSpin = makeTapSpinBox(tapConfigCard, 1, 4096);
+    auto* tapColsSpin = makeTapSpinBox(tapConfigCard, 1, 4096);
+    auto* tapOffsetSpin = makeTapSpinBox(tapConfigCard, 0, 1000000);
+    auto* tapShowRepetitions = new QCheckBox(QStringLiteral("Show repetitions"), tapConfigCard);
+    tapShowRepetitions->setObjectName(QStringLiteral("AieTapShowRepetitionsCheck"));
+
+    tapConfigLayout->addWidget(makeKeyLabel(QStringLiteral("Rows"), tapConfigCard), 0, 0);
+    tapConfigLayout->addWidget(tapRowsSpin, 0, 1);
+    tapConfigLayout->addWidget(makeKeyLabel(QStringLiteral("Columns"), tapConfigCard), 0, 2);
+    tapConfigLayout->addWidget(tapColsSpin, 0, 3);
+    tapConfigLayout->addWidget(makeKeyLabel(QStringLiteral("Offset"), tapConfigCard), 1, 0);
+    tapConfigLayout->addWidget(tapOffsetSpin, 1, 1, 1, 3);
+    tapConfigLayout->addWidget(tapShowRepetitions, 2, 0, 1, 4);
+    tapCardLayout->addWidget(tapConfigCard);
+
+    auto* tapPatternsCard = new QFrame(tapCard);
+    tapPatternsCard->setObjectName(QStringLiteral("AieTapEditorCard"));
+    auto* tapPatternsLayout = new QVBoxLayout(tapPatternsCard);
+    tapPatternsLayout->setContentsMargins(12, 10, 12, 10);
+    tapPatternsLayout->setSpacing(8);
+
+    auto* tapPatternsHeader = new QHBoxLayout();
+    tapPatternsHeader->setContentsMargins(0, 0, 0, 0);
+    tapPatternsHeader->setSpacing(8);
+    auto* sizesLabel = makeKeyLabel(QStringLiteral("Sizes"), tapPatternsCard);
+    auto* stridesLabel = makeKeyLabel(QStringLiteral("Strides"), tapPatternsCard);
+    auto* addPatternButton = makeTapPatternButton(QStringLiteral("+"), tapPatternsCard);
+    tapPatternsHeader->addWidget(sizesLabel);
+    tapPatternsHeader->addSpacing(72);
+    tapPatternsHeader->addWidget(stridesLabel);
+    tapPatternsHeader->addStretch(1);
+    tapPatternsHeader->addWidget(addPatternButton);
+
+    auto* tapPatternsHost = new QWidget(tapPatternsCard);
+    tapPatternsHost->setObjectName(QStringLiteral("AieTapPatternsHost"));
+    auto* tapPatternsGrid = new QGridLayout(tapPatternsHost);
+    tapPatternsGrid->setContentsMargins(0, 0, 0, 0);
+    tapPatternsGrid->setHorizontalSpacing(8);
+    tapPatternsGrid->setVerticalSpacing(6);
+
+    tapPatternsLayout->addLayout(tapPatternsHeader);
+    tapPatternsLayout->addWidget(tapPatternsHost);
+    tapCardLayout->addWidget(tapPatternsCard);
+
+    auto* tapPreviewCard = new QFrame(tapCard);
+    tapPreviewCard->setObjectName(QStringLiteral("AieTapEditorCard"));
+    tapPreviewCard->setMinimumHeight(320);
+    auto* tapPreviewLayout = new QVBoxLayout(tapPreviewCard);
+    tapPreviewLayout->setContentsMargins(12, 10, 12, 10);
+    tapPreviewLayout->setSpacing(8);
+    auto* tapPreviewTitle = makeKeyLabel(QStringLiteral("Preview"), tapPreviewCard);
+    auto* tapPreviewWidget = new TapPreviewWidget(tapPreviewCard);
+    tapPreviewWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    tapPreviewWidget->setMinimumHeight(260);
+    tapPreviewLayout->addWidget(tapPreviewTitle);
+    tapPreviewLayout->addWidget(tapPreviewWidget, 1);
+    tapCardLayout->addWidget(tapPreviewCard);
+
+    tapHostLayout->addWidget(tapCard);
+    tapHostLayout->addStretch(1);
+
+    m_tapEditorPage = tapPage;
+    m_tapEditorCard = tapCard;
+    m_tapNameEdit = tapNameEdit;
+    m_tapRowsSpin = tapRowsSpin;
+    m_tapColsSpin = tapColsSpin;
+    m_tapOffsetSpin = tapOffsetSpin;
+    m_tapShowRepetitionsCheck = tapShowRepetitions;
+    m_tapPatternsHost = tapPatternsHost;
+    m_tapPatternsGrid = tapPatternsGrid;
+    m_tapAddPatternButton = addPatternButton;
+    m_tapPreviewWidget = tapPreviewWidget;
+    m_editorStack->addWidget(tapPage);
 
     rebuildDimensionEditors(1);
+    rebuildTapPatternEditors();
 
     connect(constantNameEdit, &QLineEdit::textChanged, this, &SymbolsPanel::refreshEditorPreview);
     connect(constantValueEdit, &QLineEdit::textChanged, this, &SymbolsPanel::refreshEditorPreview);
@@ -441,6 +600,34 @@ void SymbolsPanel::buildEditorPages()
         refreshEditorPreview();
         requestTypeCommit();
     });
+
+    connect(tapNameEdit, &QLineEdit::textChanged, this, &SymbolsPanel::refreshEditorPreview);
+    connect(tapNameEdit, &QLineEdit::editingFinished, this, &SymbolsPanel::requestTapCommit);
+    connect(tapRowsSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
+        if (m_updatingUi)
+            return;
+        refreshEditorPreview();
+        requestTapCommit();
+    });
+    connect(tapColsSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
+        if (m_updatingUi)
+            return;
+        refreshEditorPreview();
+        requestTapCommit();
+    });
+    connect(tapOffsetSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
+        if (m_updatingUi)
+            return;
+        refreshEditorPreview();
+        requestTapCommit();
+    });
+    connect(tapShowRepetitions, &QCheckBox::toggled, this, [this](bool) {
+        if (m_updatingUi)
+            return;
+        refreshEditorPreview();
+        requestTapCommit();
+    });
+    connect(addPatternButton, &QToolButton::clicked, this, &SymbolsPanel::addTapPatternRow);
 }
 
 void SymbolsPanel::rebuildDimensionEditors(int rank)
@@ -475,6 +662,81 @@ void SymbolsPanel::rebuildDimensionEditors(int rank)
                                      field);
         m_dimensionEdits.push_back(field);
         m_dimensionCompleters.push_back(completer);
+    }
+}
+
+void SymbolsPanel::rebuildTapPatternEditors()
+{
+    if (!m_tapPatternsGrid || !m_tapPatternsHost)
+        return;
+
+    while (QLayoutItem* item = m_tapPatternsGrid->takeAt(0)) {
+        if (QWidget* widget = item->widget())
+            widget->deleteLater();
+        delete item;
+    }
+
+    m_tapSizeSpins.clear();
+    m_tapStrideSpins.clear();
+    m_tapMoveUpButtons.clear();
+    m_tapMoveDownButtons.clear();
+    m_tapRemoveButtons.clear();
+
+    const SymbolRecord* current = m_controller ? m_controller->symbolById(m_controller->selectedSymbolId()) : nullptr;
+    const QVector<int> sizes = current && current->kind == SymbolKind::TensorAccessPattern
+        ? current->tap.sizes
+        : QVector<int>{4, 4, 4};
+    const QVector<int> strides = current && current->kind == SymbolKind::TensorAccessPattern
+        ? current->tap.strides
+        : QVector<int>{16, 64, 1};
+
+    const int rowCount = qMin(sizes.size(), strides.size());
+    for (int row = 0; row < rowCount; ++row) {
+        auto* sizeSpin = makeTapSpinBox(m_tapPatternsHost, 1, 1000000);
+        auto* strideSpin = makeTapSpinBox(m_tapPatternsHost, 1, 1000000);
+        auto* upButton = makeTapPatternButton(QStringLiteral("↑"), m_tapPatternsHost);
+        auto* downButton = makeTapPatternButton(QStringLiteral("↓"), m_tapPatternsHost);
+        auto* removeButton = makeTapPatternButton(QStringLiteral("-"), m_tapPatternsHost);
+
+        sizeSpin->setValue(sizes.value(row, 1));
+        strideSpin->setValue(strides.value(row, 1));
+
+        connect(sizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
+            if (m_updatingUi)
+                return;
+            refreshEditorPreview();
+            requestTapCommit();
+        });
+        connect(strideSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
+            if (m_updatingUi)
+                return;
+            refreshEditorPreview();
+            requestTapCommit();
+        });
+        connect(upButton, &QToolButton::clicked, this, [this, row]() { moveTapPatternRow(row, -1); });
+        connect(downButton, &QToolButton::clicked, this, [this, row]() { moveTapPatternRow(row, 1); });
+        connect(removeButton, &QToolButton::clicked, this, [this, row]() { removeTapPatternRow(row); });
+
+        m_tapPatternsGrid->addWidget(sizeSpin, row, 0);
+        m_tapPatternsGrid->addWidget(strideSpin, row, 1);
+        m_tapPatternsGrid->addWidget(upButton, row, 2);
+        m_tapPatternsGrid->addWidget(downButton, row, 3);
+        m_tapPatternsGrid->addWidget(removeButton, row, 4);
+
+        m_tapSizeSpins.push_back(sizeSpin);
+        m_tapStrideSpins.push_back(strideSpin);
+        m_tapMoveUpButtons.push_back(upButton);
+        m_tapMoveDownButtons.push_back(downButton);
+        m_tapRemoveButtons.push_back(removeButton);
+    }
+
+    for (int row = 0; row < m_tapMoveUpButtons.size(); ++row) {
+        if (m_tapMoveUpButtons[row])
+            m_tapMoveUpButtons[row]->setEnabled(row > 0);
+        if (m_tapMoveDownButtons[row])
+            m_tapMoveDownButtons[row]->setEnabled(row + 1 < m_tapMoveDownButtons.size());
+        if (m_tapRemoveButtons[row])
+            m_tapRemoveButtons[row]->setEnabled(m_tapRemoveButtons.size() > 1);
     }
 }
 
@@ -514,7 +776,7 @@ void SymbolsPanel::refreshPanelState()
     }
 
     if (m_controller->symbols().isEmpty())
-        refreshStatusMessage(QStringLiteral("Create constants and reusable ndarray types for this design."));
+        refreshStatusMessage(QStringLiteral("Create constants, reusable ndarray types, and TAPs for this design."));
     else
         refreshStatusMessage();
 
@@ -581,7 +843,7 @@ void SymbolsPanel::refreshEditor()
         }
         if (m_editorStack && m_constantEditorCard)
             m_editorStack->setCurrentWidget(m_constantEditorCard);
-    } else {
+    } else if (symbol->kind == SymbolKind::TypeAbstraction) {
         if (m_typeNameEdit)
             m_typeNameEdit->setText(symbol->name);
         const int newRank = qMax(1, symbol->type.shapeTokens.size());
@@ -603,6 +865,20 @@ void SymbolsPanel::refreshEditor()
         }
         if (m_editorStack)
             m_editorStack->setCurrentIndex(2);
+    } else {
+        if (m_tapNameEdit)
+            m_tapNameEdit->setText(symbol->name);
+        if (m_tapRowsSpin)
+            m_tapRowsSpin->setValue(symbol->tap.rows);
+        if (m_tapColsSpin)
+            m_tapColsSpin->setValue(symbol->tap.cols);
+        if (m_tapOffsetSpin)
+            m_tapOffsetSpin->setValue(symbol->tap.offset);
+        if (m_tapShowRepetitionsCheck)
+            m_tapShowRepetitionsCheck->setChecked(symbol->tap.showRepetitions);
+        rebuildTapPatternEditors();
+        if (m_editorStack && m_tapEditorPage)
+            m_editorStack->setCurrentWidget(m_tapEditorPage);
     }
 
     m_updatingUi = false;
@@ -621,9 +897,22 @@ void SymbolsPanel::refreshEditorPreview()
     if (symbol->kind == SymbolKind::Constant) {
         if (m_constantPreviewLabel)
             m_constantPreviewLabel->setText(currentConstantPreview());
-    } else {
+    } else if (symbol->kind == SymbolKind::TypeAbstraction) {
         if (m_typePreviewLabel)
             m_typePreviewLabel->setText(currentTypePreview());
+    } else if (m_tapPreviewWidget) {
+        TensorAccessPatternSymbolData tapData;
+        tapData.rows = m_tapRowsSpin ? m_tapRowsSpin->value() : 16;
+        tapData.cols = m_tapColsSpin ? m_tapColsSpin->value() : 16;
+        tapData.offset = m_tapOffsetSpin ? m_tapOffsetSpin->value() : 0;
+        tapData.showRepetitions = m_tapShowRepetitionsCheck && m_tapShowRepetitionsCheck->isChecked();
+        tapData.sizes.clear();
+        tapData.strides.clear();
+        for (const auto& spin : m_tapSizeSpins)
+            tapData.sizes.push_back(spin ? spin->value() : 1);
+        for (const auto& spin : m_tapStrideSpins)
+            tapData.strides.push_back(spin ? spin->value() : 1);
+        m_tapPreviewWidget->setTapData(tapData);
     }
 }
 
@@ -664,6 +953,8 @@ void SymbolsPanel::updateActionState()
         m_addConstantButton->setEnabled(hasDocument);
     if (m_addTypeButton)
         m_addTypeButton->setEnabled(hasDocument);
+    if (m_addTapButton)
+        m_addTapButton->setEnabled(hasDocument);
     if (m_deleteButton)
         m_deleteButton->setEnabled(hasDocument && hasSelection);
 }
@@ -686,6 +977,15 @@ void SymbolsPanel::requestTypeCommit()
     m_commitTimer.start();
 }
 
+void SymbolsPanel::requestTapCommit()
+{
+    if (m_updatingUi)
+        return;
+
+    m_pendingCommit = PendingCommitKind::Tap;
+    m_commitTimer.start();
+}
+
 void SymbolsPanel::flushPendingCommit()
 {
     const PendingCommitKind commit = m_pendingCommit;
@@ -697,6 +997,9 @@ void SymbolsPanel::flushPendingCommit()
             break;
         case PendingCommitKind::Type:
             commitTypeEdits();
+            break;
+        case PendingCommitKind::Tap:
+            commitTapEdits();
             break;
         case PendingCommitKind::None:
             break;
@@ -748,6 +1051,34 @@ void SymbolsPanel::commitTypeEdits()
     refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
 }
 
+void SymbolsPanel::commitTapEdits()
+{
+    if (m_updatingUi || !m_controller)
+        return;
+
+    const SymbolRecord* current = m_controller->symbolById(m_controller->selectedSymbolId());
+    if (!current || current->kind != SymbolKind::TensorAccessPattern)
+        return;
+
+    SymbolRecord updated = *current;
+    updated.name = currentEditorName();
+    updated.tap.rows = m_tapRowsSpin ? m_tapRowsSpin->value() : 16;
+    updated.tap.cols = m_tapColsSpin ? m_tapColsSpin->value() : 16;
+    updated.tap.offset = m_tapOffsetSpin ? m_tapOffsetSpin->value() : 0;
+    updated.tap.showRepetitions = m_tapShowRepetitionsCheck && m_tapShowRepetitionsCheck->isChecked();
+    updated.tap.sizes.clear();
+    updated.tap.strides.clear();
+    updated.tap.sizes.reserve(m_tapSizeSpins.size());
+    updated.tap.strides.reserve(m_tapStrideSpins.size());
+    for (const auto& spin : m_tapSizeSpins)
+        updated.tap.sizes.push_back(spin ? spin->value() : 1);
+    for (const auto& spin : m_tapStrideSpins)
+        updated.tap.strides.push_back(spin ? spin->value() : 1);
+
+    const Utils::Result result = m_controller->updateSymbol(updated);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+}
+
 void SymbolsPanel::deleteSelectedSymbol()
 {
     if (!m_controller)
@@ -778,6 +1109,8 @@ QString SymbolsPanel::currentEditorName() const
         return m_constantNameEdit->text().trimmed();
     if (current->kind == SymbolKind::TypeAbstraction && m_typeNameEdit)
         return m_typeNameEdit->text().trimmed();
+    if (current->kind == SymbolKind::TensorAccessPattern && m_tapNameEdit)
+        return m_tapNameEdit->text().trimmed();
     return current->name;
 }
 
@@ -795,6 +1128,74 @@ QString SymbolsPanel::currentTypePreview() const
     for (const auto& edit : m_dimensionEdits)
         typeData.shapeTokens.push_back(edit ? edit->text().trimmed() : QString());
     return typeAbstractionPreview(m_typeNameEdit ? m_typeNameEdit->text().trimmed() : QString(), typeData);
+}
+
+QString SymbolsPanel::currentTapPreview() const
+{
+    TensorAccessPatternSymbolData tapData;
+    tapData.rows = m_tapRowsSpin ? m_tapRowsSpin->value() : 16;
+    tapData.cols = m_tapColsSpin ? m_tapColsSpin->value() : 16;
+    tapData.offset = m_tapOffsetSpin ? m_tapOffsetSpin->value() : 0;
+    tapData.showRepetitions = m_tapShowRepetitionsCheck && m_tapShowRepetitionsCheck->isChecked();
+    for (const auto& spin : m_tapSizeSpins)
+        tapData.sizes.push_back(spin ? spin->value() : 1);
+    for (const auto& spin : m_tapStrideSpins)
+        tapData.strides.push_back(spin ? spin->value() : 1);
+    return tensorAccessPatternPreview(m_tapNameEdit ? m_tapNameEdit->text().trimmed() : QString(), tapData);
+}
+
+void SymbolsPanel::addTapPatternRow()
+{
+    flushPendingCommit();
+    const SymbolRecord* current = m_controller ? m_controller->symbolById(m_controller->selectedSymbolId()) : nullptr;
+    if (!current || current->kind != SymbolKind::TensorAccessPattern)
+        return;
+
+    SymbolRecord updated = *current;
+    const int nextSize = updated.tap.sizes.isEmpty() ? 4 : updated.tap.sizes.back();
+    const int nextStride = updated.tap.strides.isEmpty() ? 1 : updated.tap.strides.back();
+    updated.tap.sizes.push_back(nextSize);
+    updated.tap.strides.push_back(nextStride);
+
+    const Utils::Result result = m_controller->updateSymbol(updated);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+}
+
+void SymbolsPanel::moveTapPatternRow(int row, int delta)
+{
+    flushPendingCommit();
+    const SymbolRecord* current = m_controller ? m_controller->symbolById(m_controller->selectedSymbolId()) : nullptr;
+    if (!current || current->kind != SymbolKind::TensorAccessPattern)
+        return;
+
+    const int target = row + delta;
+    if (row < 0 || row >= current->tap.sizes.size() || target < 0 || target >= current->tap.sizes.size())
+        return;
+
+    SymbolRecord updated = *current;
+    updated.tap.sizes.move(row, target);
+    updated.tap.strides.move(row, target);
+
+    const Utils::Result result = m_controller->updateSymbol(updated);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+}
+
+void SymbolsPanel::removeTapPatternRow(int row)
+{
+    flushPendingCommit();
+    const SymbolRecord* current = m_controller ? m_controller->symbolById(m_controller->selectedSymbolId()) : nullptr;
+    if (!current || current->kind != SymbolKind::TensorAccessPattern || current->tap.sizes.size() <= 1)
+        return;
+
+    SymbolRecord updated = *current;
+    if (row < 0 || row >= updated.tap.sizes.size())
+        return;
+
+    updated.tap.sizes.removeAt(row);
+    updated.tap.strides.removeAt(row);
+
+    const Utils::Result result = m_controller->updateSymbol(updated);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
 }
 
 } // namespace Aie::Internal

@@ -61,6 +61,8 @@ struct DesignNode final {
 
 struct DesignLink final {
     struct ObjectFifoType final {
+        QString typeId;
+        QString tapSymbolId;
         QString dimensions;
         QString valueType = QStringLiteral("i32");
         QString symbolRef; // TypeAbstraction symbol name; empty = literal

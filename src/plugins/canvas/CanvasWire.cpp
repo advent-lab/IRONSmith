@@ -131,7 +131,16 @@ QString normalizeObjectFifoType(QString valueType)
     valueType = valueType.trimmed().toLower();
     if (valueType == QStringLiteral("i8") ||
         valueType == QStringLiteral("i16") ||
-        valueType == QStringLiteral("i32")) {
+        valueType == QStringLiteral("i32") ||
+        valueType == QStringLiteral("i64") ||
+        valueType == QStringLiteral("ui8") ||
+        valueType == QStringLiteral("ui16") ||
+        valueType == QStringLiteral("ui32") ||
+        valueType == QStringLiteral("ui64") ||
+        valueType == QStringLiteral("f16") ||
+        valueType == QStringLiteral("f32") ||
+        valueType == QStringLiteral("f64") ||
+        valueType == QStringLiteral("bf16")) {
         return valueType;
     }
     return QStringLiteral("i32");
@@ -542,6 +551,8 @@ void CanvasWire::setObjectFifo(ObjectFifoConfig config)
 {
     config.name = normalizedObjectFifoName(config.name);
     config.depth = normalizedObjectFifoDepth(config.depth);
+    config.type.typeId = config.type.typeId.trimmed();
+    config.type.tapSymbolId = config.type.tapSymbolId.trimmed();
     config.type.valueType = normalizeObjectFifoType(config.type.valueType);
     config.type.dimensions = config.type.dimensions.trimmed();
     m_objectFifo = std::move(config);

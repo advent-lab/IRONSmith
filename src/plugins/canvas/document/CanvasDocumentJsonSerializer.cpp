@@ -469,6 +469,10 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
                     fifoObject.insert(u"hubName"_s, fifo.hubName);
                 fifoObject.insert(u"dimensions"_s, fifo.type.dimensions);
                 fifoObject.insert(u"valueType"_s, fifo.type.valueType);
+                if (!fifo.type.typeId.trimmed().isEmpty())
+                    fifoObject.insert(u"typeId"_s, fifo.type.typeId);
+                if (!fifo.type.tapSymbolId.trimmed().isEmpty())
+                    fifoObject.insert(u"tapSymbolId"_s, fifo.type.tapSymbolId);
                 fifoObject.insert(u"dimensionMode"_s,
                     fifo.type.mode == CanvasWire::DimensionMode::Matrix
                         ? u"matrix"_s : u"vector"_s);
@@ -791,6 +795,9 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                 objectFifo.name = objectFifoObject.value(u"name"_s).toString();
                 objectFifo.depth = objectFifoObject.value(u"depth"_s).toInt(2);
                 objectFifo.operation = objectFifoOperationFromString(objectFifoObject.value(u"operation"_s).toString());
+                objectFifo.hubName = objectFifoObject.value(u"hubName"_s).toString();
+                objectFifo.type.typeId = objectFifoObject.value(u"typeId"_s).toString();
+                objectFifo.type.tapSymbolId = objectFifoObject.value(u"tapSymbolId"_s).toString();
                 objectFifo.hubName = objectFifoObject.value(u"hubName"_s).toString();
                 objectFifo.type.dimensions = objectFifoObject.value(u"dimensions"_s).toString();
                 objectFifo.type.valueType  = objectFifoObject.value(u"valueType"_s).toString();

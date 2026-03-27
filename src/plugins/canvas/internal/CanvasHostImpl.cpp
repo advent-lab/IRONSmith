@@ -15,6 +15,7 @@
 #include <core/widgets/InfoBarWidget.hpp>
 
 #include <QtCore/QString>
+#include <QShortcut>
 
 namespace Canvas::Internal {
 
@@ -164,6 +165,13 @@ void CanvasHostImpl::wireIntoApplication(ExtensionSystem::PluginManager& manager
             m_controller, &CanvasController::onCanvasContextMenuRequested);
 	connect(m_view, &CanvasView::canvasWheel, m_controller, &CanvasController::onCanvasWheel);
 	connect(m_view, &CanvasView::canvasKeyPressed, m_controller, &CanvasController::onCanvasKeyPressed);
+
+    auto* cancelBoundProducerShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), m_view);
+    cancelBoundProducerShortcut->setContext(Qt::WindowShortcut);
+    connect(cancelBoundProducerShortcut, &QShortcut::activated, this, [this]() {
+        if (m_controller)
+            m_controller->cancelBoundProducerPlacement();
+    });
 
 	m_uiHost->setPlaygroundCenterBase(m_view);
 	m_view->setFocus(Qt::OtherFocusReason);

@@ -38,6 +38,8 @@ public:
 
     CanvasController::LinkingMode linkingMode() const noexcept { return m_linkingMode; }
     void setLinkingMode(CanvasController::LinkingMode mode);
+    const CanvasController::ObjectFifoDefaults& objectFifoDefaults() const noexcept { return m_objectFifoDefaults; }
+    void setObjectFifoDefaults(CanvasController::ObjectFifoDefaults defaults);
 
     bool isLinkingInProgress() const noexcept { return m_wiring; }
     ObjectId linkStartItem() const noexcept { return m_wireStartItem; }
@@ -82,6 +84,7 @@ private:
     QPointF m_wirePreviewScene{};
 
     std::optional<EdgeCandidate> m_hoverEdge;
+    CanvasController::ObjectFifoDefaults m_objectFifoDefaults;
 };
 
 } // namespace Canvas::Controllers

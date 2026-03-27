@@ -8,6 +8,7 @@
 #include "canvas/api/ICanvasDocumentService.hpp"
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QJsonArray>
 #include <QtCore/QJsonObject>
 
 namespace {
@@ -202,4 +203,39 @@ TEST(SymbolsControllerTests, RejectsRemovingConstantWhenTypesStillReferenceIt)
     const Utils::Result removeResult = controller.removeSymbol(constantId);
     EXPECT_FALSE(removeResult.ok);
     EXPECT_TRUE(removeResult.errors.join("\n").contains(QStringLiteral("referenced")));
+}
+
+TEST(SymbolsControllerTests, CreatesAndPersistsTensorAccessPatterns)
+{
+    ensureCoreApp();
+
+    FakeCanvasDocumentService documentService;
+    Aie::Internal::SymbolsController controller;
+    controller.setCanvasDocumentService(&documentService);
+    documentService.open();
+
+    QString tapId;
+    const Utils::Result createResult = controller.createTensorAccessPattern(&tapId);
+    ASSERT_TRUE(createResult.ok) << createResult.errors.join("\n").toStdString();
+
+    auto tap = *controller.symbolById(tapId);
+    tap.name = QStringLiteral("tap_main");
+    tap.tap.rows = 8;
+    tap.tap.cols = 16;
+    tap.tap.offset = 2;
+    tap.tap.sizes = {4, 2, 2};
+    tap.tap.strides = {16, 8, 1};
+    tap.tap.showRepetitions = false;
+    const Utils::Result updateResult = controller.updateSymbol(tap);
+    ASSERT_TRUE(updateResult.ok) << updateResult.errors.join("\n").toStdString();
+
+    const QJsonObject symbols = documentService.activeMetadata().value(QStringLiteral("symbols")).toObject();
+    const QJsonArray entries = symbols.value(QStringLiteral("entries")).toArray();
+    ASSERT_EQ(entries.size(), 1);
+    const QJsonObject entry = entries.first().toObject();
+    EXPECT_EQ(entry.value(QStringLiteral("kind")).toString(), QStringLiteral("tap"));
+    EXPECT_EQ(entry.value(QStringLiteral("rows")).toInt(), 8);
+    EXPECT_EQ(entry.value(QStringLiteral("cols")).toInt(), 16);
+    EXPECT_EQ(entry.value(QStringLiteral("offset")).toInt(), 2);
+    EXPECT_FALSE(entry.value(QStringLiteral("showRepetitions")).toBool(true));
 }
