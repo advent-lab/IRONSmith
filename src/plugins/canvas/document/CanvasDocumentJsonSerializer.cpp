@@ -470,6 +470,18 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
                     fdObj.insert(u"symbolRef"_s, *fd.symbolRef);
                 if (!fd.fifoName.isEmpty())
                     fdObj.insert(u"fifoName"_s, fd.fifoName);
+                fdObj.insert(u"mode"_s,
+                    fd.mode == CanvasWire::DimensionMode::Matrix ? u"matrix"_s : u"vector"_s);
+                if (fd.tap.has_value()) {
+                    const auto& t = *fd.tap;
+                    QJsonObject tapObj;
+                    tapObj.insert(u"tileDims"_s,      t.tileDims);
+                    tapObj.insert(u"tileCounts"_s,    t.tileCounts);
+                    tapObj.insert(u"pruneStep"_s,     t.pruneStep);
+                    tapObj.insert(u"index"_s,         t.index);
+                    tapObj.insert(u"patternRepeat"_s, t.patternRepeat);
+                    fdObj.insert(u"tap"_s, tapObj);
+                }
                 obj.insert(u"fillDrain"_s, fdObj);
             } else if (wire->hasObjectFifo()) {
                 const auto& fifo = wire->objectFifo().value();
@@ -814,6 +826,19 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                 if (!fdSymRef.isEmpty())
                     fd.symbolRef = fdSymRef;
                 fd.fifoName = fillDrainObject.value(u"fifoName"_s).toString();
+                fd.mode = fillDrainObject.value(u"mode"_s).toString() == u"matrix"_s
+                              ? CanvasWire::DimensionMode::Matrix
+                              : CanvasWire::DimensionMode::Vector;
+                const QJsonObject fdTapObj = fillDrainObject.value(u"tap"_s).toObject();
+                if (!fdTapObj.isEmpty()) {
+                    CanvasWire::TensorTilerConfig tap;
+                    tap.tileDims      = fdTapObj.value(u"tileDims"_s).toString();
+                    tap.tileCounts    = fdTapObj.value(u"tileCounts"_s).toString();
+                    tap.pruneStep     = fdTapObj.value(u"pruneStep"_s).toBool(false);
+                    tap.index         = fdTapObj.value(u"index"_s).toInt(0);
+                    tap.patternRepeat = fdTapObj.value(u"patternRepeat"_s).toString();
+                    fd.tap = tap;
+                }
                 wire.fillDrain = fd;
             }
 

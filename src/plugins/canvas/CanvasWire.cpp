@@ -730,16 +730,14 @@ QString CanvasWire::annotationText(AnnotationDetail detail, const CanvasRenderCo
                 break;
         }
 
-        // If this wire carries a pivot ObjectFifo operation (Split/Join/named-Forward),
-        // hubArmLabelForEndpoint matched the hub port but this is the pivot wire, not an arm —
+        // If this wire is a pivot wire (Split/Join/Forward with a hubName set),
+        // hubArmLabelForEndpoint matched the hub port but it is the pivot, not an arm —
         // fall through to objectFifoAnnotationText below.
-        if (m_objectFifo.has_value()) {
-            const auto op = m_objectFifo->operation;
-            if (op == ObjectFifoOperation::Split || op == ObjectFifoOperation::Join
-                || (op == ObjectFifoOperation::Forward
-                    && !m_objectFifo->hubName.trimmed().isEmpty()))
-                break;
-        }
+        // Arm wires also carry Split/Join/Forward but have hubName empty, so they
+        // must NOT break here and instead continue to the arm-label/suppress logic.
+        if (m_objectFifo.has_value()
+                && !m_objectFifo->hubName.trimmed().isEmpty())
+            break;
 
         // Broadcast arm: suppress label.
         const bool isBroadcastArm = m_objectFifo.has_value()

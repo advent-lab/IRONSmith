@@ -746,34 +746,117 @@ void AiePropertiesPanel::buildUi()
         auto* ddrInputsLabel = new QLabel(QStringLiteral("Inputs"), ddrGroup);
         ddrInputsLabel->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
         auto* ddrInputsTable = new QTableWidget(0, 2, ddrGroup);
-        ddrInputsTable->setObjectName(QStringLiteral("AiePropertiesField"));
+        ddrInputsTable->setObjectName(QStringLiteral("AiePropertiesObjectFifosTable"));
         ddrInputsTable->setHorizontalHeaderLabels({QStringLiteral("Name"), QStringLiteral("Total Size")});
-        ddrInputsTable->horizontalHeader()->setStretchLastSection(true);
+        ddrInputsTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+        ddrInputsTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
         ddrInputsTable->verticalHeader()->setVisible(false);
-        ddrInputsTable->verticalHeader()->setDefaultSectionSize(26);
-        ddrInputsTable->setEditTriggers(QAbstractItemView::AllEditTriggers);
-        ddrInputsTable->setSelectionMode(QAbstractItemView::NoSelection);
-        ddrInputsTable->setMaximumHeight(3 * 26 + 34); // header + 3 rows
+        ddrInputsTable->verticalHeader()->setDefaultSectionSize(30);
+        ddrInputsTable->setEditTriggers(QAbstractItemView::SelectedClicked |
+                                        QAbstractItemView::DoubleClicked |
+                                        QAbstractItemView::EditKeyPressed);
+        ddrInputsTable->setSelectionMode(QAbstractItemView::SingleSelection);
+        ddrInputsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+        ddrInputsTable->setShowGrid(false);
+        ddrInputsTable->setAlternatingRowColors(false);
+        ddrInputsTable->setFocusPolicy(Qt::StrongFocus);
+        ddrInputsTable->setWordWrap(false);
+        ddrInputsTable->setFixedHeight(3 * 30 + 30); // header + 3 rows
 
         auto* ddrOutputsLabel = new QLabel(QStringLiteral("Outputs"), ddrGroup);
         ddrOutputsLabel->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
         auto* ddrOutputsTable = new QTableWidget(0, 2, ddrGroup);
-        ddrOutputsTable->setObjectName(QStringLiteral("AiePropertiesField"));
+        ddrOutputsTable->setObjectName(QStringLiteral("AiePropertiesObjectFifosTable"));
         ddrOutputsTable->setHorizontalHeaderLabels({QStringLiteral("Name"), QStringLiteral("Total Size")});
-        ddrOutputsTable->horizontalHeader()->setStretchLastSection(true);
+        ddrOutputsTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+        ddrOutputsTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
         ddrOutputsTable->verticalHeader()->setVisible(false);
-        ddrOutputsTable->verticalHeader()->setDefaultSectionSize(26);
-        ddrOutputsTable->setEditTriggers(QAbstractItemView::AllEditTriggers);
-        ddrOutputsTable->setSelectionMode(QAbstractItemView::NoSelection);
-        ddrOutputsTable->setMaximumHeight(3 * 26 + 34); // header + 3 rows
+        ddrOutputsTable->verticalHeader()->setDefaultSectionSize(30);
+        ddrOutputsTable->setEditTriggers(QAbstractItemView::SelectedClicked |
+                                         QAbstractItemView::DoubleClicked |
+                                         QAbstractItemView::EditKeyPressed);
+        ddrOutputsTable->setSelectionMode(QAbstractItemView::SingleSelection);
+        ddrOutputsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+        ddrOutputsTable->setShowGrid(false);
+        ddrOutputsTable->setAlternatingRowColors(false);
+        ddrOutputsTable->setFocusPolicy(Qt::StrongFocus);
+        ddrOutputsTable->setWordWrap(false);
+        ddrOutputsTable->setFixedHeight(3 * 30 + 30); // header + 3 rows
+
+        // TAP detail editor — shown when a table row is selected
+        auto* ddrTapWidget = new QWidget(ddrGroup);
+        ddrTapWidget->setVisible(false);
+        auto* ddrTapForm = new QFormLayout(ddrTapWidget);
+        ddrTapForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+        ddrTapForm->setContentsMargins(0, 4, 0, 0);
+        ddrTapForm->setHorizontalSpacing(10);
+        ddrTapForm->setVerticalSpacing(4);
+        ddrTapForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+        auto* ddrTapModeCombo = new QComboBox(ddrTapWidget);
+        ddrTapModeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+        ddrTapModeCombo->addItems({QStringLiteral("Vector"), QStringLiteral("Matrix")});
+
+        auto* ddrTapFieldsWidget = new QWidget(ddrTapWidget);
+        auto* ddrTapFieldsForm = new QFormLayout(ddrTapFieldsWidget);
+        ddrTapFieldsForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+        ddrTapFieldsForm->setContentsMargins(0, 0, 0, 0);
+        ddrTapFieldsForm->setHorizontalSpacing(10);
+        ddrTapFieldsForm->setVerticalSpacing(4);
+        ddrTapFieldsForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+        const auto makeDdrTapField = [ddrTapFieldsWidget](const QString& placeholder) {
+            auto* e = new QLineEdit(ddrTapFieldsWidget);
+            e->setObjectName(QStringLiteral("AiePropertiesField"));
+            e->setPlaceholderText(placeholder);
+            return e;
+        };
+        auto* ddrTapTileDimsEdit   = makeDdrTapField(QStringLiteral("e.g. 1 x 512"));
+        auto* ddrTapTileCountsEdit = makeDdrTapField(QStringLiteral("e.g. rows x cols // 512"));
+        auto* ddrTapRepeatEdit     = makeDdrTapField(QStringLiteral("1"));
+
+        {
+            auto* lbl = new QLabel(QStringLiteral("Tile Dimensions"), ddrTapFieldsWidget);
+            lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+            ddrTapFieldsForm->addRow(lbl, ddrTapTileDimsEdit);
+        }
+        {
+            auto* lbl = new QLabel(QStringLiteral("Tile Counts"), ddrTapFieldsWidget);
+            lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+            ddrTapFieldsForm->addRow(lbl, ddrTapTileCountsEdit);
+        }
+        {
+            auto* lbl = new QLabel(QStringLiteral("Pattern Repeat"), ddrTapFieldsWidget);
+            lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+            ddrTapFieldsForm->addRow(lbl, ddrTapRepeatEdit);
+        }
+        ddrTapFieldsWidget->setVisible(false);
+
+        {
+            auto* lbl = new QLabel(QStringLiteral("Mode"), ddrTapWidget);
+            lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+            ddrTapForm->addRow(lbl, ddrTapModeCombo);
+        }
+        ddrTapForm->addRow(ddrTapFieldsWidget);
+
+        connect(ddrTapModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                ddrTapFieldsWidget, [ddrTapFieldsWidget](int idx) {
+                    ddrTapFieldsWidget->setVisible(idx == 1);
+                });
 
         ddrGroupLayout->addWidget(ddrInputsLabel);
         ddrGroupLayout->addWidget(ddrInputsTable);
         ddrGroupLayout->addWidget(ddrOutputsLabel);
         ddrGroupLayout->addWidget(ddrOutputsTable);
+        ddrGroupLayout->addWidget(ddrTapWidget);
 
-        m_ddrInputsTable = ddrInputsTable;
-        m_ddrOutputsTable = ddrOutputsTable;
+        m_ddrInputsTable      = ddrInputsTable;
+        m_ddrOutputsTable     = ddrOutputsTable;
+        m_ddrTapWidget        = ddrTapWidget;
+        m_ddrTapModeCombo     = ddrTapModeCombo;
+        m_ddrTapTileDimsEdit  = ddrTapTileDimsEdit;
+        m_ddrTapTileCountsEdit = ddrTapTileCountsEdit;
+        m_ddrTapRepeatEdit    = ddrTapRepeatEdit;
     }
     m_ddrGroup = ddrGroup;
 
@@ -860,10 +943,23 @@ void AiePropertiesPanel::buildUi()
     if (m_ddrInputsTable) {
         connect(m_ddrInputsTable, &QTableWidget::cellChanged,
                 this, [this](int row, int) { applyDdrTableRow(true, row); });
+        connect(m_ddrInputsTable, &QTableWidget::currentCellChanged,
+                this, [this](int row, int, int, int) { onDdrTableRowSelected(true, row); });
     }
     if (m_ddrOutputsTable) {
         connect(m_ddrOutputsTable, &QTableWidget::cellChanged,
                 this, [this](int row, int) { applyDdrTableRow(false, row); });
+        connect(m_ddrOutputsTable, &QTableWidget::currentCellChanged,
+                this, [this](int row, int, int, int) { onDdrTableRowSelected(false, row); });
+    }
+    if (m_ddrTapModeCombo) {
+        connect(m_ddrTapModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this](int) { applyDdrTap(); });
+    }
+    if (m_ddrTapTileDimsEdit) {
+        connect(m_ddrTapTileDimsEdit,   &QLineEdit::editingFinished, this, &AiePropertiesPanel::applyDdrTap);
+        connect(m_ddrTapTileCountsEdit, &QLineEdit::editingFinished, this, &AiePropertiesPanel::applyDdrTap);
+        connect(m_ddrTapRepeatEdit,     &QLineEdit::editingFinished, this, &AiePropertiesPanel::applyDdrTap);
     }
     if (m_ddrPivotParamEdit) {
         connect(m_ddrPivotParamEdit, &QLineEdit::editingFinished,
@@ -970,6 +1066,7 @@ void AiePropertiesPanel::refreshObjectFifoDefaultsUi()
         }
     }
 
+    const bool prevUpdatingUi = m_updatingUi;
     m_updatingUi = true;
     QSignalBlocker nameBlock(m_objectFifoDefaultNameEdit);
     QSignalBlocker depthBlock(m_objectFifoDefaultDepthSpin);
@@ -1006,7 +1103,7 @@ void AiePropertiesPanel::refreshObjectFifoDefaultsUi()
         }
     }
     m_objectFifoDefaultTypeCombo->setCurrentIndex(selectedIndex);
-    m_updatingUi = false;
+    m_updatingUi = prevUpdatingUi;
 
     if (canvasController())
         canvasController()->setObjectFifoDefaults(defaults);
@@ -1800,6 +1897,10 @@ void AiePropertiesPanel::refreshDdrGroup(Canvas::CanvasBlock* ddrBlock)
     if (!m_document || !m_ddrInputsTable || !m_ddrOutputsTable)
         return;
 
+    m_ddrTapWireId = {};
+    if (m_ddrTapWidget)
+        m_ddrTapWidget->setVisible(false);
+
     struct Entry {
         Canvas::ObjectId wireId;
         QString name;
@@ -1903,6 +2004,90 @@ void AiePropertiesPanel::applyDdrTableRow(bool isFill, int row)
 
     wire->setFillDrain(fd);
 
+    m_updatingUi = true;
+    m_document->notifyChanged();
+    m_updatingUi = false;
+}
+
+void AiePropertiesPanel::onDdrTableRowSelected(bool isFill, int row)
+{
+    if (m_updatingUi || !m_document || !m_ddrTapWidget) return;
+
+    auto* table = isFill ? m_ddrInputsTable.data() : m_ddrOutputsTable.data();
+    if (!table || row < 0 || row >= table->rowCount()) {
+        m_ddrTapWireId = {};
+        m_ddrTapWidget->setVisible(false);
+        return;
+    }
+
+    // Deselect the other table
+    auto* other = isFill ? m_ddrOutputsTable.data() : m_ddrInputsTable.data();
+    if (other) {
+        const QSignalBlocker b(other);
+        other->clearSelection();
+        other->setCurrentItem(nullptr);
+    }
+
+    auto* nameItem = table->item(row, 0);
+    if (!nameItem) { m_ddrTapWidget->setVisible(false); return; }
+
+    const Canvas::ObjectId wireId = qvariant_cast<Canvas::ObjectId>(nameItem->data(Qt::UserRole));
+    if (wireId.isNull()) { m_ddrTapWidget->setVisible(false); return; }
+
+    auto* wire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(wireId));
+    if (!wire) { m_ddrTapWidget->setVisible(false); return; }
+
+    m_ddrTapWireId = wireId;
+
+    m_updatingUi = true;
+    const bool isMatrix = wire->hasFillDrain()
+        && wire->fillDrain()->mode == Canvas::CanvasWire::DimensionMode::Matrix;
+    if (m_ddrTapModeCombo)
+        m_ddrTapModeCombo->setCurrentIndex(isMatrix ? 1 : 0);
+
+    if (wire->hasFillDrain() && wire->fillDrain()->tap.has_value()) {
+        const auto& tap = *wire->fillDrain()->tap;
+        if (m_ddrTapTileDimsEdit)   m_ddrTapTileDimsEdit->setText(tap.tileDims);
+        if (m_ddrTapTileCountsEdit) m_ddrTapTileCountsEdit->setText(tap.tileCounts);
+        if (m_ddrTapRepeatEdit)     m_ddrTapRepeatEdit->setText(tap.patternRepeat);
+    } else {
+        if (m_ddrTapTileDimsEdit)   m_ddrTapTileDimsEdit->clear();
+        if (m_ddrTapTileCountsEdit) m_ddrTapTileCountsEdit->clear();
+        if (m_ddrTapRepeatEdit)     m_ddrTapRepeatEdit->clear();
+    }
+    m_updatingUi = false;
+
+    m_ddrTapWidget->setVisible(true);
+}
+
+void AiePropertiesPanel::applyDdrTap()
+{
+    if (m_updatingUi || !m_document || m_ddrTapWireId.isNull()) return;
+    if (!m_ddrTapModeCombo || !m_ddrTapTileDimsEdit) return;
+
+    auto* wire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(m_ddrTapWireId));
+    if (!wire) return;
+
+    Canvas::CanvasWire::FillDrainConfig fd = wire->hasFillDrain()
+        ? wire->fillDrain().value()
+        : Canvas::CanvasWire::FillDrainConfig{};
+
+    const bool isMatrix = (m_ddrTapModeCombo->currentIndex() == 1);
+    fd.mode = isMatrix ? Canvas::CanvasWire::DimensionMode::Matrix
+                       : Canvas::CanvasWire::DimensionMode::Vector;
+    if (isMatrix) {
+        Canvas::CanvasWire::TensorTilerConfig tap;
+        tap.tileDims      = m_ddrTapTileDimsEdit->text().trimmed();
+        tap.tileCounts    = m_ddrTapTileCountsEdit->text().trimmed();
+        tap.patternRepeat = m_ddrTapRepeatEdit->text().trimmed();
+        tap.pruneStep     = false;
+        tap.index         = 0;
+        fd.tap = tap;
+    } else {
+        fd.tap = std::nullopt;
+    }
+
+    wire->setFillDrain(fd);
     m_updatingUi = true;
     m_document->notifyChanged();
     m_updatingUi = false;

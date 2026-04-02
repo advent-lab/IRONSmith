@@ -1579,13 +1579,6 @@ void HlirSyncService::buildRuntime()
     const auto& items = m_document->items();
 
     // Helper: parse "MxN" or "N" dimension string into a flat element count.
-    const auto parseTotalElements = [](const QString& dims) -> int {
-        int total = 1;
-        for (const QString& d : dims.split(u'x', Qt::SkipEmptyParts))
-            total *= d.trimmed().toInt();
-        return total;
-    };
-
     // -------------------------------------------------------------------------
     // Pass 1: Find Distribute/Collect hubs attached to DDR blocks.
     //   Distribute hub → one fill group  (DDR → hub → SHIMs → compute)
@@ -1913,46 +1906,30 @@ void HlirSyncService::buildRuntime()
     // Pass 4: Emit rt.fill / rt.drain — one call per arm with a TAP offset.
     // -------------------------------------------------------------------------
     const auto emitArms = [&](HubGroup* grp, bool isFill) {
-        const int numArms   = grp->arms.size();
         const QString ddrDims = grp->ddrWire && grp->ddrWire->hasFillDrain()
             ? grp->ddrWire->fillDrain()->totalDims.trimmed()
             : QString{};
-        const int totalSize = parseTotalElements(ddrDims);
 
         for (const auto& arm : grp->arms) {
-            // fifoSize = element count per FIFO transfer (per arm's FIFO wire dimensions).
-            int fifoSize = 0;
-            if (arm.fifoWire && arm.fifoWire->hasObjectFifo())
-                fifoSize = parseTotalElements(arm.fifoWire->objectFifo()->type.dimensions.trimmed());
-
             const std::string armName = grp->paramName + "_arm" + std::to_string(arm.armIndex);
 
-            const int chunk = (numArms > 0) ? (totalSize / numArms) : 0;
-            const bool validDistributed = (numArms > 1 && !ddrDims.isEmpty()
-                                           && totalSize > 0 && fifoSize > 0
-                                           && chunk > 0 && chunk >= fifoSize
-                                           && (chunk % fifoSize == 0));
-            if (validDistributed) {
-                // Distributed TAP: TensorAccessPattern with per-arm offset.
-                if (isFill)
-                    m_bridge->runtimeAddFillDistributed(
-                        armName, arm.fifoId, grp->paramName, arm.shimTileId,
-                        totalSize, numArms, arm.armIndex, fifoSize);
-                else
-                    m_bridge->runtimeAddDrainDistributed(
-                        armName, arm.fifoId, grp->paramName, arm.shimTileId,
-                        totalSize, numArms, arm.armIndex, fifoSize);
-            } else {
-                // Single arm or unknown sizes: fall back to legacy fill/drain (with optional TensorTiler2D).
-                // FillDrainConfig does not carry a TensorTilerConfig, so tapId stays empty here.
-                hlir::ComponentId tapId;
-                if (isFill)
-                    m_bridge->runtimeAddFill(armName, arm.fifoId, grp->paramName,
-                                              arm.shimTileId, -1, !tapId.empty(), tapId);
-                else
-                    m_bridge->runtimeAddDrain(armName, arm.fifoId, grp->paramName,
-                                               arm.shimTileId, -1, !tapId.empty(), tapId);
+            hlir::ComponentId tapId;
+            if (grp->ddrWire && grp->ddrWire->hasFillDrain()) {
+                const auto& fd = *grp->ddrWire->fillDrain();
+                if (fd.mode == Canvas::CanvasWire::DimensionMode::Matrix
+                    && fd.tap.has_value() && !fd.tap->tileDims.isEmpty()) {
+                    const QString tilerName = QString::fromStdString(grp->paramName)
+                                              + QStringLiteral("_tap");
+                    tapId = ensureTensorTiler2D(tilerName, *fd.tap, ddrDims);
+                }
             }
+
+            if (isFill)
+                m_bridge->runtimeAddFill(armName, arm.fifoId, grp->paramName,
+                                          arm.shimTileId, -1, !tapId.empty(), tapId);
+            else
+                m_bridge->runtimeAddDrain(armName, arm.fifoId, grp->paramName,
+                                           arm.shimTileId, -1, !tapId.empty(), tapId);
         }
     };
 

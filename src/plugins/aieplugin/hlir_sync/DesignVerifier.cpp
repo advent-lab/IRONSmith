@@ -14,6 +14,7 @@
 #include <QtCore/QList>
 #include <QtCore/QSet>
 
+#include <algorithm>
 #include <optional>
 
 namespace Aie::Internal {
@@ -186,7 +187,25 @@ QList<FillDrainEntry> collectFillDrainEntries(const Canvas::CanvasDocument& doc)
             else
                 continue; // Dynamic role — can't determine direction
         } else {
-            continue; // Unannotated wire not connected to a hub — skip
+            // No annotation, not a hub — infer from the SHIM port role for direct DDR↔SHIM wires.
+            if (!hubEp->attached.has_value())
+                continue;
+            const auto spec = parseTileSpec(otherBlock->specId());
+            if (!spec || spec->kind != NodeKind::SHIM)
+                continue;
+            Canvas::PortRole shimPortRole = Canvas::PortRole::Dynamic;
+            for (const auto& port : otherBlock->ports()) {
+                if (port.id == hubEp->attached->portId) {
+                    shimPortRole = port.role;
+                    break;
+                }
+            }
+            if (shimPortRole == Canvas::PortRole::Consumer)
+                isFill = true;
+            else if (shimPortRole == Canvas::PortRole::Producer)
+                isFill = false;
+            else
+                continue;
         }
 
         FillDrainEntry entry;
@@ -272,6 +291,16 @@ bool isBroadcastHub(const Canvas::CanvasBlock* block)
     auto* sym = dynamic_cast<const Canvas::BlockContentSymbol*>(block->content());
     return sym && sym->symbol().trimmed()
                == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Broadcast).symbol;
+}
+
+/// Returns true if a hub block is a Distribute or Collect hub (DDR fan-out / fan-in).
+bool isDistributeOrCollectHub(const Canvas::CanvasBlock* block)
+{
+    auto* sym = dynamic_cast<const Canvas::BlockContentSymbol*>(block->content());
+    if (!sym) return false;
+    const QString s = sym->symbol().trimmed();
+    return s == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Distribute).symbol
+        || s == Canvas::Support::linkHubStyle(Canvas::Support::LinkHubKind::Collect).symbol;
 }
 
 /// Extra incoming/outgoing FIFO connections contributed by split/join hub blocks.
@@ -946,10 +975,11 @@ DesignStats collectStats(const VerificationContext& ctx)
             connectedTiles.insert(w.consumerBlock, w.consumerSpec);
     }
 
-    // Count fills and drains from FillDrain wires (handles hub-based topology).
+    // Count fills and drains — each SHIM arm of a Distribute/Collect hub is one fill/drain.
     for (const auto& entry : collectFillDrainEntries(*ctx.document)) {
-        if (entry.isFill)  ++stats.fills;
-        else               ++stats.drains;
+        const int armCount = std::max(1, static_cast<int>(entry.shimArms.size()));
+        if (entry.isFill)  stats.fills  += armCount;
+        else               stats.drains += armCount;
         for (auto* shim : entry.shimArms) {
             const auto spec = parseTileSpec(shim->specId());
             if (spec) connectedTiles.insert(shim, *spec);
@@ -972,11 +1002,13 @@ DesignStats collectStats(const VerificationContext& ctx)
         for (const auto& port : hubBlock->ports())
             portRoles[port.id] = port.role;
 
-        // Determine hub type: broadcasts first (also have Consumer pivot role), then split/join.
+        // Determine hub type: broadcasts first, then Distribute/Collect (already in fills/drains), then split/join.
         if (isBroadcastHub(hubBlock)) {
             ++stats.broadcasts;
             continue;
         }
+        if (isDistributeOrCollectHub(hubBlock))
+            continue; // Counted via arm fills/drains, not as split/join.
 
         for (const auto& wItem : ctx.document->items()) {
             auto* wire = dynamic_cast<Canvas::CanvasWire*>(wItem.get());

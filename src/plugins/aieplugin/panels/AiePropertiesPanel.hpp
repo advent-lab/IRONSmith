@@ -94,6 +94,8 @@ private:
     void applyObjectFifoDefaults();
     void refreshDdrGroup(Canvas::CanvasBlock* ddrBlock);
     void applyDdrTableRow(bool isFill, int row);
+    void onDdrTableRowSelected(bool isFill, int row);
+    void applyDdrTap();
     void applyDdrPivotParam();
     void applyArmWireEntry();
 
@@ -151,6 +153,11 @@ private:
     QPointer<QGroupBox>      m_ddrGroup;
     QPointer<QTableWidget>   m_ddrInputsTable;
     QPointer<QTableWidget>   m_ddrOutputsTable;
+    QPointer<QWidget>        m_ddrTapWidget;
+    QPointer<QComboBox>      m_ddrTapModeCombo;
+    QPointer<QLineEdit>      m_ddrTapTileDimsEdit;
+    QPointer<QLineEdit>      m_ddrTapTileCountsEdit;
+    QPointer<QLineEdit>      m_ddrTapRepeatEdit;
 
     QPointer<QGroupBox> m_ddrPivotWireGroup;
     QPointer<QLineEdit> m_ddrPivotParamEdit;
@@ -161,6 +168,7 @@ private:
     Canvas::ObjectId m_effectiveFifoWireId{};
     Canvas::ObjectId m_armWireId{};      // currently-selected arm wire
     Canvas::ObjectId m_ddrPivotWireId{}; // currently-selected DDR pivot wire
+    Canvas::ObjectId m_ddrTapWireId{};   // wire whose TAP is being edited
     bool m_updatingUi = false;
     bool m_updatingObjectFifoTable = false;
 };

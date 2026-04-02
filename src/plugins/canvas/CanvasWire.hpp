@@ -88,6 +88,8 @@ public:
         QString valueType = QStringLiteral("i32"); // element dtype
         std::optional<QString> symbolRef;          // optional TypeAbstraction symbol name
         QString fifoName;                           // for hub arm wires: target FIFO name (e.g. "inA1")
+        DimensionMode mode = DimensionMode::Vector; // Vector or Matrix TAP mode
+        std::optional<TensorTilerConfig> tap;       // TAP config when mode == Matrix
     };
 
     struct Endpoint final {
