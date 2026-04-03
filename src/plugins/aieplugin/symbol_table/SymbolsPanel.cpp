@@ -359,7 +359,7 @@ void SymbolsPanel::buildEditorPages()
     emptyLabel->setWordWrap(true);
     emptyLabel->setObjectName(QStringLiteral("AieSymbolsEmptyStateLabel"));
 
-    auto* exampleLabel = new QLabel(QStringLiteral("Examples:\nN = 1024\nin_ty = np.ndarray[(N,), np.dtype[np.int32]]\ntap = TensorAccessPattern((16, 16), offset=0, sizes=[4, 4, 4], strides=[16, 64, 1])"), emptyCard);
+    auto* exampleLabel = new QLabel(QStringLiteral("Examples:\nN = 1024\nin_ty = np.ndarray[(N,), np.dtype[np.int32]]\ntap = TensorAccessPattern((16, 16), offset=0, sizes=[4, 4], strides=[16, 1])"), emptyCard);
     exampleLabel->setWordWrap(true);
     exampleLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     exampleLabel->setFont(fixedFont());
@@ -486,9 +486,27 @@ void SymbolsPanel::buildEditorPages()
 
     auto* tapNameEdit = makeField(tapCard, QStringLiteral("Identifier"));
     tapNameForm->addRow(makeKeyLabel(QStringLiteral("Name"), tapCard), tapNameEdit);
+    
+    // Add format selector
+    auto* tapFormatCombo = new QComboBox(tapCard);
+    tapFormatCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+    tapFormatCombo->addItem(QStringLiteral("TensorAccessPattern"));
+    tapFormatCombo->addItem(QStringLiteral("TensorTiler2D"));
+    tapNameForm->addRow(makeKeyLabel(QStringLiteral("Format"), tapCard), tapFormatCombo);
+    
     tapCardLayout->addLayout(tapNameForm);
 
-    auto* tapConfigCard = new QFrame(tapCard);
+    // Create stacked widget for format-specific editors
+    auto* tapFormatStack = new QStackedWidget(tapCard);
+    tapFormatStack->setObjectName(QStringLiteral("AieTapFormatStack"));
+
+    auto* tapPatternPage = new QWidget(tapFormatStack);
+    tapPatternPage->setObjectName(QStringLiteral("AieTapPatternPage"));
+    auto* tapPatternLayout = new QVBoxLayout(tapPatternPage);
+    tapPatternLayout->setContentsMargins(0, 0, 0, 0);
+    tapPatternLayout->setSpacing(10);
+
+    auto* tapConfigCard = new QFrame(tapPatternPage);
     tapConfigCard->setObjectName(QStringLiteral("AieTapEditorCard"));
     auto* tapConfigLayout = new QGridLayout(tapConfigCard);
     tapConfigLayout->setContentsMargins(12, 10, 12, 10);
@@ -508,9 +526,9 @@ void SymbolsPanel::buildEditorPages()
     tapConfigLayout->addWidget(makeKeyLabel(QStringLiteral("Offset"), tapConfigCard), 1, 0);
     tapConfigLayout->addWidget(tapOffsetSpin, 1, 1, 1, 3);
     tapConfigLayout->addWidget(tapShowRepetitions, 2, 0, 1, 4);
-    tapCardLayout->addWidget(tapConfigCard);
+    tapPatternLayout->addWidget(tapConfigCard);
 
-    auto* tapPatternsCard = new QFrame(tapCard);
+    auto* tapPatternsCard = new QFrame(tapPatternPage);
     tapPatternsCard->setObjectName(QStringLiteral("AieTapEditorCard"));
     auto* tapPatternsLayout = new QVBoxLayout(tapPatternsCard);
     tapPatternsLayout->setContentsMargins(12, 10, 12, 10);
@@ -537,8 +555,58 @@ void SymbolsPanel::buildEditorPages()
 
     tapPatternsLayout->addLayout(tapPatternsHeader);
     tapPatternsLayout->addWidget(tapPatternsHost);
-    tapCardLayout->addWidget(tapPatternsCard);
+    tapPatternLayout->addWidget(tapPatternsCard);
 
+    tapFormatStack->addWidget(tapPatternPage);
+
+    // ===== TensorTiler2D Page =====
+    auto* tapTiler2DPage = new QWidget(tapFormatStack);
+    tapTiler2DPage->setObjectName(QStringLiteral("AieTapTiler2DPage"));
+    auto* tapTiler2DLayout = new QVBoxLayout(tapTiler2DPage);
+    tapTiler2DLayout->setContentsMargins(0, 0, 0, 0);
+    tapTiler2DLayout->setSpacing(10);
+
+    auto* tapTiler2DConfigCard = new QFrame(tapTiler2DPage);
+    tapTiler2DConfigCard->setObjectName(QStringLiteral("AieTapEditorCard"));
+    auto* tapTiler2DConfigLayout = new QGridLayout(tapTiler2DConfigCard);
+    tapTiler2DConfigLayout->setContentsMargins(12, 10, 12, 10);
+    tapTiler2DConfigLayout->setHorizontalSpacing(8);
+    tapTiler2DConfigLayout->setVerticalSpacing(8);
+
+    auto makeTiler2DField = [tapTiler2DConfigCard](const QString& placeholder) {
+        auto* e = new QLineEdit(tapTiler2DConfigCard);
+        e->setObjectName(QStringLiteral("AiePropertiesField"));
+        e->setPlaceholderText(placeholder);
+        return e;
+    };
+    auto* tapTiler2DArrayDimsEdit   = makeTiler2DField(QStringLiteral("e.g. 256 x 256"));
+    auto* tapTiler2DTileDimsEdit    = makeTiler2DField(QStringLiteral("e.g. 32 x 32"));
+    auto* tapTiler2DTileCountsEdit  = makeTiler2DField(QStringLiteral("e.g. 8 x 8"));
+    auto* tapTiler2DPatternRepeatEdit = makeTiler2DField(QStringLiteral("optional, e.g. 1"));
+
+    tapTiler2DConfigLayout->addWidget(makeKeyLabel(QStringLiteral("Array Dimensions"), tapTiler2DConfigCard), 0, 0);
+    tapTiler2DConfigLayout->addWidget(tapTiler2DArrayDimsEdit, 0, 1, 1, 3);
+    tapTiler2DConfigLayout->addWidget(makeKeyLabel(QStringLiteral("Tile Dimensions"), tapTiler2DConfigCard), 1, 0);
+    tapTiler2DConfigLayout->addWidget(tapTiler2DTileDimsEdit, 1, 1, 1, 3);
+    tapTiler2DConfigLayout->addWidget(makeKeyLabel(QStringLiteral("Tile Counts"), tapTiler2DConfigCard), 2, 0);
+    tapTiler2DConfigLayout->addWidget(tapTiler2DTileCountsEdit, 2, 1, 1, 3);
+    tapTiler2DConfigLayout->addWidget(makeKeyLabel(QStringLiteral("Pattern Repeat"), tapTiler2DConfigCard), 3, 0);
+    tapTiler2DConfigLayout->addWidget(tapTiler2DPatternRepeatEdit, 3, 1, 1, 3);
+
+    auto* tiler2DNote = new QLabel(
+        QStringLiteral("TensorTiler2D automatically calculates strides for optimal 2D tiling patterns."),
+        tapTiler2DConfigCard);
+    tiler2DNote->setObjectName(QStringLiteral("AieSymbolsDetailLabel"));
+    tiler2DNote->setWordWrap(true);
+    tapTiler2DConfigLayout->addWidget(tiler2DNote, 4, 0, 1, 4);
+
+    tapTiler2DLayout->addWidget(tapTiler2DConfigCard);
+
+    tapFormatStack->addWidget(tapTiler2DPage);
+
+    tapCardLayout->addWidget(tapFormatStack);
+
+    // Preview widget (shared between both formats)
     auto* tapPreviewCard = new QFrame(tapCard);
     tapPreviewCard->setObjectName(QStringLiteral("AieTapEditorCard"));
     tapPreviewCard->setMinimumHeight(320);
@@ -559,6 +627,10 @@ void SymbolsPanel::buildEditorPages()
     m_tapEditorPage = tapPage;
     m_tapEditorCard = tapCard;
     m_tapNameEdit = tapNameEdit;
+    m_tapFormatCombo = tapFormatCombo;
+    m_tapFormatStack = tapFormatStack;
+    m_tapPatternPage = tapPatternPage;
+    m_tapTiler2DPage = tapTiler2DPage;
     m_tapRowsSpin = tapRowsSpin;
     m_tapColsSpin = tapColsSpin;
     m_tapOffsetSpin = tapOffsetSpin;
@@ -566,6 +638,10 @@ void SymbolsPanel::buildEditorPages()
     m_tapPatternsHost = tapPatternsHost;
     m_tapPatternsGrid = tapPatternsGrid;
     m_tapAddPatternButton = addPatternButton;
+    m_tapTiler2DArrayDimsEdit = tapTiler2DArrayDimsEdit;
+    m_tapTiler2DTileDimsEdit = tapTiler2DTileDimsEdit;
+    m_tapTiler2DTileCountsEdit = tapTiler2DTileCountsEdit;
+    m_tapTiler2DPatternRepeatEdit = tapTiler2DPatternRepeatEdit;
     m_tapPreviewWidget = tapPreviewWidget;
     m_editorStack->addWidget(tapPage);
 
@@ -603,6 +679,13 @@ void SymbolsPanel::buildEditorPages()
 
     connect(tapNameEdit, &QLineEdit::textChanged, this, &SymbolsPanel::refreshEditorPreview);
     connect(tapNameEdit, &QLineEdit::editingFinished, this, &SymbolsPanel::requestTapCommit);
+    connect(tapFormatCombo, &QComboBox::currentIndexChanged, this, [this](int index) {
+        if (m_updatingUi || !m_tapFormatStack)
+            return;
+        m_tapFormatStack->setCurrentIndex(index);
+        refreshEditorPreview();
+        requestTapCommit();
+    });
     connect(tapRowsSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
         if (m_updatingUi)
             return;
@@ -628,6 +711,26 @@ void SymbolsPanel::buildEditorPages()
         requestTapCommit();
     });
     connect(addPatternButton, &QToolButton::clicked, this, &SymbolsPanel::addTapPatternRow);
+    connect(tapTiler2DArrayDimsEdit, &QLineEdit::editingFinished, this, [this]() {
+        if (m_updatingUi) return;
+        refreshEditorPreview();
+        requestTapCommit();
+    });
+    connect(tapTiler2DTileDimsEdit, &QLineEdit::editingFinished, this, [this]() {
+        if (m_updatingUi) return;
+        refreshEditorPreview();
+        requestTapCommit();
+    });
+    connect(tapTiler2DTileCountsEdit, &QLineEdit::editingFinished, this, [this]() {
+        if (m_updatingUi) return;
+        refreshEditorPreview();
+        requestTapCommit();
+    });
+    connect(tapTiler2DPatternRepeatEdit, &QLineEdit::editingFinished, this, [this]() {
+        if (m_updatingUi) return;
+        refreshEditorPreview();
+        requestTapCommit();
+    });
 }
 
 void SymbolsPanel::rebuildDimensionEditors(int rank)
@@ -685,10 +788,10 @@ void SymbolsPanel::rebuildTapPatternEditors()
     const SymbolRecord* current = m_controller ? m_controller->symbolById(m_controller->selectedSymbolId()) : nullptr;
     const QVector<int> sizes = current && current->kind == SymbolKind::TensorAccessPattern
         ? current->tap.sizes
-        : QVector<int>{4, 4, 4};
+        : QVector<int>{4, 4};
     const QVector<int> strides = current && current->kind == SymbolKind::TensorAccessPattern
         ? current->tap.strides
-        : QVector<int>{16, 64, 1};
+        : QVector<int>{16, 1};
 
     const int rowCount = qMin(sizes.size(), strides.size());
     for (int row = 0; row < rowCount; ++row) {
@@ -757,6 +860,7 @@ void SymbolsPanel::bindController()
                 this, [this](const QModelIndex& current) {
                     if (m_updatingUi || !m_controller)
                         return;
+                    flushPendingCommit();
                     m_controller->setSelectedSymbolId(current.data(SymbolsModel::SymbolIdRole).toString());
                 });
     }
@@ -868,6 +972,17 @@ void SymbolsPanel::refreshEditor()
     } else {
         if (m_tapNameEdit)
             m_tapNameEdit->setText(symbol->name);
+        
+        // Set format combo and show appropriate page
+        const bool useTiler2D = symbol->tap.useTiler2D;
+        if (m_tapFormatCombo) {
+            m_tapFormatCombo->setCurrentIndex(useTiler2D ? 1 : 0);
+        }
+        if (m_tapFormatStack) {
+            m_tapFormatStack->setCurrentIndex(useTiler2D ? 1 : 0);
+        }
+        
+        // Update TensorAccessPattern fields
         if (m_tapRowsSpin)
             m_tapRowsSpin->setValue(symbol->tap.rows);
         if (m_tapColsSpin)
@@ -877,6 +992,17 @@ void SymbolsPanel::refreshEditor()
         if (m_tapShowRepetitionsCheck)
             m_tapShowRepetitionsCheck->setChecked(symbol->tap.showRepetitions);
         rebuildTapPatternEditors();
+        
+        // Update TensorTiler2D fields
+        if (m_tapTiler2DArrayDimsEdit)
+            m_tapTiler2DArrayDimsEdit->setText(symbol->tap.tensorDims);
+        if (m_tapTiler2DTileDimsEdit)
+            m_tapTiler2DTileDimsEdit->setText(symbol->tap.tileDims);
+        if (m_tapTiler2DTileCountsEdit)
+            m_tapTiler2DTileCountsEdit->setText(symbol->tap.tileCounts);
+        if (m_tapTiler2DPatternRepeatEdit)
+            m_tapTiler2DPatternRepeatEdit->setText(symbol->tap.patternRepeat);
+        
         if (m_editorStack && m_tapEditorPage)
             m_editorStack->setCurrentWidget(m_tapEditorPage);
     }
@@ -902,16 +1028,34 @@ void SymbolsPanel::refreshEditorPreview()
             m_typePreviewLabel->setText(currentTypePreview());
     } else if (m_tapPreviewWidget) {
         TensorAccessPatternSymbolData tapData;
-        tapData.rows = m_tapRowsSpin ? m_tapRowsSpin->value() : 16;
-        tapData.cols = m_tapColsSpin ? m_tapColsSpin->value() : 16;
-        tapData.offset = m_tapOffsetSpin ? m_tapOffsetSpin->value() : 0;
-        tapData.showRepetitions = m_tapShowRepetitionsCheck && m_tapShowRepetitionsCheck->isChecked();
-        tapData.sizes.clear();
-        tapData.strides.clear();
-        for (const auto& spin : m_tapSizeSpins)
-            tapData.sizes.push_back(spin ? spin->value() : 1);
-        for (const auto& spin : m_tapStrideSpins)
-            tapData.strides.push_back(spin ? spin->value() : 1);
+        
+        // Determine which format is active
+        const bool useTiler2D = m_tapFormatCombo && m_tapFormatCombo->currentIndex() == 1;
+        tapData.useTiler2D = useTiler2D;
+        
+        if (useTiler2D) {
+            // TensorTiler2D format
+            tapData.tensorDims = m_tapTiler2DArrayDimsEdit ? m_tapTiler2DArrayDimsEdit->text().trimmed() : QString();
+            tapData.tileDims = m_tapTiler2DTileDimsEdit ? m_tapTiler2DTileDimsEdit->text().trimmed() : QString();
+            tapData.tileCounts = m_tapTiler2DTileCountsEdit ? m_tapTiler2DTileCountsEdit->text().trimmed() : QString();
+            tapData.patternRepeat = m_tapTiler2DPatternRepeatEdit ? m_tapTiler2DPatternRepeatEdit->text().trimmed() : QString();
+            tapData.showRepetitions = false;
+            tapData.sizes.clear();
+            tapData.strides.clear();
+        } else {
+            // TensorAccessPattern format
+            tapData.rows = m_tapRowsSpin ? m_tapRowsSpin->value() : 16;
+            tapData.cols = m_tapColsSpin ? m_tapColsSpin->value() : 16;
+            tapData.offset = m_tapOffsetSpin ? m_tapOffsetSpin->value() : 0;
+            tapData.showRepetitions = m_tapShowRepetitionsCheck && m_tapShowRepetitionsCheck->isChecked();
+            tapData.sizes.clear();
+            tapData.strides.clear();
+            for (const auto& spin : m_tapSizeSpins)
+                tapData.sizes.push_back(spin ? spin->value() : 1);
+            for (const auto& spin : m_tapStrideSpins)
+                tapData.strides.push_back(spin ? spin->value() : 1);
+        }
+        
         m_tapPreviewWidget->setTapData(tapData);
     }
 }
@@ -1062,18 +1206,35 @@ void SymbolsPanel::commitTapEdits()
 
     SymbolRecord updated = *current;
     updated.name = currentEditorName();
-    updated.tap.rows = m_tapRowsSpin ? m_tapRowsSpin->value() : 16;
-    updated.tap.cols = m_tapColsSpin ? m_tapColsSpin->value() : 16;
-    updated.tap.offset = m_tapOffsetSpin ? m_tapOffsetSpin->value() : 0;
-    updated.tap.showRepetitions = m_tapShowRepetitionsCheck && m_tapShowRepetitionsCheck->isChecked();
-    updated.tap.sizes.clear();
-    updated.tap.strides.clear();
-    updated.tap.sizes.reserve(m_tapSizeSpins.size());
-    updated.tap.strides.reserve(m_tapStrideSpins.size());
-    for (const auto& spin : m_tapSizeSpins)
-        updated.tap.sizes.push_back(spin ? spin->value() : 1);
-    for (const auto& spin : m_tapStrideSpins)
-        updated.tap.strides.push_back(spin ? spin->value() : 1);
+    
+    // Determine which format is active
+    const bool useTiler2D = m_tapFormatCombo && m_tapFormatCombo->currentIndex() == 1;
+    updated.tap.useTiler2D = useTiler2D;
+    
+    if (useTiler2D) {
+        // TensorTiler2D format
+        updated.tap.tensorDims = m_tapTiler2DArrayDimsEdit ? m_tapTiler2DArrayDimsEdit->text().trimmed() : QString();
+        updated.tap.tileDims = m_tapTiler2DTileDimsEdit ? m_tapTiler2DTileDimsEdit->text().trimmed() : QString();
+        updated.tap.tileCounts = m_tapTiler2DTileCountsEdit ? m_tapTiler2DTileCountsEdit->text().trimmed() : QString();
+        updated.tap.patternRepeat = m_tapTiler2DPatternRepeatEdit ? m_tapTiler2DPatternRepeatEdit->text().trimmed() : QString();
+        updated.tap.showRepetitions = false;
+        updated.tap.sizes.clear();
+        updated.tap.strides.clear();
+    } else {
+        // TensorAccessPattern format
+        updated.tap.rows = m_tapRowsSpin ? m_tapRowsSpin->value() : 16;
+        updated.tap.cols = m_tapColsSpin ? m_tapColsSpin->value() : 16;
+        updated.tap.offset = m_tapOffsetSpin ? m_tapOffsetSpin->value() : 0;
+        updated.tap.showRepetitions = m_tapShowRepetitionsCheck && m_tapShowRepetitionsCheck->isChecked();
+        updated.tap.sizes.clear();
+        updated.tap.strides.clear();
+        updated.tap.sizes.reserve(m_tapSizeSpins.size());
+        updated.tap.strides.reserve(m_tapStrideSpins.size());
+        for (const auto& spin : m_tapSizeSpins)
+            updated.tap.sizes.push_back(spin ? spin->value() : 1);
+        for (const auto& spin : m_tapStrideSpins)
+            updated.tap.strides.push_back(spin ? spin->value() : 1);
+    }
 
     const Utils::Result result = m_controller->updateSymbol(updated);
     refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);

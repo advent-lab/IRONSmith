@@ -1060,7 +1060,7 @@ class CodeGenerator:
         const_nodes = [c for c in self._get_children(symbols_sections[0], 'contains')
                        if self._get_node_attr(c, 'kind') == 'Const']
         if const_nodes:
-            self._emit("# Define constants")
+            self._emit("# Constants")
             for child_id in const_nodes:
                 const_name = self._get_node_attr(child_id, 'label')
                 const_value = self._get_node_attr(child_id, 'value')
@@ -1068,7 +1068,7 @@ class CodeGenerator:
                     self._emit(f"{const_name} = {const_value}")
             self._emit()
 
-        self._emit("# Define tensor types")
+        self._emit("# Tensor Types")
 
         # Find TypeAbstraction nodes
         for child_id in self._get_children(symbols_sections[0], 'contains'):
@@ -1078,15 +1078,6 @@ class CodeGenerator:
                 self._emit(f"{type_name} = {type_def}")
 
         self._emit()
-
-        # Emit TensorTiler2D variable assignments (TAP definitions)
-        tiler_nodes = [c for c in self._get_children(symbols_sections[0], 'contains')
-                       if self._get_node_attr(c, 'kind') == 'TensorTiler2D']
-        if tiler_nodes:
-            self._emit("# Tensor access patterns")
-            for tiler_id in tiler_nodes:
-                self._emit_tiler2d_assignment(tiler_id)
-            self._emit()
     
     def _reconstruct_type_definition(self, type_id: str) -> str:
         """Reconstruct type definition from TypeAbstraction node."""
@@ -1151,6 +1142,24 @@ class CodeGenerator:
                 dtype_label = f"np.{dtype_label}"
             return f"np.dtype[{dtype_label}]"
         return "np.dtype"
+
+    def _emit_tap_assignment(self, tap_id: str):
+        """
+        Emit a TensorAccessPattern(...) assignment statement.
+
+        Example output:
+            my_tap = TensorAccessPattern((256, 256), offset=0, sizes=[32, 32], strides=[256, 1])
+        """
+        name = self._get_node_attr(tap_id, 'label')
+        tensor_dims = self._get_node_attr(tap_id, 'tensor_dims') or ""
+        offset = self._get_node_attr(tap_id, 'offset') or "0"
+        sizes = self._get_node_attr(tap_id, 'sizes') or ""
+        strides = self._get_node_attr(tap_id, 'strides') or ""
+
+        sizes_list = "[" + sizes + "]" if sizes else "[]"
+        strides_list = "[" + strides + "]" if strides else "[]"
+        self._emit(f"{name} = TensorAccessPattern(({tensor_dims},), offset={offset}, "
+                   f"sizes={sizes_list}, strides={strides_list})")
 
     def _emit_tiler2d_assignment(self, tiler_id: str):
         """
@@ -1219,54 +1228,78 @@ class CodeGenerator:
         
         dataflow_id = dataflow_sections[0]
         
-        # Generate ObjectFifos
-        self._emit("# Data movement with ObjectFifos")
-        objectfifo_nodes = [c for c in self._get_children(dataflow_id, 'contains')
-                           if self._get_node_attr(c, 'kind') == 'ObjectFifo']
-        
-        for of_id in objectfifo_nodes:
-            of_name = self._get_node_attr(of_id, 'label')
-
-            # Check for source expression
+        # Reconstruct the source expression for an ObjectFifo node that has one.
+        def _of_source_expr(of_id):
             source_nodes = self._get_children(of_id, 'source_expr')
-            if source_nodes:
-                source_id = source_nodes[0]
-                source_kind = self._get_node_attr(source_id, 'kind')
+            if not source_nodes:
+                return None
+            source_id = source_nodes[0]
+            if self._get_node_attr(source_id, 'kind') == 'MethodChain':
+                return self._reconstruct_method_chain(source_id)
+            return self._reconstruct_call(source_id)
 
-                # Handle MethodChain nodes
-                if source_kind == 'MethodChain':
-                    source_expr = self._reconstruct_method_chain(source_id)
-                    if source_expr:
-                        self._emit(f"{of_name} = {source_expr}")
+        def _emit_standard_of(of_id):
+            of_name = self._get_node_attr(of_id, 'label')
+            type_nodes = self._get_children(of_id, 'uses_type')
+            type_name = self._get_node_attr(type_nodes[0], 'label') if type_nodes else "type"
+            kwarg_nodes = self._get_children(of_id, 'has_kwarg')
+            kwargs = []
+            for kw_id in kwarg_nodes:
+                kw_name = self._get_node_attr(kw_id, 'name')
+                kw_value = self._get_node_attr(kw_id, 'value')
+                if kw_value and kw_value.isdigit():
+                    kwargs.append(f'{kw_name}={kw_value}')
+                elif kw_name == 'name':
+                    kwargs.append(f'{kw_name}="{kw_value}"')
                 else:
-                    source_expr = self._reconstruct_call(source_id)
-                    if source_expr:
-                        self._emit(f"{of_name} = {source_expr}")
+                    kwargs.append(f'{kw_name}="{kw_value}"')
+            kwargs_str = ", ".join(kwargs)
+            if kwargs_str:
+                self._emit(f"{of_name} = ObjectFifo(obj_type={type_name}, {kwargs_str})")
             else:
-                # Get type and kwargs
-                type_nodes = self._get_children(of_id, 'uses_type')
-                type_name = self._get_node_attr(type_nodes[0], 'label') if type_nodes else "type"
-                
-                kwarg_nodes = self._get_children(of_id, 'has_kwarg')
-                kwargs = []
-                for kw_id in kwarg_nodes:
-                    name = self._get_node_attr(kw_id, 'name')
-                    value = self._get_node_attr(kw_id, 'value')
+                self._emit(f"{of_name} = ObjectFifo(obj_type={type_name})")
 
-                    # Convert numeric strings to integers (no quotes)
-                    if value and value.isdigit():
-                        kwargs.append(f'{name}={value}')
-                    elif name == 'name':
-                        kwargs.append(f'{name}="{value}"')
-                    else:
-                        kwargs.append(f'{name}="{value}"')
-                
-                kwargs_str = ", ".join(kwargs)
-                if kwargs_str:
-                    self._emit(f"{of_name} = ObjectFifo(obj_type={type_name}, {kwargs_str})")
-                else:
-                    self._emit(f"{of_name} = ObjectFifo(obj_type={type_name})")
-        
+        objectfifo_nodes = [c for c in self._get_children(dataflow_id, 'contains')
+                            if self._get_node_attr(c, 'kind') == 'ObjectFifo']
+
+        standard_ofs = []
+        split_ofs    = []
+        join_ofs     = []
+        bcast_ofs    = []
+        for of_id in objectfifo_nodes:
+            expr = _of_source_expr(of_id)
+            if expr is None:
+                standard_ofs.append(of_id)
+            elif '.split(' in expr:
+                split_ofs.append((of_id, expr))
+            elif '.join(' in expr:
+                join_ofs.append((of_id, expr))
+            elif '.forward(' in expr:
+                bcast_ofs.append((of_id, expr))
+            else:
+                standard_ofs.append(of_id)
+
+        # Data movement section
+        self._emit("# Data Movement")
+        self._emit("# Object Fifos")
+        for of_id in standard_ofs:
+            _emit_standard_of(of_id)
+        if split_ofs:
+            self._emit("# Splits")
+            for of_id, expr in split_ofs:
+                of_name = self._get_node_attr(of_id, 'label')
+                self._emit(f"{of_name} = {expr}")
+        if join_ofs:
+            self._emit("# Joins")
+            for of_id, expr in join_ofs:
+                of_name = self._get_node_attr(of_id, 'label')
+                self._emit(f"{of_name} = {expr}")
+        if bcast_ofs:
+            self._emit("# Broadcasts")
+            for of_id, expr in bcast_ofs:
+                of_name = self._get_node_attr(of_id, 'label')
+                self._emit(f"{of_name} = {expr}")
+
         self._emit()
         
         # Generate ExternalFunctions
@@ -1274,7 +1307,7 @@ class CodeGenerator:
                          if self._get_node_attr(c, 'kind') == 'ExternalFunction']
         
         if ext_func_nodes:
-            self._emit("#Define kernels here... ------------------------------------------------\\/")
+            self._emit("# Compute Kernels")
             for ef_id in ext_func_nodes:
                 # Use extension if available
                 if hasattr(self, '_generate_ext_externalfunction'):
@@ -1287,7 +1320,7 @@ class CodeGenerator:
                           if self._get_node_attr(c, 'kind') == 'CoreFunction']
         
         if core_func_nodes:
-            self._emit("# core_fn here:")
+            self._emit("# Core Body Functions")
             for cf_id in core_func_nodes:
                 # Use extension if available
                 if hasattr(self, '_generate_ext_corefunction'):
@@ -1300,7 +1333,7 @@ class CodeGenerator:
                        if self._get_node_attr(c, 'kind') == 'Worker']
         
         if worker_nodes:
-            self._emit("#Workers defined here:")
+            self._emit("# Workers")
             self._emit("Workers = []")
             for w_id in worker_nodes:
                 # Use extension if available
@@ -1322,8 +1355,27 @@ class CodeGenerator:
         if list_nodes:
             self._emit()
         
+        # Emit TAP definitions (TensorTiler2D and TensorAccessPattern) before the runtime sequence
+        module_nodes_tap = self._find_nodes_by_kind('Module')
+        if module_nodes_tap:
+            tap_symbols = [c for c in self._get_children(module_nodes_tap[0], 'contains')
+                           if self._get_node_attr(c, 'kind') == 'Section'
+                           and self._get_node_attr(c, 'label') == 'Symbols']
+            if tap_symbols:
+                tiler_nodes = [c for c in self._get_children(tap_symbols[0], 'contains')
+                               if self._get_node_attr(c, 'kind') == 'TensorTiler2D']
+                tap_nodes = [c for c in self._get_children(tap_symbols[0], 'contains')
+                             if self._get_node_attr(c, 'kind') == 'TensorAccessPattern']
+                if tiler_nodes or tap_nodes:
+                    self._emit("# Tensor Access Patterns (TAPs)")
+                    for tiler_id in tiler_nodes:
+                        self._emit_tiler2d_assignment(tiler_id)
+                    for tap_id in tap_nodes:
+                        self._emit_tap_assignment(tap_id)
+                    self._emit()
+
         # Generate Runtime
-        self._emit("# Runtime operations to move data to/from the AIE-array")
+        self._emit("# Runtime")
         runtime_nodes = [c for c in self._get_children(dataflow_id, 'contains') 
                         if self._get_node_attr(c, 'kind') == 'Runtime']
         
@@ -1339,7 +1391,7 @@ class CodeGenerator:
             self._generate_sequence_block(seq_id)
         
         # Generate Program
-        self._emit("# Create the program from the current device and runtime")
+        self._emit("# Program")
         program_nodes = [c for c in self._get_children(dataflow_id, 'contains') 
                         if self._get_node_attr(c, 'kind') == 'Program']
         
@@ -1350,7 +1402,7 @@ class CodeGenerator:
         self._emit()
         
         # Generate Placer
-        self._emit("# Place components and resolve program (generate MLIR + compile)")
+        self._emit("# Placement")
         placer_nodes = [c for c in self._get_children(dataflow_id, 'contains') 
                        if self._get_node_attr(c, 'kind') == 'Placer']
         
@@ -1386,13 +1438,43 @@ class CodeGenerator:
         type_args = ", ".join(type_refs) if type_refs else "vector_ty, vector_ty"
         
         self._emit(f"with rt.sequence({type_args}) as ({bindings_str}):")
-        
-        # Generate operations
+
+        # Generate operations grouped by type
         self.indent_level += 1
-        op_nodes = self._get_children(seq_id, 'contains')
-        for op_id in op_nodes:
-            if self._get_node_attr(op_id, 'kind') == 'Operation':
+        op_nodes = [op_id for op_id in self._get_children(seq_id, 'contains')
+                    if self._get_node_attr(op_id, 'kind') == 'Operation']
+
+        def _op_name(op_id):
+            target_nodes = self._get_children(op_id, 'target')
+            if target_nodes:
+                target_kind = self._get_node_attr(target_nodes[0], 'kind')
+                if target_kind == 'MethodCall':
+                    return self._get_node_attr(target_nodes[0], 'label') or ''
+                target_call = self._reconstruct_call(target_nodes[0])
+                if '.' in target_call:
+                    return target_call.split('.')[1].rstrip('()')
+            return self._get_node_attr(op_id, 'label') or ''
+
+        starts = [op for op in op_nodes if _op_name(op) == 'start']
+        fills  = [op for op in op_nodes if _op_name(op) == 'fill']
+        drains = [op for op in op_nodes if _op_name(op) == 'drain']
+        others = [op for op in op_nodes if op not in starts and op not in fills and op not in drains]
+
+        if starts:
+            self._emit("# Start Workers")
+            for op_id in starts:
                 self._generate_operation(op_id)
+        if fills:
+            self._emit("# Fills")
+            for op_id in fills:
+                self._generate_operation(op_id)
+        if drains:
+            self._emit("# Drains")
+            for op_id in drains:
+                self._generate_operation(op_id)
+        for op_id in others:
+            self._generate_operation(op_id)
+
         self.indent_level -= 1
         self._emit()
     

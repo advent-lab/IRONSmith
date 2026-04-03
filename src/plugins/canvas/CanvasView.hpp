@@ -66,6 +66,9 @@ public:
 	void clearSelectedItems();
 	void setSelectedPort(ObjectId itemId, PortId portId);
 	void clearSelectedPort();
+	bool hasSelectedPort() const noexcept;
+	ObjectId selectedPortItem() const noexcept;
+	PortId selectedPortId() const noexcept;
 
 	void setHoveredPort(ObjectId itemId, PortId portId);
 	void clearHoveredPort();

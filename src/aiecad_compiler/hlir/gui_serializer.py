@@ -185,10 +185,12 @@ class GUIXMLSerializer:
             if isinstance(symbol.value, TensorType):
                 self._add_gui_type_abstraction(parent, symbol.name, symbol.value)
 
-        # Add TensorTiler2D specs (after types, before runtime)
+        # Add TAPs: both TensorTiler2D specs and TensorAccessPattern (after types, before runtime)
         for symbol in program.symbols.values():
             if isinstance(symbol.value, TensorTiler2DSpec):
                 self._add_gui_tiler2d(parent, symbol.value)
+            elif isinstance(symbol.value, TensorAccessPattern):
+                self._add_gui_tap_symbol(parent, symbol.value)
 
     def _add_gui_const(self, parent: Element, symbol: Symbol):
         """Add constant in GUI XML format."""
@@ -698,6 +700,30 @@ class GUIXMLSerializer:
         offset_elem = SubElement(tap_elem, 'offset')
         offset_elem.text = str(tap.offset)
         offset_elem.tail = '\n'
+
+        # Sizes
+        sizes_elem = SubElement(tap_elem, 'sizes')
+        sizes_elem.text = ', '.join(str(s) for s in tap.sizes)
+        sizes_elem.tail = '\n'
+
+        # Strides
+        strides_elem = SubElement(tap_elem, 'strides')
+        strides_elem.text = ', '.join(str(s) for s in tap.strides)
+        strides_elem.tail = '\n'
+
+    def _add_gui_tap_symbol(self, parent: Element, tap: TensorAccessPattern):
+        """Add TensorAccessPattern as a symbol in GUI XML format."""
+        tap_elem = SubElement(parent, 'TAP')
+        tap_elem.set('name', tap.name or 'unnamed_tap')
+        tap_elem.set('offset', str(tap.offset))
+        tap_elem.set('use_tiler2d', 'false')
+        tap_elem.text = '\n'
+        tap_elem.tail = '\n'
+
+        # Tensor dims
+        dims_elem = SubElement(tap_elem, 'tensor_dims')
+        dims_elem.text = ', '.join(str(d) for d in tap.tensor_dims)
+        dims_elem.tail = '\n'
 
         # Sizes
         sizes_elem = SubElement(tap_elem, 'sizes')

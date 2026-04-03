@@ -633,6 +633,112 @@ class ProgramBuilder:
 
         return BuilderResult.ok(comp_id, tiler)
 
+    def add_tap(self, name: str,
+                tensor_dims: List[Union[int, str]],
+                offset: Union[int, str],
+                sizes: List[Union[int, str]],
+                strides: List[Union[int, str]],
+                prune_step: bool = False,
+                index: int = 0,
+                use_tiler2d: bool = True,
+                provided_id: Optional[str] = None,
+                **metadata) -> BuilderResult:
+        """
+        Add a Tensor Access Pattern (TAP) to the symbol table.
+        
+        This method accepts TensorAccessPattern parameters and can either:
+        1. Convert to TensorTiler2DSpec for optimized 2D tiling (use_tiler2d=True)
+        2. Store as TensorAccessPattern for direct code generation (use_tiler2d=False)
+        
+        The TAP is stored in the symbol table and can be referenced by name in
+        fill/drain operations.
+        
+        Args:
+            name: Variable name for this TAP (e.g., "a_tap")
+            tensor_dims: Full tensor dimensions (can be symbolic)
+            offset: Starting offset into the tensor
+            sizes: Access pattern sizes (can be symbolic)
+            strides: Access pattern strides (can be symbolic)
+            prune_step: Whether to prune steps (for TensorTiler2D, usually False)
+            index: Index into the returned list (for TensorTiler2D, usually 0)
+            use_tiler2d: If True, convert to TensorTiler2D; if False, use TensorAccessPattern
+            provided_id: Optional ID for update operation
+            **metadata: Additional properties
+        
+        Returns:
+            BuilderResult with component ID and TAP object (TensorTiler2DSpec or TensorAccessPattern)
+        
+        Examples:
+            # Using TensorTiler2D (optimized for 2D regular tiling)
+            builder.add_tap(
+                name="my_tap",
+                tensor_dims=[256, 256],
+                offset=0,
+                sizes=[32, 32],
+                strides=[256, 1],
+                use_tiler2d=True  # Default
+            )
+            
+            # Using TensorAccessPattern (for complex patterns or non-2D)
+            builder.add_tap(
+                name="complex_tap",
+                tensor_dims=[256, 256, 256],
+                offset=128,
+                sizes=[32, 32, 32],
+                strides=[256*256, 256, 1],
+                use_tiler2d=False
+            )
+        """
+        from .operations import TensorAccessPattern, convert_tap_to_tiler2d
+        
+        # If ID provided and exists, remove old component from program dict
+        if provided_id and provided_id in self._id_map:
+            _, old_component = self._id_map[provided_id]
+            old_name = getattr(old_component, 'name', None)
+            if old_name and old_name in self.program.symbols:
+                del self.program.symbols[old_name]
+        elif name in self.program.symbols:
+            name_key = ('tap', name)
+            existing_id = self._name_index.get(name_key, "")
+            return BuilderResult.duplicate(name, 'tap', existing_id)
+        
+        # Create TensorAccessPattern
+        tap = TensorAccessPattern(
+            tensor_dims=tensor_dims,
+            offset=offset,
+            sizes=sizes,
+            strides=strides,
+            name=name,
+            metadata=metadata
+        )
+        
+        if use_tiler2d:
+            # Convert to TensorTiler2DSpec
+            try:
+                tiler = convert_tap_to_tiler2d(tap, name, prune_step=prune_step, index=index)
+            except ValueError as e:
+                return BuilderResult.error(
+                    ErrorCode.INVALID_PARAMETER,
+                    f"Failed to convert TAP to TensorTiler2D: {str(e)}"
+                )
+            
+            # Store in symbol table as TensorTiler2DSpec
+            symbol = Symbol(name=name, value=tiler, type_hint="TensorTiler2DSpec")
+            self.program.symbols[name] = symbol
+            
+            comp_id = self._register_component('tap', name, symbol, provided_id=provided_id)
+            
+            return BuilderResult.ok(comp_id, tiler)
+        else:
+            # Store as TensorAccessPattern
+            symbol = Symbol(name=name, value=tap, type_hint="TensorAccessPattern")
+            self.program.symbols[name] = symbol
+            
+            comp_id = self._register_component('tap', name, symbol, provided_id=provided_id)
+            
+            return BuilderResult.ok(comp_id, tap)
+
+
     def add_external_kernel(self, name: str, kernel_name: str,
                             source_file: str, arg_types: List[Union[AnyType, str]],
                             include_dirs: Optional[List[str]] = None,

@@ -38,9 +38,15 @@ struct TensorAccessPatternSymbolData final {
     int rows = 16;
     int cols = 16;
     int offset = 0;
-    QVector<int> sizes{4, 4, 4};
-    QVector<int> strides{16, 64, 1};
+    QVector<int> sizes{4, 4};
+    QVector<int> strides{16, 1};
     bool showRepetitions = true;
+    bool useTiler2D = true;  // If true, generate TensorTiler2D code; if false, use TensorAccessPattern
+    // TensorTiler2D-specific fields (used when useTiler2D = true)
+    QString tensorDims;   // total tensor size, e.g. "16 x 16"
+    QString tileDims;
+    QString tileCounts;
+    QString patternRepeat;
 };
 
 struct SymbolRecord final {

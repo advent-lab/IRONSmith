@@ -492,22 +492,23 @@ Utils::Result SymbolsController::validateSymbols(const QVector<SymbolRecord>& sy
             return Utils::Result::failure(QStringLiteral("TAP '%1' offset must be zero or greater.")
                                               .arg(symbol.name));
         }
-        if (symbol.tap.sizes.isEmpty() || symbol.tap.strides.isEmpty()
-            || symbol.tap.sizes.size() != symbol.tap.strides.size()) {
-            return Utils::Result::failure(QStringLiteral("TAP '%1' must declare matching sizes and strides.")
-                                              .arg(symbol.name));
-        }
-
-        for (const int size : symbol.tap.sizes) {
-            if (size <= 0) {
-                return Utils::Result::failure(QStringLiteral("TAP '%1' sizes must be positive integers.")
+        if (!symbol.tap.useTiler2D) {
+            if (symbol.tap.sizes.isEmpty() || symbol.tap.strides.isEmpty()
+                || symbol.tap.sizes.size() != symbol.tap.strides.size()) {
+                return Utils::Result::failure(QStringLiteral("TAP '%1' must declare matching sizes and strides.")
                                                   .arg(symbol.name));
             }
-        }
-        for (const int stride : symbol.tap.strides) {
-            if (stride <= 0) {
-                return Utils::Result::failure(QStringLiteral("TAP '%1' strides must be positive integers.")
-                                                  .arg(symbol.name));
+            for (const int size : symbol.tap.sizes) {
+                if (size <= 0) {
+                    return Utils::Result::failure(QStringLiteral("TAP '%1' sizes must be positive integers.")
+                                                      .arg(symbol.name));
+                }
+            }
+            for (const int stride : symbol.tap.strides) {
+                if (stride <= 0) {
+                    return Utils::Result::failure(QStringLiteral("TAP '%1' strides must be positive integers.")
+                                                      .arg(symbol.name));
+                }
             }
         }
     }

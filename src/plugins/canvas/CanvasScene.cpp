@@ -448,22 +448,17 @@ void CanvasScene::drawOverlayLayer(QPainter& p, const QRectF& visibleScene, doub
         WireAnnotationPalette palette = WireAnnotationPalette::Default;
         if (useHandlePalette) {
             palette = WireAnnotationPalette::Forward;
-        } else if (annotationText == QStringLiteral("FILL")) {
-            palette = WireAnnotationPalette::Fill;
-        } else if (annotationText == QStringLiteral("DRAIN")) {
-            palette = WireAnnotationPalette::Drain;
+        } else if (wire->hasFillDrain()) {
+            palette = wire->fillDrain()->isFill ? WireAnnotationPalette::Fill
+                                                : WireAnnotationPalette::Drain;
         } else if (wire->hasObjectFifo()) {
             switch (wire->objectFifo()->operation) {
                 case CanvasWire::ObjectFifoOperation::Forward:
                     palette = WireAnnotationPalette::Forward;
                     break;
-                case CanvasWire::ObjectFifoOperation::Fill:
-                    palette = WireAnnotationPalette::Fill;
-                    break;
-                case CanvasWire::ObjectFifoOperation::Drain:
-                    palette = WireAnnotationPalette::Drain;
-                    break;
                 case CanvasWire::ObjectFifoOperation::Fifo:
+                case CanvasWire::ObjectFifoOperation::Fill:   // legacy (pre-migration)
+                case CanvasWire::ObjectFifoOperation::Drain:  // legacy (pre-migration)
                 case CanvasWire::ObjectFifoOperation::Split:
                 case CanvasWire::ObjectFifoOperation::Join:
                     break;

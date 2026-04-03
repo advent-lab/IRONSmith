@@ -295,6 +295,21 @@ class GraphBuilder:
         self._link(p, n, "contains")
         self._declare_symbol(name, n)
 
+    def _symbol_tensoraccesspattern(self, e: etree.Element, p: NodeId):
+        """
+        Create TensorAccessPattern node for direct TAP variable declarations.
+
+        Example: my_tap = TensorAccessPattern((rows, cols), offset=0, sizes=[...], strides=[...])
+        """
+        name = e.get("name")
+        n = self._add_node(name, "TensorAccessPattern",
+                           tensor_dims=e.get("tensor_dims", ""),
+                           offset=e.get("offset", "0"),
+                           sizes=e.get("sizes", ""),
+                           strides=e.get("strides", ""))
+        self._link(p, n, "contains")
+        self._declare_symbol(name, n)
+
     # ===================================================================
     # SECTION 5: DataFlow Section Processing
     # ===================================================================

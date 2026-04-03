@@ -384,17 +384,44 @@ bool CanvasDocument::resolveHubArmLabelForEndpoint(ObjectId itemId,
     if (!block || !block->isLinkHub())
         return false;
 
-    // Find portId's 0-based position among ports of the same role on this hub block.
+    // Identify the queried port's role and count ports of each role.
     PortRole role = PortRole::Dynamic;
+    int consumerCount = 0, producerCount = 0;
     for (const auto& port : block->ports()) {
-        if (port.id == portId) {
-            role = port.role;
-            break;
-        }
+        if (port.id == portId) role = port.role;
+        if (port.role == PortRole::Consumer)       ++consumerCount;
+        else if (port.role == PortRole::Producer)  ++producerCount;
     }
     if (role == PortRole::Dynamic)
         return false;
 
+    // Determine which role is the pivot using the hub symbol:
+    //   S / B / D  →  sole Consumer is the pivot (data arrives once, fans out)
+    //   J / C      →  sole Producer is the pivot (data converges, leaves once)
+    // Using the symbol as the tiebreaker handles the 1:1 broadcast case where both
+    // the consumer and producer ports have count == 1 and counts alone are ambiguous.
+    const auto* sym = dynamic_cast<const BlockContentSymbol*>(block->content());
+    const QString hubSymbol = sym ? sym->symbol().trimmed() : QString{};
+    const bool consumerIsPivot = (hubSymbol == QLatin1String("S") ||
+                                  hubSymbol == QLatin1String("B") ||
+                                  hubSymbol == QLatin1String("D"));
+    const bool producerIsPivot = (hubSymbol == QLatin1String("J") ||
+                                  hubSymbol == QLatin1String("C"));
+
+    if (consumerIsPivot && role == PortRole::Consumer && consumerCount == 1)
+        return false; // pivot port
+    if (producerIsPivot && role == PortRole::Producer && producerCount == 1)
+        return false; // pivot port
+    // Unknown symbol: fall back to sole-port heuristic.
+    if (!consumerIsPivot && !producerIsPivot) {
+        int count = 0;
+        for (const auto& port : block->ports())
+            if (port.role == role) ++count;
+        if (count <= 1)
+            return false;
+    }
+
+    // Arm port: assign a sequential index among all ports of the same role.
     int index = 0;
     for (const auto& port : block->ports()) {
         if (port.role != role)

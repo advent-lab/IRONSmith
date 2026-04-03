@@ -107,6 +107,20 @@ private:
                                           const Canvas::CanvasWire::TensorTilerConfig& tap,
                                           const QString& totalDims);
 
+    /// Register a TAP (TensorAccessPattern or TensorTiler2D) from symbol table.
+    /// Returns the ComponentId, or empty on failure.
+    hlir::ComponentId ensureTap(const QString& name,
+                                int rows,
+                                int cols,
+                                int offset,
+                                const QVector<int>& sizes,
+                                const QVector<int>& strides,
+                                bool useTiler2D,
+                                const QString& tensorDims,
+                                const QString& tileDims,
+                                const QString& tileCounts,
+                                const QString& patternRepeat);
+
     struct ResolvedType {
         QString dimensions;
         QString valueType;

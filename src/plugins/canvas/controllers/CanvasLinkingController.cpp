@@ -32,8 +32,12 @@ namespace {
 
 PortRole oppositePortRole(Support::LinkWireRole role)
 {
-    return role == Support::LinkWireRole::Producer ? PortRole::Consumer
-                                                   : PortRole::Producer;
+    // Both Producer and BroadcastProducer represent the producing end of a wire;
+    // the hub port they connect to must be a Consumer.
+    return (role == Support::LinkWireRole::Producer
+         || role == Support::LinkWireRole::BroadcastProducer)
+        ? PortRole::Consumer
+        : PortRole::Producer;
 }
 
 std::optional<WireArrowPolicy> arrowPolicyFromPortRoles(const CanvasDocument* doc,
@@ -481,9 +485,25 @@ void CanvasLinkingController::applyLinkingModeDefaults(CanvasWire& wire,
     const auto config = defaultObjectFifoConfig(start, end);
     if (!config.has_value()) {
         wire.clearObjectFifo();
+        wire.clearFillDrain();
         return;
     }
 
+    // DDR-side wires (Fill/Drain) are modelled as FillDrainConfig, not ObjectFifo.
+    if (config->operation == CanvasWire::ObjectFifoOperation::Fill ||
+        config->operation == CanvasWire::ObjectFifoOperation::Drain) {
+        CanvasWire::FillDrainConfig fd;
+        fd.isFill    = (config->operation == CanvasWire::ObjectFifoOperation::Fill);
+        fd.paramName = config->name;
+        fd.totalDims = config->type.dimensions;
+        fd.valueType = config->type.valueType;
+        if (config->type.symbolRef.has_value())
+            fd.symbolRef = config->type.symbolRef;
+        wire.setFillDrain(fd);
+        return;
+    }
+
+    wire.clearFillDrain();
     wire.setObjectFifo(*config);
 }
 
@@ -580,7 +600,8 @@ bool CanvasLinkingController::connectToExistingHub(const QPointF& scenePos, cons
     w->setId(m_doc->allocateId());
     const auto finishStyle = Support::linkWireStyle(Support::linkFinishWireRole(m_linkingMode));
     w->setColorOverride(finishStyle.color);
-    w->setArrowPolicy(finishRole == Support::LinkWireRole::Consumer
+    w->setArrowPolicy((finishRole == Support::LinkWireRole::Consumer
+                       || finishRole == Support::LinkWireRole::Broadcast)
                           ? WireArrowPolicy::End
                           : WireArrowPolicy::None);
     m_doc->commands().execute(std::make_unique<CreateItemCommand>(std::move(w)));
@@ -659,7 +680,8 @@ bool CanvasLinkingController::createHubAndWires(const QPointF& scenePos, const P
     w1->setId(m_doc->allocateId());
     const auto finishStyle = Support::linkWireStyle(finishRole);
     w1->setColorOverride(finishStyle.color);
-    w1->setArrowPolicy(finishRole == Support::LinkWireRole::Consumer
+    w1->setArrowPolicy((finishRole == Support::LinkWireRole::Consumer
+                        || finishRole == Support::LinkWireRole::Broadcast)
                            ? WireArrowPolicy::End
                            : WireArrowPolicy::None);
     m_doc->commands().execute(std::make_unique<CreateItemCommand>(std::move(w1)));

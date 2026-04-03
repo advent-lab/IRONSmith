@@ -28,6 +28,11 @@ const QString kOffsetKey = u"offset"_s;
 const QString kSizesKey = u"sizes"_s;
 const QString kStridesKey = u"strides"_s;
 const QString kShowRepetitionsKey = u"showRepetitions"_s;
+const QString kUseTiler2DKey = u"useTiler2D"_s;
+const QString kTensorDimsKey = u"tensorDims"_s;
+const QString kTileDimsKey = u"tileDims"_s;
+const QString kTileCountsKey = u"tileCounts"_s;
+const QString kPatternRepeatKey = u"patternRepeat"_s;
 
 const QString kSchemaValue = u"aie.symbols/1"_s;
 constexpr int kSchemaVersionValue = 1;
@@ -117,6 +122,16 @@ QString typeAbstractionSummary(const TypeAbstractionSymbolData& typeData)
 
 QString tensorAccessPatternSummary(const TensorAccessPatternSymbolData& tapData)
 {
+    if (tapData.useTiler2D) {
+        const QString arraySize = tapData.tensorDims.isEmpty() ? QStringLiteral("?") : tapData.tensorDims;
+        const QString tileSize  = tapData.tileDims.isEmpty()   ? QStringLiteral("?") : tapData.tileDims;
+        const QString tileCounts = tapData.tileCounts.isEmpty() ? QStringLiteral("?") : tapData.tileCounts;
+        QString summary = QStringLiteral("array=%1, tile=%2, counts=%3")
+            .arg(arraySize, tileSize, tileCounts);
+        if (!tapData.patternRepeat.isEmpty())
+            summary += QStringLiteral(", repeat=%1").arg(tapData.patternRepeat);
+        return summary;
+    }
     return QStringLiteral("%1x%2, off=%3, sizes=%4, strides=%5")
         .arg(tapData.rows)
         .arg(tapData.cols)
@@ -141,6 +156,18 @@ QString typeAbstractionPreview(const QString& name, const TypeAbstractionSymbolD
 
 QString tensorAccessPatternPreview(const QString& name, const TensorAccessPatternSymbolData& tapData)
 {
+    if (tapData.useTiler2D) {
+        const QString tensorDims  = tapData.tensorDims.isEmpty()  ? QStringLiteral("?") : tapData.tensorDims;
+        const QString tileDims    = tapData.tileDims.isEmpty()    ? QStringLiteral("?") : tapData.tileDims;
+        const QString tileCounts  = tapData.tileCounts.isEmpty()  ? QStringLiteral("?") : tapData.tileCounts;
+        const QString repeat      = tapData.patternRepeat.isEmpty() ? QString() : tapData.patternRepeat;
+        QString result = QStringLiteral("%1 = TensorTiler2D.group_tiler((%2), (%3), (%4)")
+            .arg(name.trimmed(), tensorDims, tileDims, tileCounts);
+        if (!repeat.isEmpty())
+            result += QStringLiteral(", pattern_repeat=%1").arg(repeat);
+        result += QStringLiteral(", prune_step=False)[0]");
+        return result;
+    }
     return QStringLiteral("%1 = TensorAccessPattern((%2, %3), offset=%4, sizes=%5, strides=%6)")
         .arg(name.trimmed())
         .arg(tapData.rows)
@@ -238,6 +265,15 @@ QJsonObject serializeSymbolsMetadata(const QVector<SymbolRecord>& symbols)
                 strides.push_back(stride);
             entry.insert(kStridesKey, strides);
             entry.insert(kShowRepetitionsKey, symbol.tap.showRepetitions);
+            entry.insert(kUseTiler2DKey, symbol.tap.useTiler2D);
+            if (!symbol.tap.tensorDims.isEmpty())
+                entry.insert(kTensorDimsKey, symbol.tap.tensorDims);
+            if (!symbol.tap.tileDims.isEmpty())
+                entry.insert(kTileDimsKey, symbol.tap.tileDims);
+            if (!symbol.tap.tileCounts.isEmpty())
+                entry.insert(kTileCountsKey, symbol.tap.tileCounts);
+            if (!symbol.tap.patternRepeat.isEmpty())
+                entry.insert(kPatternRepeatKey, symbol.tap.patternRepeat);
         }
 
         entries.push_back(entry);
@@ -316,31 +352,49 @@ Utils::Result parseSymbolsMetadata(const QJsonObject& metadata, QVector<SymbolRe
                 return Utils::Result::failure(QStringLiteral("TAP symbol '%1' is missing dimensions or offset.")
                                                   .arg(symbol.name));
             }
-            if (sizes.isEmpty() || strides.isEmpty() || sizes.size() != strides.size()) {
-                return Utils::Result::failure(QStringLiteral("TAP symbol '%1' must declare matching sizes and strides.")
-                                                  .arg(symbol.name));
-            }
 
             symbol.tap.rows = rowsValue.toInt();
             symbol.tap.cols = colsValue.toInt();
             symbol.tap.offset = offsetValue.toInt();
+            const bool hasUseTiler2DKey = entry.contains(kUseTiler2DKey);
+            symbol.tap.useTiler2D = entry.value(kUseTiler2DKey).toBool(true);
+            // Migration: old files without useTiler2D that have >2 sizes used TensorAccessPattern.
+            if (!hasUseTiler2DKey && sizes.size() > 2)
+                symbol.tap.useTiler2D = false;
             symbol.tap.sizes.clear();
             symbol.tap.strides.clear();
-            symbol.tap.sizes.reserve(sizes.size());
-            symbol.tap.strides.reserve(strides.size());
-            for (const QJsonValue& sizeValue : sizes) {
-                if (!sizeValue.isDouble())
-                    return Utils::Result::failure(QStringLiteral("TAP symbol '%1' has an invalid size entry.")
+            if (!symbol.tap.useTiler2D) {
+                // For TensorAccessPattern mode, sizes/strides are required.
+                if (sizes.isEmpty() || strides.isEmpty() || sizes.size() != strides.size()) {
+                    return Utils::Result::failure(QStringLiteral("TAP symbol '%1' must declare matching sizes and strides.")
                                                       .arg(symbol.name));
-                symbol.tap.sizes.push_back(sizeValue.toInt());
-            }
-            for (const QJsonValue& strideValue : strides) {
-                if (!strideValue.isDouble())
-                    return Utils::Result::failure(QStringLiteral("TAP symbol '%1' has an invalid stride entry.")
-                                                      .arg(symbol.name));
-                symbol.tap.strides.push_back(strideValue.toInt());
+                }
+                symbol.tap.sizes.reserve(sizes.size());
+                symbol.tap.strides.reserve(strides.size());
+                for (const QJsonValue& sizeValue : sizes) {
+                    if (!sizeValue.isDouble())
+                        return Utils::Result::failure(QStringLiteral("TAP symbol '%1' has an invalid size entry.")
+                                                          .arg(symbol.name));
+                    symbol.tap.sizes.push_back(sizeValue.toInt());
+                }
+                for (const QJsonValue& strideValue : strides) {
+                    if (!strideValue.isDouble())
+                        return Utils::Result::failure(QStringLiteral("TAP symbol '%1' has an invalid stride entry.")
+                                                          .arg(symbol.name));
+                    symbol.tap.strides.push_back(strideValue.toInt());
+                }
+            } else {
+                // For TensorTiler2D mode, sizes/strides are not required but load if present.
+                for (const QJsonValue& sizeValue : sizes)
+                    if (sizeValue.isDouble()) symbol.tap.sizes.push_back(sizeValue.toInt());
+                for (const QJsonValue& strideValue : strides)
+                    if (strideValue.isDouble()) symbol.tap.strides.push_back(strideValue.toInt());
             }
             symbol.tap.showRepetitions = entry.value(kShowRepetitionsKey).toBool(true);
+            symbol.tap.tensorDims = entry.value(kTensorDimsKey).toString();
+            symbol.tap.tileDims = entry.value(kTileDimsKey).toString();
+            symbol.tap.tileCounts = entry.value(kTileCountsKey).toString();
+            symbol.tap.patternRepeat = entry.value(kPatternRepeatKey).toString();
         }
 
         outSymbols.push_back(symbol);

@@ -285,14 +285,15 @@ TEST(CanvasDocumentServiceTests, FillObjectFifoOperationRoundTripsAcrossReopen)
     const Utils::Result openResult = service.openDocument(openRequest, reopened);
     ASSERT_TRUE(openResult.ok) << openResult.errors.join("\n").toStdString();
 
+    // ObjectFifo Fill/Drain ops are migrated to FillDrainConfig on load —
+    // verify the wire comes back with isFill=true.
     bool foundFillWire = false;
     for (const auto& item : host.document()->items()) {
         const auto* reopenedWire = dynamic_cast<const Canvas::CanvasWire*>(item.get());
-        if (!reopenedWire || !reopenedWire->hasObjectFifo())
+        if (!reopenedWire || !reopenedWire->hasFillDrain())
             continue;
 
-        const auto& objectFifo = reopenedWire->objectFifo().value();
-        EXPECT_EQ(objectFifo.operation, Canvas::CanvasWire::ObjectFifoOperation::Fill);
+        EXPECT_TRUE(reopenedWire->fillDrain()->isFill);
         foundFillWire = true;
     }
     EXPECT_TRUE(foundFillWire);
@@ -328,7 +329,8 @@ TEST(CanvasDocumentServiceTests, AieManagedBlocksRoundTripWithoutPersistedBounds
     managedBlock->setLabel(QStringLiteral("Shim"));
     const Canvas::ObjectId managedBlockId = managedBlock->id();
 
-    auto* freeformBlock = host.document()->createBlock(QRectF(360.0, 480.0, 64.0, 32.0), true);
+    // Use grid-aligned dimensions (kGridStep=24): 72=3×24, 48=2×24, 360=15×24, 480=20×24.
+    auto* freeformBlock = host.document()->createBlock(QRectF(360.0, 480.0, 72.0, 48.0), true);
     ASSERT_NE(freeformBlock, nullptr);
     freeformBlock->setLabel(QStringLiteral("Scratch"));
     const Canvas::ObjectId freeformBlockId = freeformBlock->id();
@@ -387,5 +389,5 @@ TEST(CanvasDocumentServiceTests, AieManagedBlocksRoundTripWithoutPersistedBounds
     const auto* reopenedFreeformBlock =
         dynamic_cast<const Canvas::CanvasBlock*>(host.document()->findItem(freeformBlockId));
     ASSERT_NE(reopenedFreeformBlock, nullptr);
-    EXPECT_EQ(reopenedFreeformBlock->boundsScene(), QRectF(360.0, 480.0, 64.0, 32.0));
+    EXPECT_EQ(reopenedFreeformBlock->boundsScene(), QRectF(360.0, 480.0, 72.0, 48.0));
 }

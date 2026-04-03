@@ -602,6 +602,10 @@ class XMLTransformer:
             elif child.tag == "TensorTiler2D":
                 self._transform_tiler2d(child, symbols_section)
 
+            elif child.tag == "TAP":
+                # Convert TAP to TensorTiler2D
+                self._transform_tap(child, symbols_section)
+
         # Auto-generate tensor-specific type variations if only generic types were provided
         self._auto_generate_type_variations(simple_symbols, symbols_section)
 
@@ -982,6 +986,93 @@ class XMLTransformer:
         if pattern_repeat is not None:
             expanded_repeat = self.expander.expand_shape_expression(pattern_repeat)
             tiler_node.set("pattern_repeat", expanded_repeat)
+
+    def _transform_tap(self, simple_tap: etree.Element, parent: etree.Element):
+        """
+        Transform a TAP element into a TensorTiler2D assignment node.
+        
+        TAP elements use TensorAccessPattern parameters (tensor_dims, offset, sizes, strides)
+        and are converted to TensorTiler2D.group_tiler() calls during transformation.
+        
+        Input format:
+            <TAP name="my_tap" offset="0" prune_step="false" index="0">
+                <tensor_dims>256, 256</tensor_dims>
+                <sizes>32, 32</sizes>
+                <strides>256, 1</strides>
+            </TAP>
+        
+        Output: name = TensorTiler2D.group_tiler(tensor_dims, tile_dims, tile_counts,
+                                                  prune_step=bool)[index]
+        """
+        name = simple_tap.get("name")
+        offset = simple_tap.get("offset", "0")
+        prune_step = simple_tap.get("prune_step", "false").lower() == "true"
+        index = int(simple_tap.get("index", "0"))
+        use_tiler2d = simple_tap.get("use_tiler2d", "true").lower() != "false"
+
+        # Parse dimension expressions (comma-separated)
+        tensor_dims_text = (simple_tap.findtext("tensor_dims") or "").strip()
+        sizes_text = (simple_tap.findtext("sizes") or "").strip()
+        strides_text = (simple_tap.findtext("strides") or "").strip()
+
+        # Expand expressions
+        def expand_dim_list(text):
+            parts = [p.strip() for p in text.split(",")]
+            return [self.expander.expand_shape_expression(p) for p in parts if p]
+
+        tensor_dims = expand_dim_list(tensor_dims_text)
+        sizes = expand_dim_list(sizes_text)
+        strides = expand_dim_list(strides_text)
+        expanded_offset = self.expander.expand_shape_expression(offset)
+
+        if not use_tiler2d:
+            # Emit as a TensorAccessPattern node: name = TensorAccessPattern(tensor_dims, offset, sizes, strides)
+            tap_node = etree.SubElement(parent, "TensorAccessPattern")
+            tap_node.set("name", name)
+            tap_node.set("offset", str(expanded_offset))
+            tap_node.set("tensor_dims", ", ".join(tensor_dims))
+            tap_node.set("sizes", ", ".join(sizes))
+            tap_node.set("strides", ", ".join(strides))
+            return
+
+        # TensorTiler2D path: validate and convert
+        if expanded_offset != "0" and expanded_offset != 0:
+            raise ValueError(
+                f"TAP '{name}' has non-zero offset ({expanded_offset}). "
+                f"TensorTiler2D conversion requires offset=0. "
+                f"Consider adjusting the source pointer in fill/drain operations."
+            )
+
+        if len(tensor_dims) != 2:
+            raise ValueError(
+                f"TAP '{name}' must have 2 tensor dimensions for TensorTiler2D, got {len(tensor_dims)}"
+            )
+        if len(sizes) != 2:
+            raise ValueError(
+                f"TAP '{name}' must have 2 size dimensions for TensorTiler2D, got {len(sizes)}"
+            )
+
+        # Calculate tile_counts: tensor_dims / sizes (element-wise)
+        tile_counts = []
+        for i in range(2):
+            tensor_dim = tensor_dims[i]
+            tile_dim = sizes[i]
+            tile_counts.append(f"{tensor_dim} // {tile_dim}")
+
+        # Emit as a TensorTiler2D node: name = TensorTiler2D.group_tiler(...)[index]
+        tiler_node = etree.SubElement(parent, "TensorTiler2D")
+        tiler_node.set("name", name)
+
+        # Store expanded parameters as attributes for CodeGenerator to use
+        tiler_node.set("tensor_dims", ", ".join(tensor_dims))
+        tiler_node.set("tile_dims", ", ".join(sizes))  # sizes become tile_dims
+        tiler_node.set("tile_counts", ", ".join(tile_counts))
+        tiler_node.set("prune_step", "True" if prune_step else "False")
+        tiler_node.set("index", str(index))
+
+        # Note: strides are validated but not directly used in TensorTiler2D
+        # TensorTiler2D calculates strides automatically based on tensor layout
+
 
     def _transform_objectfifo(self, simple_of: etree.Element, parent: etree.Element):
         """Transform ObjectFifo with generated name based on context."""

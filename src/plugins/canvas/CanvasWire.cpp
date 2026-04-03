@@ -215,6 +215,18 @@ QString objectFifoAnnotationText(const CanvasWire::ObjectFifoConfig& config, boo
     return text;
 }
 
+QString fillDrainAnnotationText(const CanvasWire::FillDrainConfig& config, bool compact)
+{
+    const QString prefix = config.isFill ? QStringLiteral("Input") : QStringLiteral("Output");
+    const QString name   = config.paramName.trimmed().isEmpty() ? QStringLiteral("buf") : config.paramName;
+    if (compact)
+        return prefix + QStringLiteral(": ") + name;
+    const QString dims = config.totalDims.trimmed();
+    if (dims.isEmpty())
+        return prefix + QStringLiteral(": ") + name;
+    return prefix + QStringLiteral(": %1, D:%2").arg(name, dims);
+}
+
 bool isDdrSpecId(const QString& specId)
 {
     return specId.trimmed() == QStringLiteral("ddr");
@@ -267,15 +279,15 @@ QString legacyDdrAnnotationText(const CanvasWire::Endpoint& a,
 
     if (!aDdr && hasSymbolA) {
         if (isDistributeHubSymbol(symbolA))
-            return QStringLiteral("FILL");
+            return QStringLiteral("Input");
         if (isCollectHubSymbol(symbolA))
-            return QStringLiteral("DRAIN");
+            return QStringLiteral("Output");
     }
     if (!bDdr && hasSymbolB) {
         if (isDistributeHubSymbol(symbolB))
-            return QStringLiteral("FILL");
+            return QStringLiteral("Input");
         if (isCollectHubSymbol(symbolB))
-            return QStringLiteral("DRAIN");
+            return QStringLiteral("Output");
     }
 
     if (!aDdr && hasSymbolA) {
@@ -490,6 +502,7 @@ std::unique_ptr<CanvasItem> CanvasWire::clone() const
     w->m_hasColorOverride = m_hasColorOverride;
     w->m_colorOverride = m_colorOverride;
     w->m_objectFifo = m_objectFifo;
+    w->m_fillDrain  = m_fillDrain;
     return w;
 }
 
@@ -545,6 +558,21 @@ void CanvasWire::clearColorOverride()
 {
     m_hasColorOverride = false;
     m_colorOverride = QColor();
+}
+
+void CanvasWire::setFillDrain(FillDrainConfig config)
+{
+    config.paramName = normalizedObjectFifoName(config.paramName);
+    config.totalDims = config.totalDims.trimmed();
+    config.valueType = normalizeObjectFifoType(config.valueType);
+    m_fillDrain = std::move(config);
+    // A wire is either a DDR fill/drain OR an ObjectFifo, never both.
+    m_objectFifo.reset();
+}
+
+void CanvasWire::clearFillDrain()
+{
+    m_fillDrain.reset();
 }
 
 void CanvasWire::setObjectFifo(ObjectFifoConfig config)
@@ -681,22 +709,62 @@ QString CanvasWire::annotationText(AnnotationDetail detail, const CanvasRenderCo
     if (detail == AnnotationDetail::Hidden)
         return {};
 
-    // Arm wire of a split/join hub: hub is always at endpoint A for arm wires.
-    // Only check m_a so pivot wires (hub at endpoint B) fall through to the ObjectFifo check.
-    // Broadcast arm wires (Forward op, no hubName) suppress the index — arms aren't referenced
-    // individually in generated code.
-    QString hubArmLabel;
-    if (m_a.attached.has_value()) {
-        const auto& ref = m_a.attached.value();
-        if (ctx.hubArmLabelForEndpoint(ref.itemId, ref.portId, hubArmLabel)) {
-            const bool isBroadcastArm = m_objectFifo.has_value()
-                && m_objectFifo->operation == ObjectFifoOperation::Forward
-                && m_objectFifo->hubName.trimmed().isEmpty();
-            if (isBroadcastArm)
-                return {};
-            return hubArmLabel;
+    // Arm wire of a split/join/distribute/collect hub.
+    // Check both endpoints: split/join hubs place the hub at A; collect hubs may be at B.
+    // Broadcast arm wires (Forward op, no hubName) are suppressed.
+    // Distribute/Collect arm wires show "FILL: <fifo>" / "DRAIN: <fifo>" instead of the index.
+    for (const Endpoint* ep : {&m_a, &m_b}) {
+        if (!ep->attached.has_value())
+            continue;
+        const auto& ref = ep->attached.value();
+        QString hubArmLabel;
+        if (!ctx.hubArmLabelForEndpoint(ref.itemId, ref.portId, hubArmLabel))
+            continue;
+
+        // If the OTHER endpoint is a DDR block this is the pivot wire, not an arm wire —
+        // fall through to fillDrainAnnotationText below.
+        const Endpoint* other = (ep == &m_a) ? &m_b : &m_a;
+        if (other->attached.has_value()) {
+            QString otherSpecId;
+            if (ctx.itemSpecId(other->attached->itemId, otherSpecId) && isDdrSpecId(otherSpecId))
+                break;
         }
+
+        // If this wire is a pivot wire (Split/Join/Forward with a hubName set),
+        // hubArmLabelForEndpoint matched the hub port but it is the pivot, not an arm —
+        // fall through to objectFifoAnnotationText below.
+        // Arm wires also carry Split/Join/Forward but have hubName empty, so they
+        // must NOT break here and instead continue to the arm-label/suppress logic.
+        if (m_objectFifo.has_value()
+                && !m_objectFifo->hubName.trimmed().isEmpty())
+            break;
+
+        // Broadcast arm: suppress label.
+        const bool isBroadcastArm = m_objectFifo.has_value()
+            && m_objectFifo->operation == ObjectFifoOperation::Forward
+            && m_objectFifo->hubName.trimmed().isEmpty();
+        if (isBroadcastArm)
+            return {};
+
+        // Distribute/Collect arm: show FILL/DRAIN direction + target FIFO name.
+        QString hubSymbol;
+        ctx.itemSymbol(ref.itemId, hubSymbol);
+        if (isDistributeHubSymbol(hubSymbol) || isCollectHubSymbol(hubSymbol)) {
+            const bool isFill = isDistributeHubSymbol(hubSymbol);
+            const QString prefix = isFill ? QStringLiteral("FILL") : QStringLiteral("DRAIN");
+            if (m_fillDrain.has_value() && !m_fillDrain->fifoName.isEmpty())
+                return prefix + QStringLiteral(": ") + m_fillDrain->fifoName;
+            return detail == AnnotationDetail::Compact
+                ? prefix
+                : prefix + QStringLiteral(" arm ") + hubArmLabel;
+        }
+
+        // Split/Join arm: return the numeric index label.
+        return hubArmLabel;
     }
+
+    if (m_fillDrain.has_value())
+        return fillDrainAnnotationText(*m_fillDrain, detail == AnnotationDetail::Compact);
 
     if (m_objectFifo.has_value())
         return objectFifoAnnotationText(*m_objectFifo, detail == AnnotationDetail::Compact);

@@ -58,6 +58,8 @@ private:
         HubPivotWire,
         DdrTransferHub,
         DdrBlock,
+        DdrPivotWire,
+        ArmWire,
         Unsupported
     };
 
@@ -78,17 +80,24 @@ private:
     Canvas::CanvasWire* selectedFifoWire() const;
     Canvas::CanvasController* canvasController() const;
 
+    // Find a FIFO or pivot wire relevant to the current selection (block or port).
+    Canvas::CanvasWire* findFifoWireForBlock(Canvas::ObjectId blockId) const;
+    Canvas::CanvasWire* findFifoWireForPort(Canvas::ObjectId blockId, Canvas::PortId portId) const;
+    Canvas::CanvasWire* findPivotWireForHub(Canvas::ObjectId hubBlockId) const;
+    Canvas::CanvasWire* findPivotWireForArmWire(Canvas::CanvasWire* wire) const;
+
     void applyTileLabel();
     void applyTileStereotype();
+    void applyFifoAnnotation();
     void applyHubPivotProperties();
     void applyDdrTransferHubTap();
     void applyObjectFifoDefaults();
-    void rebuildDdrGroup(Canvas::CanvasBlock* ddrBlock);
-    void applyDdrEntry(Canvas::ObjectId fifoWireId, Canvas::ObjectId ddrWireId,
-                       const QString& name, const QString& dims, const QString& type,
-                       bool isMatrix = false,
-                       const Canvas::CanvasWire::TensorTilerConfig& tap = {},
-                       const QString& symbolRef = {});
+    void refreshDdrGroup(Canvas::CanvasBlock* ddrBlock);
+    void applyDdrTableRow(bool isFill, int row);
+    void onDdrTableRowSelected(bool isFill, int row);
+    void applyDdrTap();
+    void applyDdrPivotParam();
+    void applyArmWireEntry();
 
     void populateFifoSymbolCombo();
     Canvas::CanvasWire* selectedDdrTransferWire() const;
@@ -129,13 +138,40 @@ private:
     QPointer<QLabel>    m_hubValueTypeValue;
     QPointer<QLabel>    m_hubDimensionsValue;
 
+    QPointer<QGroupBox> m_fifoGroup;
+    QPointer<QLabel>    m_fifoWireIdValue;
+    QPointer<QLineEdit> m_fifoNameEdit;
+    QPointer<QSpinBox>  m_fifoDepthSpin;
+    QPointer<QComboBox> m_fifoSymbolCombo;
+    QPointer<QComboBox> m_fifoTypeCombo;
+    QPointer<QLineEdit> m_fifoDimensionsEdit;
+
     QPointer<QGroupBox> m_ddrTransferGroup;
     QPointer<QLabel>    m_ddrTransferModeValue;
     QPointer<QComboBox> m_ddrTransferTapCombo;
 
-    QPointer<QGroupBox> m_ddrGroup;
-    QPointer<QWidget>   m_ddrContent;
+    QPointer<QGroupBox>      m_ddrGroup;
+    QPointer<QTableWidget>   m_ddrInputsTable;
+    QPointer<QTableWidget>   m_ddrOutputsTable;
+    QPointer<QWidget>        m_ddrTapWidget;
+    QPointer<QComboBox>      m_ddrTapSourceCombo;   // "Custom" or "Symbol Table"
+    QPointer<QComboBox>      m_ddrTapSymbolCombo;   // TAP symbols (visible when source=Symbol)
+    QPointer<QWidget>        m_ddrTapCustomWidget;  // custom inline fields (visible when source=Custom)
+    QPointer<QComboBox>      m_ddrTapModeCombo;
+    QPointer<QLineEdit>      m_ddrTapTileDimsEdit;
+    QPointer<QLineEdit>      m_ddrTapTileCountsEdit;
+    QPointer<QLineEdit>      m_ddrTapRepeatEdit;
 
+    QPointer<QGroupBox> m_ddrPivotWireGroup;
+    QPointer<QLineEdit> m_ddrPivotParamEdit;
+
+    QPointer<QGroupBox> m_armWireGroup;
+    QPointer<QLineEdit> m_armFifoEdit;   // typed FIFO name for arm wire
+
+    Canvas::ObjectId m_effectiveFifoWireId{};
+    Canvas::ObjectId m_armWireId{};      // currently-selected arm wire
+    Canvas::ObjectId m_ddrPivotWireId{}; // currently-selected DDR pivot wire
+    Canvas::ObjectId m_ddrTapWireId{};   // wire whose TAP is being edited
     bool m_updatingUi = false;
     bool m_updatingObjectFifoTable = false;
 };

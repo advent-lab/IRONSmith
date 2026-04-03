@@ -108,6 +108,10 @@ private:
     QPointer<QComboBox> m_typeDTypeCombo;
     QPointer<QLabel> m_typePreviewLabel;
     QPointer<QLineEdit> m_tapNameEdit;
+    QPointer<QComboBox> m_tapFormatCombo;
+    QPointer<QStackedWidget> m_tapFormatStack;
+    QPointer<QWidget> m_tapPatternPage;
+    QPointer<QWidget> m_tapTiler2DPage;
     QPointer<QSpinBox> m_tapRowsSpin;
     QPointer<QSpinBox> m_tapColsSpin;
     QPointer<QSpinBox> m_tapOffsetSpin;
@@ -115,6 +119,10 @@ private:
     QPointer<QWidget> m_tapPatternsHost;
     QPointer<QGridLayout> m_tapPatternsGrid;
     QPointer<QToolButton> m_tapAddPatternButton;
+    QPointer<QLineEdit> m_tapTiler2DArrayDimsEdit;
+    QPointer<QLineEdit> m_tapTiler2DTileDimsEdit;
+    QPointer<QLineEdit> m_tapTiler2DTileCountsEdit;
+    QPointer<QLineEdit> m_tapTiler2DPatternRepeatEdit;
     QPointer<TapPreviewWidget> m_tapPreviewWidget;
     QVector<QPointer<QLineEdit>> m_dimensionEdits;
     QVector<QPointer<QCompleter>> m_dimensionCompleters;

@@ -116,19 +116,22 @@ class TensorAccessPattern:
         offset: Starting offset (can be symbolic expression)
         sizes: Multi-dimensional access sizes (can be symbolic expressions)
         strides: Multi-dimensional strides (can be symbolic expressions)
+        name: Optional name for this TAP (used when stored in symbol table)
         metadata: Additional properties
     """
     tensor_dims: List[Union[int, str]]
     offset: Union[int, str]
     sizes: List[Union[int, str]]
     strides: List[Union[int, str]]
+    name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __str__(self):
         dims_str = ", ".join(str(d) for d in self.tensor_dims)
         sizes_str = ", ".join(str(s) for s in self.sizes)
         strides_str = ", ".join(str(s) for s in self.strides)
-        return (f"TensorAccessPattern(dims=[{dims_str}], "
+        name_str = f"{self.name}: " if self.name else ""
+        return (f"TensorAccessPattern({name_str}dims=[{dims_str}], "
                 f"offset={self.offset}, "
                 f"sizes=[{sizes_str}], "
                 f"strides=[{strides_str}])")
@@ -176,6 +179,153 @@ class TensorTiler2DSpec:
         dims_str = ", ".join(str(d) for d in self.tensor_dims)
         return (f"TensorTiler2DSpec({self.name}: "
                 f"dims=[{dims_str}], index={self.index})")
+
+def convert_tap_to_tiler2d(
+    tap: TensorAccessPattern,
+    name: str,
+    prune_step: bool = False,
+    index: int = 0
+) -> TensorTiler2DSpec:
+    """
+    Convert a TensorAccessPattern to TensorTiler2DSpec for TensorTiler2D code generation.
+    
+    This function analyzes the TAP parameters and converts them to equivalent
+    TensorTiler2D.group_tiler() parameters. Only supports regular 2D tiling patterns.
+    
+    Args:
+        tap: TensorAccessPattern to convert
+        name: Variable name for the resulting tiler
+        prune_step: Whether to prune steps (usually False)
+        index: Index into the returned list (usually 0)
+    
+    Returns:
+        TensorTiler2DSpec: Equivalent TensorTiler2D specification
+    
+    Raises:
+        ValueError: If the TAP is not compatible with TensorTiler2D conversion
+    
+    Examples:
+        # Simple 2D tiling: 256x256 tensor, 32x32 tiles
+        tap = TensorAccessPattern(
+            tensor_dims=[256, 256],
+            offset=0,
+            sizes=[32, 32],
+            strides=[256, 1]  # Row-major
+        )
+        tiler = convert_tap_to_tiler2d(tap, "my_tap")
+        # Results in: TensorTiler2D.group_tiler((256, 256), (32, 32), (8, 8))[0]
+    """
+    # Validate tensor is 2D
+    if len(tap.tensor_dims) != 2:
+        raise ValueError(
+            f"TensorTiler2D only supports 2D tensors, got {len(tap.tensor_dims)}D: {tap.tensor_dims}"
+        )
+    
+    if len(tap.sizes) != 2:
+        raise ValueError(
+            f"TensorTiler2D requires 2D sizes, got {len(tap.sizes)}D: {tap.sizes}"
+        )
+    
+    if len(tap.strides) < 2:
+        raise ValueError(
+            f"TensorTiler2D requires at least 2 strides, got {len(tap.strides)}: {tap.strides}"
+        )
+    
+    # Extract dimensions (handle both int and str for symbolic expressions)
+    tensor_dims = tap.tensor_dims
+    tile_dims = tap.sizes
+    
+    # Calculate tile_counts: tensor_dims / tile_dims (element-wise)
+    # Support symbolic expressions by creating division strings
+    tile_counts = []
+    for i in range(2):
+        tensor_dim = tensor_dims[i]
+        tile_dim = tile_dims[i]
+        
+        # If both are integers, compute directly
+        if isinstance(tensor_dim, int) and isinstance(tile_dim, int):
+            if tensor_dim % tile_dim != 0:
+                raise ValueError(
+                    f"Tensor dimension {i} ({tensor_dim}) must be evenly divisible "
+                    f"by tile dimension ({tile_dim})"
+                )
+            tile_counts.append(tensor_dim // tile_dim)
+        else:
+            # For symbolic expressions, create division expression
+            tile_counts.append(f"{tensor_dim} // {tile_dim}")
+    
+    # Validate offset
+    # TensorTiler2D doesn't have an offset parameter, so we only support offset=0
+    # or use pattern_repeat for simple offset cases
+    offset = tap.offset
+    pattern_repeat = None
+    
+    if offset != 0 and offset != "0":
+        # Check if offset can be handled via pattern_repeat
+        # This is a simplified check; more complex cases may need additional logic
+        if isinstance(offset, int) and offset > 0:
+            # For now, we don't automatically convert offset to pattern_repeat
+            # as the relationship is complex and depends on the access pattern
+            raise ValueError(
+                f"TensorTiler2D conversion does not support non-zero offset ({offset}). "
+                f"Consider using offset=0 and adjusting the source pointer in fill/drain operations."
+            )
+        elif isinstance(offset, str) and offset.strip() != "0":
+            raise ValueError(
+                f"TensorTiler2D conversion does not support non-zero symbolic offset ({offset}). "
+                f"Consider using offset=0 and adjusting the source pointer in fill/drain operations."
+            )
+    
+    # Validate strides match expected row-major or column-major pattern
+    # For 2D tensors, we expect either:
+    # - Row-major: strides = [tensor_dims[1], 1] or [tensor_dims[1] * element_size, element_size]
+    # - Column-major: strides = [1, tensor_dims[0]] or [element_size, tensor_dims[0] * element_size]
+    
+    strides = tap.strides[:2]  # Take first 2 strides
+    
+    # Try to determine if this is a standard tiling pattern
+    # We'll be lenient here and just check for basic patterns
+    is_valid_pattern = False
+    
+    # Check for row-major pattern (most common)
+    if len(strides) >= 2:
+        stride_0, stride_1 = strides[0], strides[1]
+        
+        # Row-major: stride[0] should be tensor_dims[1] (or multiple), stride[1] should be 1 (or small)
+        # We'll accept if stride[1] is 1 or a small constant
+        if isinstance(stride_1, int) and stride_1 <= 4:
+            is_valid_pattern = True
+        elif stride_1 == "1" or stride_1 == 1:
+            is_valid_pattern = True
+        
+        # Also check if strides match tensor dimensions (symbolic case)
+        if isinstance(stride_0, str) and isinstance(tensor_dims[1], str):
+            if stride_0 == tensor_dims[1] or stride_0 == f"{tensor_dims[1]}":
+                is_valid_pattern = True
+        elif isinstance(stride_0, int) and isinstance(tensor_dims[1], int):
+            # Allow stride_0 to be tensor_dims[1] or a multiple (for element sizes)
+            if stride_0 % tensor_dims[1] == 0 or tensor_dims[1] % stride_0 == 0:
+                is_valid_pattern = True
+    
+    if not is_valid_pattern:
+        raise ValueError(
+            f"TensorTiler2D conversion requires standard row-major or column-major stride pattern. "
+            f"Got strides={strides} for tensor_dims={tensor_dims}. "
+            f"Expected row-major pattern like [{tensor_dims[1]}, 1] or similar."
+        )
+    
+    # Create TensorTiler2DSpec
+    return TensorTiler2DSpec(
+        name=name,
+        tensor_dims=tensor_dims,
+        tile_dims=tile_dims,
+        tile_counts=tile_counts,
+        pattern_repeat=pattern_repeat,
+        prune_step=prune_step,
+        index=index,
+        metadata=tap.metadata.copy() if tap.metadata else {}
+    )
+
 
 
 @dataclass

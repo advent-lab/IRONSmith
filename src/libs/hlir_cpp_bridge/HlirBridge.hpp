@@ -198,6 +198,31 @@ public:
         const ComponentId& providedId = ComponentId(),
         const std::map<std::string, std::string>& metadata = {});
 
+    /// Add a Tensor Access Pattern (TAP)
+    /// @param name Variable name (e.g. "my_tap")
+    /// @param tensorDims Full tensor dimensions as strings (can be symbolic)
+    /// @param offset Starting offset into the tensor
+    /// @param sizes Access pattern sizes as strings (can be symbolic)
+    /// @param strides Access pattern strides as strings (can be symbolic)
+    /// @param pruneStep Whether to prune steps (for TensorTiler2D, usually false)
+    /// @param index Index into the returned list (for TensorTiler2D, usually 0)
+    /// @param useTiler2D If true, convert to TensorTiler2D; if false, use TensorAccessPattern
+    /// @param providedId Optional provided ID for the component
+    /// @param metadata Additional metadata
+    /// @return ComponentId on success, errors on failure
+    HlirResult<ComponentId> addTap(
+        const std::string& name,
+        const std::vector<std::string>& tensorDims,
+        const std::string& offset,
+        const std::vector<std::string>& sizes,
+        const std::vector<std::string>& strides,
+        bool pruneStep = false,
+        int index = 0,
+        bool useTiler2D = true,
+        const ComponentId& providedId = ComponentId(),
+        const std::map<std::string, std::string>& metadata = {});
+
+
     /// Add a FIFO forward operation
     /// @param name Operation name
     /// @param sourceId Source FIFO ID
@@ -450,6 +475,36 @@ public:
         int column = -1,
         bool useTap = false,
         const ComponentId& tapId = ComponentId());
+
+    /// Add fill with inline TensorAccessPattern computed from distribute-hub geometry.
+    /// @param name     Fill operation name (unique per arm, e.g. "A_arm0")
+    /// @param fifoId   FIFO component to fill
+    /// @param inputName Runtime sequence parameter name (same for all arms of a hub, e.g. "A")
+    /// @param tileId   SHIM tile performing the DMA
+    /// @param totalSize Total element count of the DDR buffer
+    /// @param numArms  Number of arms in the distribute hub
+    /// @param armIndex Zero-based index of this arm
+    /// @param fifoSize Element count per individual FIFO transfer (chunk depth)
+    HlirResult<void> runtimeAddFillDistributed(
+        const std::string& name,
+        const ComponentId& fifoId,
+        const std::string& inputName,
+        const ComponentId& tileId,
+        int totalSize,
+        int numArms,
+        int armIndex,
+        int fifoSize);
+
+    /// Add drain with inline TensorAccessPattern computed from collect-hub geometry.
+    HlirResult<void> runtimeAddDrainDistributed(
+        const std::string& name,
+        const ComponentId& fifoId,
+        const std::string& outputName,
+        const ComponentId& tileId,
+        int totalSize,
+        int numArms,
+        int armIndex,
+        int fifoSize);
 
     /// Build runtime sequence
     /// @return Success or errors

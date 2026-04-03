@@ -4,6 +4,8 @@
 #include "aieplugin/symbol_table/TapPreviewWidget.hpp"
 
 #include <QtCore/QPointF>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
 #include <QtGui/QLinearGradient>
 #include <QtGui/QColor>
 #include <QtGui/QPaintEvent>
@@ -46,6 +48,77 @@ QVector<int> expandTapIndices(const TensorAccessPatternSymbolData& tapData)
     return indices;
 }
 
+// Parse "A x B" or "A B" into a list of positive integers. Returns empty on failure.
+static QVector<int> parseSimpleDims(const QString& text)
+{
+    QVector<int> out;
+    QString cleaned = text;
+    cleaned.replace(QLatin1Char('x'), QLatin1Char(' '));
+    cleaned.replace(QLatin1Char(','), QLatin1Char(' '));
+    const QStringList parts = cleaned.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    for (const QString& part : parts) {
+        bool ok = false;
+        const int val = part.trimmed().toInt(&ok);
+        if (!ok || val <= 0)
+            return {};
+        out.push_back(val);
+    }
+    return out;
+}
+
+// Derive an equivalent TensorAccessPatternSymbolData for a TensorTiler2D config.
+// Returns an empty (rows=0) struct when the fields are symbolic / not parseable.
+static TensorAccessPatternSymbolData tiler2DToTapData(const TensorAccessPatternSymbolData& src)
+{
+    TensorAccessPatternSymbolData viz;
+
+    const QVector<int> tensorDims = parseSimpleDims(src.tensorDims);
+    const QVector<int> tileDims   = parseSimpleDims(src.tileDims);
+    const QVector<int> tileCounts = parseSimpleDims(src.tileCounts);
+
+    if (tensorDims.size() != 2 || tileDims.size() != 2 || tileCounts.size() != 2)
+        return viz; // non-numeric/symbolic — cannot visualize
+
+    const int R  = tensorDims[0], C  = tensorDims[1];
+    const int th = tileDims[0],   tw = tileDims[1];
+    const int ntR = tileCounts[0], ntC = tileCounts[1];
+
+    if (R <= 0 || C <= 0 || th <= 0 || tw <= 0 || ntR <= 0 || ntC <= 0)
+        return viz;
+
+    viz.rows   = R;
+    viz.cols   = C;
+    viz.offset = 0;
+    viz.showRepetitions = false;
+
+    // Parse optional pattern_repeat. When provided, each repeat covers a (ntR*th) x (ntC*tw)
+    // block and the repeats tile the remaining array dimensions, giving a 6D structure:
+    //   sizes   = [nR_blocks, nC_blocks, ntR, ntC, th, tw]
+    //   strides = [ntR*th*C,  ntC*tw,    th*C, tw,  C,  1]
+    bool repeatOk = false;
+    const int P = src.patternRepeat.trimmed().toInt(&repeatOk);
+    if (repeatOk && P > 1) {
+        const int blockH = ntR * th;
+        const int blockW = ntC * tw;
+        // Require the block to divide the array evenly and the block count to match P.
+        if (blockH > 0 && blockW > 0 && R % blockH == 0 && C % blockW == 0) {
+            const int nRb = R / blockH;
+            const int nCb = C / blockW;
+            if (nRb * nCb == P) {
+                viz.sizes   = {nRb, nCb, ntR, ntC, th, tw};
+                viz.strides = {ntR * th * C, ntC * tw, th * C, tw, C, 1};
+                return viz;
+            }
+        }
+        return viz; // inconsistent — cannot visualize
+    }
+
+    // No pattern_repeat: plain 4D tiling.
+    viz.sizes   = {ntR, ntC, th, tw};
+    viz.strides = {th * C, tw, C, 1};
+    return viz;
+}
+
 QColor wireColor(double t)
 {
     const QColor start(86, 140, 232);
@@ -78,36 +151,49 @@ void TapPreviewWidget::paintEvent(QPaintEvent* event)
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.fillRect(rect(), QColor(QStringLiteral("#161A1F")));
 
+    // For TensorTiler2D, derive a visualization TAP. If fields are symbolic, show a message.
+    const TensorAccessPatternSymbolData& vizData = m_tapData.useTiler2D
+        ? tiler2DToTapData(m_tapData)
+        : m_tapData;
+
     const QRectF content = rect().adjusted(10, 10, -10, -10);
-    if (content.width() <= 0 || content.height() <= 0 || m_tapData.rows <= 0 || m_tapData.cols <= 0)
+
+    if (m_tapData.useTiler2D && vizData.rows == 0) {
+        painter.setPen(QColor(QStringLiteral("#5A6472")));
+        painter.drawText(content, Qt::AlignCenter | Qt::TextWordWrap,
+                         QStringLiteral("Enter integer Array Dimensions, Tile Dimensions,\nand Tile Counts to see the tiling pattern."));
+        return;
+    }
+
+    if (content.width() <= 0 || content.height() <= 0 || vizData.rows <= 0 || vizData.cols <= 0)
         return;
 
-    const qreal cellWidth = content.width() / qMax(1, m_tapData.cols);
-    const qreal cellHeight = content.height() / qMax(1, m_tapData.rows);
+    const qreal cellWidth = content.width() / qMax(1, vizData.cols);
+    const qreal cellHeight = content.height() / qMax(1, vizData.rows);
     const qreal cellSize = qMin(cellWidth, cellHeight);
-    const qreal gridWidth = cellSize * m_tapData.cols;
-    const qreal gridHeight = cellSize * m_tapData.rows;
+    const qreal gridWidth = cellSize * vizData.cols;
+    const qreal gridHeight = cellSize * vizData.rows;
     const QRectF gridRect(content.x() + (content.width() - gridWidth) / 2.0,
                           content.y() + (content.height() - gridHeight) / 2.0,
                           gridWidth,
                           gridHeight);
 
-    const QVector<int> rawIndices = expandTapIndices(m_tapData);
+    const QVector<int> rawIndices = expandTapIndices(vizData);
     QVector<int> visibleIndices;
     visibleIndices.reserve(rawIndices.size());
-    QVector<int> repetitionCounts(m_tapData.rows * m_tapData.cols, 0);
+    QVector<int> repetitionCounts(vizData.rows * vizData.cols, 0);
     for (const int linear : rawIndices) {
         if (linear < 0 || linear >= repetitionCounts.size())
             continue;
         ++repetitionCounts[linear];
-        if (!m_tapData.showRepetitions && visibleIndices.contains(linear))
+        if (!vizData.showRepetitions && visibleIndices.contains(linear))
             continue;
         visibleIndices.push_back(linear);
     }
 
     painter.setPen(QPen(QColor(QStringLiteral("#2B333D")), 1));
-    for (int row = 0; row < m_tapData.rows; ++row) {
-        for (int col = 0; col < m_tapData.cols; ++col) {
+    for (int row = 0; row < vizData.rows; ++row) {
+        for (int col = 0; col < vizData.cols; ++col) {
             const QRectF cell(gridRect.x() + col * cellSize,
                               gridRect.y() + row * cellSize,
                               cellSize,
@@ -120,9 +206,9 @@ void TapPreviewWidget::paintEvent(QPaintEvent* event)
     QVector<QPointF> centers;
     centers.reserve(visibleIndices.size());
     for (const int linear : visibleIndices) {
-        const int row = linear / m_tapData.cols;
-        const int col = linear % m_tapData.cols;
-        if (row < 0 || row >= m_tapData.rows || col < 0 || col >= m_tapData.cols)
+        const int row = linear / vizData.cols;
+        const int col = linear % vizData.cols;
+        if (row < 0 || row >= vizData.rows || col < 0 || col >= vizData.cols)
             continue;
         centers.push_back(QPointF(gridRect.x() + (col + 0.5) * cellSize,
                                   gridRect.y() + (row + 0.5) * cellSize));

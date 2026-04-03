@@ -250,6 +250,21 @@ TEST(SymbolsPanelTests, TapEditorCreatesAndUpdatesTapSymbols)
     tapNameEdit->setText(QStringLiteral("tap_main"));
     fireEditingFinished(tapNameEdit);
 
+    // Switch to TensorAccessPattern format so that rows/cols/offset spin boxes are active.
+    auto* formatCombo = tapGroup->findChild<QComboBox*>(QStringLiteral("AieTapFormatStack"));
+    if (!formatCombo) {
+        const auto combos = tapGroup->findChildren<QComboBox*>();
+        for (auto* c : combos) {
+            if (c && c->count() >= 2 && c->itemText(0) == QStringLiteral("TensorAccessPattern")) {
+                formatCombo = c;
+                break;
+            }
+        }
+    }
+    ASSERT_NE(formatCombo, nullptr);
+    formatCombo->setCurrentIndex(0); // TensorAccessPattern
+    QApplication::processEvents();
+
     const auto spinBoxes = tapGroup->findChildren<QSpinBox*>();
     ASSERT_GE(spinBoxes.size(), 3);
     spinBoxes[0]->setValue(8);
@@ -264,8 +279,8 @@ TEST(SymbolsPanelTests, TapEditorCreatesAndUpdatesTapSymbols)
     EXPECT_EQ(symbols.at(0).tap.rows, 8);
     EXPECT_EQ(symbols.at(0).tap.cols, 32);
     EXPECT_EQ(symbols.at(0).tap.offset, 3);
-    EXPECT_EQ(symbols.at(0).tap.sizes, (QVector<int>{4, 4, 4}));
-    EXPECT_EQ(symbols.at(0).tap.strides, (QVector<int>{16, 64, 1}));
+    EXPECT_EQ(symbols.at(0).tap.sizes, (QVector<int>{4, 4}));
+    EXPECT_EQ(symbols.at(0).tap.strides, (QVector<int>{16, 1}));
 }
 
 TEST(SymbolsPanelTests, PanelWrapsContentInScrollAreaToPreserveUsableWidth)
