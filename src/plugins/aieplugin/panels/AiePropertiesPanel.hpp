@@ -94,6 +94,10 @@ private:
     void applyTileLabel();
     void applyCoreFunctionBody();
     void rebuildKernelChips(const QStringList& kernels, const QString& tileSpecId);
+    void refreshFifoRows(Canvas::CanvasBlock* block);
+    void refreshArgList(Canvas::CanvasBlock* block);
+    void applyArgList();
+    void autoPopulateArgList(Canvas::CanvasBlock* block);
     void applyFifoAnnotation();
     void applyHubPivotProperties();
     void applyDdrTransferHubTap();
@@ -134,6 +138,11 @@ private:
     QPointer<QWidget> m_tileKernelRow;
     QPointer<QLabel> m_tileKernelRowLabel;
     QHBoxLayout* m_kernelChipsLayout = nullptr; // layout inside m_tileKernelRow; not owned via QPointer
+    QPointer<QLabel>       m_tileInputFifosValue;
+    QPointer<QLabel>       m_tileOutputFifosValue;
+
+    QPointer<QGroupBox>    m_argListGroup;
+    QPointer<QTableWidget> m_argListTable;
 
     QPointer<QGroupBox> m_hubPivotGroup;
     QPointer<QLineEdit> m_hubPivotNameEdit;

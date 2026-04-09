@@ -39,6 +39,7 @@
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 #include "aieplugin/panels/BodyStmtsEditor.hpp"
+#include "aieplugin/hlir_sync/TileFifoInfo.hpp"
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QScrollArea>
 #include <QtWidgets/QSpinBox>
@@ -204,10 +205,7 @@ class ObjectFifoNameDelegate final : public QStyledItemDelegate
 {
 public:
     using QStyledItemDelegate::QStyledItemDelegate;
-
-    QWidget* createEditor(QWidget* parent,
-                          const QStyleOptionViewItem&,
-                          const QModelIndex&) const override
+    QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem&, const QModelIndex&) const override
     {
         auto* editor = new QLineEdit(parent);
         editor->setObjectName(QStringLiteral("AiePropertiesField"));
@@ -220,10 +218,7 @@ class ObjectFifoDepthDelegate final : public QStyledItemDelegate
 {
 public:
     using QStyledItemDelegate::QStyledItemDelegate;
-
-    QWidget* createEditor(QWidget* parent,
-                          const QStyleOptionViewItem&,
-                          const QModelIndex&) const override
+    QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem&, const QModelIndex&) const override
     {
         auto* editor = new QSpinBox(parent);
         editor->setObjectName(QStringLiteral("AiePropertiesField"));
@@ -237,7 +232,7 @@ class ObjectFifoTypeDelegate final : public QStyledItemDelegate
 {
 public:
     using OptionsProvider = std::function<QVector<FifoTypeOption>()>;
-    using CommitCallback = std::function<void(int, const QString&, const QString&, const QString&, const QString&)>;
+    using CommitCallback  = std::function<void(int, const QString&, const QString&, const QString&, const QString&)>;
 
     ObjectFifoTypeDelegate(OptionsProvider optionsProvider,
                            CommitCallback commitCallback,
@@ -247,14 +242,11 @@ public:
         , m_commitCallback(std::move(commitCallback))
     {}
 
-    QWidget* createEditor(QWidget* parent,
-                          const QStyleOptionViewItem&,
-                          const QModelIndex& index) const override
+    QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem&, const QModelIndex& index) const override
     {
         auto* editor = new QComboBox(parent);
         editor->setObjectName(QStringLiteral("AiePropertiesField"));
         editor->setProperty("fifoTypeEditorReady", false);
-
         const QVector<FifoTypeOption> options = m_optionsProvider ? m_optionsProvider() : QVector<FifoTypeOption>{};
         editor->addItem(QStringLiteral("None"), QString{});
         editor->setItemData(0, QStringLiteral("i32"), kObjectFifoTypeValueTypeRole);
@@ -265,46 +257,36 @@ public:
             editor->setItemData(itemIndex, option.dtype, kObjectFifoTypeValueTypeRole);
             editor->setItemData(itemIndex, option.dimensions, kObjectFifoTypeDimensionsRole);
         }
-
-        const QString currentTypeId = index.data(kObjectFifoTypeIdRole).toString().trimmed();
+        const QString currentTypeId    = index.data(kObjectFifoTypeIdRole).toString().trimmed();
         const QString currentValueType = index.data(kObjectFifoTypeValueTypeRole).toString().trimmed();
         const QString currentDimensions = index.data(kObjectFifoTypeDimensionsRole).toString().trimmed();
         bool hasCurrentMatch = false;
         if (!currentTypeId.isEmpty()) {
             hasCurrentMatch = (editor->findData(currentTypeId) >= 0);
         } else {
-            for (int itemIndex = 0; itemIndex < editor->count(); ++itemIndex) {
-                if (editor->itemData(itemIndex, kObjectFifoTypeValueTypeRole).toString().trimmed() == currentValueType &&
-                    editor->itemData(itemIndex, kObjectFifoTypeDimensionsRole).toString().trimmed() == currentDimensions) {
-                    hasCurrentMatch = true;
-                    break;
+            for (int i = 0; i < editor->count(); ++i) {
+                if (editor->itemData(i, kObjectFifoTypeValueTypeRole).toString().trimmed() == currentValueType &&
+                    editor->itemData(i, kObjectFifoTypeDimensionsRole).toString().trimmed() == currentDimensions) {
+                    hasCurrentMatch = true; break;
                 }
             }
         }
-
-        if (!hasCurrentMatch &&
-            (!currentValueType.isEmpty() || !currentDimensions.isEmpty()) &&
+        if (!hasCurrentMatch && (!currentValueType.isEmpty() || !currentDimensions.isEmpty()) &&
             !index.data(Qt::DisplayRole).toString().trimmed().isEmpty()) {
             editor->addItem(index.data(Qt::DisplayRole).toString(), currentTypeId);
             const int itemIndex = editor->count() - 1;
             editor->setItemData(itemIndex, currentValueType, kObjectFifoTypeValueTypeRole);
             editor->setItemData(itemIndex, currentDimensions, kObjectFifoTypeDimensionsRole);
         }
-
         const int row = index.row();
-        connect(editor, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, editor, row](int currentIndex) {
-            if (currentIndex < 0 || !editor->property("fifoTypeEditorReady").toBool())
-                return;
-            const QString display = editor->currentText();
-            const QString typeId = editor->currentData().toString().trimmed();
-            const QString valueType = canonicalObjectFifoValueType(
-                editor->currentData(kObjectFifoTypeValueTypeRole).toString());
-            const QString dimensions =
-                editor->currentData(kObjectFifoTypeDimensionsRole).toString().trimmed();
+        connect(editor, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, editor, row](int ci) {
+            if (ci < 0 || !editor->property("fifoTypeEditorReady").toBool()) return;
             if (m_commitCallback)
-                m_commitCallback(row, display, typeId, valueType, dimensions);
-            auto* delegate = const_cast<ObjectFifoTypeDelegate*>(this);
-            emit delegate->closeEditor(editor);
+                m_commitCallback(row, editor->currentText(),
+                                 editor->currentData().toString().trimmed(),
+                                 canonicalObjectFifoValueType(editor->currentData(kObjectFifoTypeValueTypeRole).toString()),
+                                 editor->currentData(kObjectFifoTypeDimensionsRole).toString().trimmed());
+            emit const_cast<ObjectFifoTypeDelegate*>(this)->closeEditor(editor);
         });
         return editor;
     }
@@ -312,50 +294,36 @@ public:
     void setEditorData(QWidget* editor, const QModelIndex& index) const override
     {
         auto* combo = qobject_cast<QComboBox*>(editor);
-        if (!combo)
-            return;
-
-        const QString currentTypeId = index.data(kObjectFifoTypeIdRole).toString().trimmed();
+        if (!combo) return;
+        const QString currentTypeId    = index.data(kObjectFifoTypeIdRole).toString().trimmed();
         const QString currentValueType = index.data(kObjectFifoTypeValueTypeRole).toString().trimmed();
         const QString currentDimensions = index.data(kObjectFifoTypeDimensionsRole).toString().trimmed();
-
         int selectedIndex = currentTypeId.isEmpty() ? -1 : combo->findData(currentTypeId);
         if (selectedIndex < 0) {
-            for (int itemIndex = 0; itemIndex < combo->count(); ++itemIndex) {
-                if (combo->itemData(itemIndex, kObjectFifoTypeValueTypeRole).toString().trimmed() == currentValueType &&
-                    combo->itemData(itemIndex, kObjectFifoTypeDimensionsRole).toString().trimmed() == currentDimensions) {
-                    selectedIndex = itemIndex;
-                    break;
+            for (int i = 0; i < combo->count(); ++i) {
+                if (combo->itemData(i, kObjectFifoTypeValueTypeRole).toString().trimmed() == currentValueType &&
+                    combo->itemData(i, kObjectFifoTypeDimensionsRole).toString().trimmed() == currentDimensions) {
+                    selectedIndex = i; break;
                 }
             }
         }
-
         combo->setCurrentIndex(selectedIndex >= 0 ? selectedIndex : 0);
         combo->setProperty("fifoTypeEditorReady", true);
     }
 
-    void setModelData(QWidget* editor,
-                      QAbstractItemModel* model,
-                      const QModelIndex& index) const override
+    void setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override
     {
         auto* combo = qobject_cast<QComboBox*>(editor);
-        if (!combo || !model)
-            return;
-
+        if (!combo || !model) return;
         model->setData(index, combo->currentText(), Qt::DisplayRole);
         model->setData(index, combo->currentData().toString().trimmed(), kObjectFifoTypeIdRole);
-        model->setData(index,
-                       canonicalObjectFifoValueType(
-                           combo->currentData(kObjectFifoTypeValueTypeRole).toString()),
-                       kObjectFifoTypeValueTypeRole);
-        model->setData(index,
-                       combo->currentData(kObjectFifoTypeDimensionsRole).toString().trimmed(),
-                       kObjectFifoTypeDimensionsRole);
+        model->setData(index, canonicalObjectFifoValueType(combo->currentData(kObjectFifoTypeValueTypeRole).toString()), kObjectFifoTypeValueTypeRole);
+        model->setData(index, combo->currentData(kObjectFifoTypeDimensionsRole).toString().trimmed(), kObjectFifoTypeDimensionsRole);
     }
 
 private:
     OptionsProvider m_optionsProvider;
-    CommitCallback m_commitCallback;
+    CommitCallback  m_commitCallback;
 };
 
 QString shortValueType(const QString& dtype)
@@ -572,11 +540,8 @@ void AiePropertiesPanel::buildUi()
             return fifoTypeOptionsFromMetadata(
                 m_canvasDocuments ? m_canvasDocuments->activeMetadata() : QJsonObject{});
         },
-        [this](int row,
-               const QString& display,
-               const QString& typeId,
-               const QString& valueType,
-               const QString& dimensions) {
+        [this](int row, const QString& display, const QString& typeId,
+               const QString& valueType, const QString& dimensions) {
             applyObjectFifoTypeSelection(row, display, typeId, valueType, dimensions);
         },
         objectFifosTable));
@@ -608,9 +573,9 @@ void AiePropertiesPanel::buildUi()
     defaultsForm->addRow(makeSectionHeading(QStringLiteral("Depth"), defaultsHost), objectFifoDefaultDepthSpin);
     objectFifosLayout->addWidget(defaultsHost);
 
-    m_objectFifosGroup = objectFifosGroup;
-    m_objectFifosTable = objectFifosTable;
-    m_objectFifoDefaultNameEdit = objectFifoDefaultNameEdit;
+    m_objectFifosGroup      = objectFifosGroup;
+    m_objectFifosTable      = objectFifosTable;
+    m_objectFifoDefaultNameEdit  = objectFifoDefaultNameEdit;
     m_objectFifoDefaultDepthSpin = objectFifoDefaultDepthSpin;
     m_objectFifoDefaultTypeCombo = objectFifoDefaultTypeCombo;
 
@@ -655,6 +620,21 @@ void AiePropertiesPanel::buildUi()
     auto* kernelRowLabel = makeKeyLabel(QStringLiteral("Kernel"));
     tileForm->addRow(kernelRowLabel, kernelRow);
 
+    // Connected FIFOs rows (read-only, compute tiles only)
+    auto* inputFifosLabel = makeKeyLabel(QStringLiteral("In FIFOs"));
+    auto* inputFifosValue = new QLabel(QStringLiteral("-"), tileGroup);
+    inputFifosValue->setObjectName(QStringLiteral("AiePropertiesValueLabel"));
+    inputFifosValue->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    inputFifosValue->setWordWrap(true);
+    tileForm->addRow(inputFifosLabel, inputFifosValue);
+
+    auto* outputFifosLabel = makeKeyLabel(QStringLiteral("Out FIFOs"));
+    auto* outputFifosValue = new QLabel(QStringLiteral("-"), tileGroup);
+    outputFifosValue->setObjectName(QStringLiteral("AiePropertiesValueLabel"));
+    outputFifosValue->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    outputFifosValue->setWordWrap(true);
+    tileForm->addRow(outputFifosLabel, outputFifosValue);
+
     m_tileGroup = tileGroup;
     m_tileIdValue = tileIdValue;
     m_tileSpecIdValue = tileSpecIdValue;
@@ -663,6 +643,8 @@ void AiePropertiesPanel::buildUi()
     m_tileKernelRow = kernelRow;
     m_tileKernelRowLabel = kernelRowLabel;
     m_kernelChipsLayout = kernelRowLayout;
+    m_tileInputFifosValue  = inputFifosValue;
+    m_tileOutputFifosValue = outputFifosValue;
 
     // --- Hub Pivot group (Split / Join wires) ---
     auto* hubPivotGroup = new QGroupBox(QStringLiteral("Split / Join"), fieldsHost);
@@ -1018,6 +1000,41 @@ void AiePropertiesPanel::buildUi()
     }
     coreFnVLayout->addWidget(coreFnFormHost);
 
+    // fn_args binding table: Argument (read-only param name) | Reference (dropdown)
+    auto* argListGroup = new QGroupBox(QStringLiteral("fn_args"), coreFnGroup);
+    argListGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
+    auto* argListVL = new QVBoxLayout(argListGroup);
+    argListVL->setContentsMargins(8, 8, 8, 8);
+    argListVL->setSpacing(4);
+
+    auto* argTable = new QTableWidget(0, 2, argListGroup);
+    argTable->setHorizontalHeaderLabels({QStringLiteral("Argument"), QStringLiteral("Reference")});
+    argTable->horizontalHeader()->setStretchLastSection(true);
+    argTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    argTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    argTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    argTable->verticalHeader()->setVisible(false);
+    argTable->setMinimumHeight(100);
+    argTable->setMaximumHeight(200);
+    argListVL->addWidget(argTable);
+
+    auto* argBtnRowWidget = new QWidget(argListGroup);
+    auto* argBtnLayout = new QHBoxLayout(argBtnRowWidget);
+    argBtnLayout->setContentsMargins(0, 0, 0, 0);
+    argBtnLayout->setSpacing(4);
+    auto* argAutoBtn  = new QPushButton(QStringLiteral("Auto-assign"),  argListGroup);
+    auto* argClearBtn = new QPushButton(QStringLiteral("Clear"), argListGroup);
+    argAutoBtn->setObjectName(QStringLiteral("AiePropertiesField"));
+    argClearBtn->setObjectName(QStringLiteral("AiePropertiesClearBtn"));
+    argBtnLayout->addWidget(argAutoBtn);
+    argBtnLayout->addStretch(1);
+    argBtnLayout->addWidget(argClearBtn);
+    argListVL->addWidget(argBtnRowWidget);
+    coreFnVLayout->addWidget(argListGroup);
+
+    m_argListGroup = argListGroup;
+    m_argListTable = argTable;
+
     auto* coreFnEditor = new BodyStmtsEditor(coreFnGroup);
     coreFnVLayout->addWidget(coreFnEditor);
 
@@ -1134,6 +1151,20 @@ void AiePropertiesPanel::buildUi()
         m_document->notifyChanged();
     });
 
+    // fn_args list buttons
+    connect(argAutoBtn, &QPushButton::clicked, this, [this]() {
+        if (m_updatingUi) return;
+        auto* block = selectedBlock();
+        if (block) autoPopulateArgList(block);
+    });
+    connect(argClearBtn, &QPushButton::clicked, this, [this]() {
+        if (m_updatingUi || !m_document) return;
+        auto* block = selectedBlock();
+        if (!block) return;
+        block->clearCoreBodyArgs();
+        m_document->notifyChanged();
+    });
+
     connect(objectFifoDefaultNameEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyObjectFifoDefaults);
     connect(objectFifoDefaultDepthSpin, QOverload<int>::of(&QSpinBox::valueChanged),
@@ -1154,8 +1185,7 @@ void AiePropertiesPanel::buildUi()
     });
     connect(objectFifosTable, &QTableWidget::itemChanged, this,
             [this](QTableWidgetItem* item) {
-                if (!item)
-                    return;
+                if (!item) return;
                 applyObjectFifoRowEdits(item->row());
             });
 }
@@ -1207,25 +1237,22 @@ void AiePropertiesPanel::refreshObjectFifoDefaultsUi()
     const QJsonObject defaultsObject = metadata.value(kObjectFifoDefaultsKey).toObject();
     const QVector<FifoTypeOption> typeOptions = fifoTypeOptionsFromMetadata(metadata);
 
-    const QString persistedName = defaultsObject.value(kObjectFifoDefaultNameKey).toString().trimmed();
-    const int persistedDepth = std::max(1, defaultsObject.value(kObjectFifoDefaultDepthKey).toInt(2));
+    const QString persistedName  = defaultsObject.value(kObjectFifoDefaultNameKey).toString().trimmed();
+    const int persistedDepth     = std::max(1, defaultsObject.value(kObjectFifoDefaultDepthKey).toInt(2));
     const QString persistedTypeId = defaultsObject.value(kObjectFifoDefaultTypeIdKey).toString().trimmed();
 
     Canvas::CanvasController::ObjectFifoDefaults defaults =
         canvasController() ? canvasController()->objectFifoDefaults()
                            : Canvas::CanvasController::ObjectFifoDefaults{};
-
-    if (!persistedName.isEmpty())
-        defaults.name = persistedName;
+    if (!persistedName.isEmpty()) defaults.name = persistedName;
     defaults.depth = persistedDepth;
     defaults.type.typeId = persistedTypeId;
 
     QString selectedTypeId = persistedTypeId;
     if (!selectedTypeId.isEmpty()) {
         for (const FifoTypeOption& option : typeOptions) {
-            if (option.id != selectedTypeId)
-                continue;
-            defaults.type.valueType = option.dtype;
+            if (option.id != selectedTypeId) continue;
+            defaults.type.valueType  = option.dtype;
             defaults.type.dimensions = option.dimensions;
             break;
         }
@@ -1254,16 +1281,13 @@ void AiePropertiesPanel::refreshObjectFifoDefaultsUi()
     int selectedIndex = 0;
     if (!selectedTypeId.isEmpty()) {
         const int found = m_objectFifoDefaultTypeCombo->findData(selectedTypeId);
-        if (found >= 0)
-            selectedIndex = found;
+        if (found >= 0) selectedIndex = found;
     } else {
-        for (int index = 1; index < m_objectFifoDefaultTypeCombo->count(); ++index) {
-            if (canonicalObjectFifoValueType(
-                    m_objectFifoDefaultTypeCombo->itemData(index, Qt::UserRole + 1).toString()) ==
+        for (int i = 1; i < m_objectFifoDefaultTypeCombo->count(); ++i) {
+            if (canonicalObjectFifoValueType(m_objectFifoDefaultTypeCombo->itemData(i, Qt::UserRole + 1).toString()) ==
                     canonicalObjectFifoValueType(defaults.type.valueType) &&
-                m_objectFifoDefaultTypeCombo->itemData(index, Qt::UserRole + 2).toString() == defaults.type.dimensions) {
-                selectedIndex = index;
-                break;
+                m_objectFifoDefaultTypeCombo->itemData(i, Qt::UserRole + 2).toString() == defaults.type.dimensions) {
+                selectedIndex = i; break;
             }
         }
     }
@@ -1278,9 +1302,6 @@ void AiePropertiesPanel::refreshObjectFifoSection()
 {
     if (!m_objectFifosTable)
         return;
-
-    if (m_objectFifosGroup)
-        m_objectFifosGroup->setVisible(m_canvasHost && m_canvasHost->canvasActive() && m_document);
 
     refreshObjectFifoDefaultsUi();
 
@@ -1302,17 +1323,15 @@ void AiePropertiesPanel::refreshObjectFifoSection()
         auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
         if (!wire || !wire->hasObjectFifo())
             continue;
-
         const auto fifo = wire->objectFifo().value();
         if (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Fill    ||
             fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Drain   ||
             fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Split   ||
             fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Join    ||
-            fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward) {
+            fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward)
             continue;
-        }
-        m_objectFifosTable->insertRow(row);
 
+        m_objectFifosTable->insertRow(row);
         auto* nameItem = new QTableWidgetItem(fifo.name);
         nameItem->setData(kObjectFifoWireIdRole, wire->id().toString());
         nameItem->setFlags(nameItem->flags() | Qt::ItemIsEditable);
@@ -1330,7 +1349,6 @@ void AiePropertiesPanel::refreshObjectFifoSection()
             typeItem->setData(kObjectFifoTypeValueTypeRole, fifo.type.valueType.trimmed());
             typeItem->setData(kObjectFifoTypeDimensionsRole, fifo.type.dimensions.trimmed());
         }
-
         auto* depthItem = new QTableWidgetItem(QString::number(fifo.depth));
         depthItem->setFlags(depthItem->flags() | Qt::ItemIsEditable);
 
@@ -1352,7 +1370,6 @@ void AiePropertiesPanel::refreshObjectFifoSection()
             break;
         }
     }
-
     m_updatingObjectFifoTable = false;
 }
 
@@ -1361,8 +1378,8 @@ void AiePropertiesPanel::applyObjectFifoRowEdits(int row)
     if (m_updatingObjectFifoTable || !m_document || !m_objectFifosTable)
         return;
 
-    auto* nameItem = m_objectFifosTable->item(row, 0);
-    auto* typeItem = m_objectFifosTable->item(row, 1);
+    auto* nameItem  = m_objectFifosTable->item(row, 0);
+    auto* typeItem  = m_objectFifosTable->item(row, 1);
     auto* depthItem = m_objectFifosTable->item(row, 2);
     if (!nameItem || !typeItem || !depthItem)
         return;
@@ -1378,26 +1395,21 @@ void AiePropertiesPanel::applyObjectFifoRowEdits(int row)
 
     Canvas::CanvasWire::ObjectFifoConfig config = wire->objectFifo().value();
     const QString normalizedName = nameItem->text().trimmed().isEmpty()
-        ? QStringLiteral("of")
-        : nameItem->text().trimmed();
-
+        ? QStringLiteral("of") : nameItem->text().trimmed();
     bool depthOk = false;
     int normalizedDepth = depthItem->text().trimmed().toInt(&depthOk);
-    if (!depthOk)
-        normalizedDepth = config.depth;
+    if (!depthOk) normalizedDepth = config.depth;
     normalizedDepth = std::max(1, normalizedDepth);
 
-    QString nextValueType = canonicalObjectFifoValueType(
-        typeItem->data(kObjectFifoTypeValueTypeRole).toString());
-    QString nextDimensions = typeItem->data(kObjectFifoTypeDimensionsRole).toString().trimmed();
-    const QString nextTypeId = typeItem->data(kObjectFifoTypeIdRole).toString().trimmed();
+    const QString nextValueType  = canonicalObjectFifoValueType(typeItem->data(kObjectFifoTypeValueTypeRole).toString());
+    const QString nextDimensions = typeItem->data(kObjectFifoTypeDimensionsRole).toString().trimmed();
+    const QString nextTypeId     = typeItem->data(kObjectFifoTypeIdRole).toString().trimmed();
 
     const bool changed = (config.name != normalizedName) ||
                          (config.depth != normalizedDepth) ||
                          (config.type.typeId.trimmed() != nextTypeId) ||
                          (canonicalObjectFifoValueType(config.type.valueType) != nextValueType) ||
                          (config.type.dimensions.trimmed() != nextDimensions);
-
     {
         QSignalBlocker blocker(m_objectFifosTable);
         m_updatingObjectFifoTable = true;
@@ -1405,16 +1417,13 @@ void AiePropertiesPanel::applyObjectFifoRowEdits(int row)
         depthItem->setText(QString::number(normalizedDepth));
         m_updatingObjectFifoTable = false;
     }
+    if (!changed) return;
 
-    if (!changed)
-        return;
-
-    config.name = normalizedName;
-    config.depth = normalizedDepth;
-    config.type.typeId = nextTypeId;
-    config.type.valueType = nextValueType;
-    config.type.dimensions = nextDimensions;
-
+    config.name              = normalizedName;
+    config.depth             = normalizedDepth;
+    config.type.typeId       = nextTypeId;
+    config.type.valueType    = nextValueType;
+    config.type.dimensions   = nextDimensions;
     wire->setObjectFifo(config);
     m_document->notifyChanged();
 }
@@ -1425,13 +1434,9 @@ void AiePropertiesPanel::applyObjectFifoTypeSelection(int row,
                                                       const QString& valueType,
                                                       const QString& dimensions)
 {
-    if (!m_objectFifosTable)
-        return;
-
+    if (!m_objectFifosTable) return;
     auto* typeItem = m_objectFifosTable->item(row, 1);
-    if (!typeItem)
-        return;
-
+    if (!typeItem) return;
     {
         QSignalBlocker blocker(m_objectFifosTable);
         m_updatingObjectFifoTable = true;
@@ -1441,7 +1446,6 @@ void AiePropertiesPanel::applyObjectFifoTypeSelection(int row,
         typeItem->setData(kObjectFifoTypeDimensionsRole, dimensions.trimmed());
         m_updatingObjectFifoTable = false;
     }
-
     applyObjectFifoRowEdits(row);
 }
 
@@ -1463,12 +1467,17 @@ void AiePropertiesPanel::showSelectionState(SelectionKind kind,
     const bool showDdr          = (kind == SelectionKind::DdrBlock);
     const bool showDdrPivot     = (kind == SelectionKind::DdrPivotWire);
     const bool showArmWire      = (kind == SelectionKind::ArmWire);
-    if (m_objectFifosGroup)
-        m_objectFifosGroup->setVisible(m_canvasHost && m_canvasHost->canvasActive() && m_document);
+    if (m_objectFifosGroup) {
+        const bool showObjectFifos = (m_canvasHost && m_canvasHost->canvasActive() && m_document) &&
+                                     (kind != SelectionKind::Tile && kind != SelectionKind::DdrBlock);
+        m_objectFifosGroup->setVisible(showObjectFifos);
+    }
     if (m_tileGroup)
         m_tileGroup->setVisible(showTile);
     if (m_coreFnGroup)
         m_coreFnGroup->setVisible(showTile && m_tileIsKernelTile);
+    if (m_argListGroup)
+        m_argListGroup->setVisible(showTile && m_tileIsKernelTile);
     if (m_hubPivotGroup)
         m_hubPivotGroup->setVisible(showHubPivot);
     if (m_fifoGroup)
@@ -1678,6 +1687,9 @@ void AiePropertiesPanel::refreshSelection()
             if (isComputeTile && m_tileKernelRow)
                 rebuildKernelChips(block->assignedKernels(), block->specId());
 
+            if (isComputeTile)
+                refreshFifoRows(block);
+
             // Populate core function group (only for compute tiles with a kernel).
             const bool hasKernel = isComputeTile && !block->assignedKernels().isEmpty();
             m_tileIsKernelTile = hasKernel;
@@ -1697,6 +1709,8 @@ void AiePropertiesPanel::refreshSelection()
                 m_coreFnEditor->setVisible(isBodyStmts);
                 if (m_coreFnClearBtn) m_coreFnClearBtn->setVisible(isBodyStmts);
             }
+            if (hasKernel)
+                refreshArgList(block);
 
             m_updatingUi = false;
 
@@ -1934,6 +1948,77 @@ static QString buildDefaultBodyJson(const Canvas::CanvasBlock* block,
     const QStringList& assigned = block->assignedKernels();
     QString kernelName = assigned.isEmpty() ? u"kernel"_s : assigned.first();
 
+    // If the user has explicitly assigned fn_args via coreBodyArgs, derive the template from
+    // those rather than from raw wire counts, so param names match the fifo/kernel names.
+    const QList<Canvas::CanvasBlock::CoreBodyArgSpec>& coreArgs = block->coreBodyArgs();
+    if (!coreArgs.isEmpty()) {
+        using Kind = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
+        QStringList kernelParams, inputParams, outputParams;
+        for (const auto& arg : coreArgs) {
+            // paramName is the function parameter ("in0", "out0", "kernel"); ref is the bound value.
+            const QString name = arg.paramName.trimmed().isEmpty() ? arg.ref.trimmed() : arg.paramName.trimmed();
+            if (name.isEmpty()) continue;
+            switch (arg.kind) {
+                case Kind::Kernel:       kernelParams << name; break;
+                case Kind::FifoConsumer: inputParams  << name; break;
+                case Kind::FifoProducer: outputParams << name; break;
+            }
+        }
+        if (!kernelParams.isEmpty()) kernelName = kernelParams.first();
+
+        QJsonArray  params;
+        QJsonObject paramRoles;
+        auto addPm = [&](const QString& n, int role) { params.append(n); paramRoles[n] = role; };
+        for (const QString& n : kernelParams) addPm(n, 0);
+        for (const QString& n : inputParams)  addPm(n, 1);
+        for (const QString& n : outputParams) addPm(n, 2);
+
+        QJsonArray body;
+        for (const QString& n : inputParams) {
+            QJsonObject acq;
+            acq[u"type"_s]       = u"Acquire"_s;
+            acq[u"fifo_param"_s] = n;
+            acq[u"count"_s]      = 1;
+            acq[u"local_var"_s]  = u"buf_"_s + n;
+            body.append(acq);
+        }
+        for (const QString& n : outputParams) {
+            QJsonObject acq;
+            acq[u"type"_s]       = u"Acquire"_s;
+            acq[u"fifo_param"_s] = n;
+            acq[u"count"_s]      = 1;
+            acq[u"local_var"_s]  = u"buf_"_s + n;
+            body.append(acq);
+        }
+        QJsonObject call;
+        call[u"type"_s]         = u"KernelCall"_s;
+        call[u"kernel_param"_s] = kernelName;
+        QJsonArray args;
+        for (const QString& n : inputParams)  args.append(u"buf_"_s + n);
+        for (const QString& n : outputParams) args.append(u"buf_"_s + n);
+        call[u"args"_s] = args;
+        body.append(call);
+        for (const QString& n : inputParams) {
+            QJsonObject rel;
+            rel[u"type"_s]       = u"Release"_s;
+            rel[u"fifo_param"_s] = n;
+            rel[u"count"_s]      = 1;
+            body.append(rel);
+        }
+        for (const QString& n : outputParams) {
+            QJsonObject rel;
+            rel[u"type"_s]       = u"Release"_s;
+            rel[u"fifo_param"_s] = n;
+            rel[u"count"_s]      = 1;
+            body.append(rel);
+        }
+        QJsonObject root;
+        root[u"params"_s]      = params;
+        root[u"param_roles"_s] = paramRoles;
+        root[u"body"_s]        = body;
+        return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact));
+    }
+
     // Walk all wires connected to this tile and mirror HlirSyncService's classification:
     //
     // Convention: hub is always at endpoint A, tile always at endpoint B for arm wires.
@@ -2054,6 +2139,83 @@ static QString buildDefaultBodyJson(const Canvas::CanvasBlock* block,
     return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
 
+// ---------------------------------------------------------------------------
+// paramsForBlock() — derive the ordered param list for a tile's core function.
+//
+// Priority:
+//  1. If coreBodyArgs is already populated → use it (preserves user assignments).
+//  2. If BodyStmts JSON has params + param_roles → parse those.
+//  3. Otherwise → default: kernel(s) first, then in0/in1.../out0/out1... from wires.
+//
+// Returns {paramName, kind} pairs in function-signature order.
+// ---------------------------------------------------------------------------
+namespace {
+using namespace Qt::StringLiterals;
+struct ParamInfo {
+    QString name;
+    Canvas::CanvasBlock::CoreBodyArgSpec::Kind kind;
+};
+
+QList<ParamInfo> paramsForBlock(const Canvas::CanvasBlock* block,
+                                const Canvas::CanvasDocument* document)
+{
+    using Kind = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
+
+    // 1. coreBodyArgs already set → derive from it.
+    if (!block->coreBodyArgs().isEmpty()) {
+        QList<ParamInfo> result;
+        for (const auto& arg : block->coreBodyArgs())
+            result.append({arg.paramName, arg.kind});
+        return result;
+    }
+
+    // 2. BodyStmts JSON with params/param_roles.
+    if (block->hasCoreFunctionConfig()) {
+        const auto& cfg = block->coreFunctionConfig();
+        if (cfg->mode == Canvas::CanvasBlock::CoreFunctionConfig::Mode::BodyStmts
+            && !cfg->bodyStmtsJson.isEmpty()) {
+            const QJsonDocument jdoc =
+                QJsonDocument::fromJson(cfg->bodyStmtsJson.toUtf8());
+            const QJsonObject obj   = jdoc.object();
+            const QJsonArray  jparams = obj[u"params"].toArray();
+            const QJsonObject jroles  = obj[u"param_roles"].toObject();
+            if (!jparams.isEmpty()) {
+                QList<ParamInfo> result;
+                for (const auto& p : jparams) {
+                    const QString name = p.toString();
+                    const int role = jroles[name].toInt(1); // 0=kernel, 1=in, 2=out
+                    Kind kind = (role == 0) ? Kind::Kernel
+                              : (role == 2) ? Kind::FifoProducer
+                              :               Kind::FifoConsumer;
+                    result.append({name, kind});
+                }
+                return result;
+            }
+        }
+    }
+
+    // 3. Default: one kernel param per assigned kernel, then in/out from wires.
+    QList<ParamInfo> result;
+    const QStringList& kernels = block->assignedKernels();
+    if (kernels.size() == 1)
+        result.append({u"kernel"_s, Kind::Kernel});
+    else {
+        for (int i = 0; i < kernels.size(); ++i)
+            result.append({QStringLiteral("Kernel%1").arg(i + 1), Kind::Kernel});
+    }
+    const QList<TileFifoInfo> fifos = connectedFifosForTile(block, document);
+    int inIdx = 0, outIdx = 0;
+    for (bool wantInput : {true, false}) {
+        for (const auto& f : fifos) {
+            if (f.isInput != wantInput) continue;
+            if (wantInput) result.append({QStringLiteral("in%1").arg(inIdx++),  Kind::FifoConsumer});
+            else           result.append({QStringLiteral("out%1").arg(outIdx++), Kind::FifoProducer});
+        }
+    }
+    return result;
+}
+} // anonymous namespace
+
 void AiePropertiesPanel::applyCoreFunctionBody()
 {
     if (m_updatingUi || !m_document || !m_coreFnModeCombo || !m_coreFnEditor)
@@ -2089,6 +2251,226 @@ void AiePropertiesPanel::applyCoreFunctionBody()
     }
 
     block->setCoreFunctionConfig(std::move(cfg));
+
+    // Reconcile coreBodyArgs to match the updated param list so the arg table stays in sync.
+    // Strategy: derive the new canonical param list from the body JSON (bypassing the
+    // coreBodyArgs priority-1 path by temporarily clearing it), then rebuild coreBodyArgs
+    // preserving existing refs for unchanged param names.
+    {
+        const QList<Canvas::CanvasBlock::CoreBodyArgSpec> oldArgs = block->coreBodyArgs();
+        QHash<QString, Canvas::CanvasBlock::CoreBodyArgSpec> oldByParam;
+        for (const auto& a : oldArgs)
+            oldByParam[a.paramName] = a;
+
+        block->clearCoreBodyArgs(); // bypass priority-1 in paramsForBlock
+        const QList<ParamInfo> newParams = paramsForBlock(block, m_document);
+
+        QList<Canvas::CanvasBlock::CoreBodyArgSpec> newArgs;
+        for (const auto& p : newParams) {
+            const auto it = oldByParam.find(p.name);
+            if (it != oldByParam.end()) {
+                newArgs.append(*it); // preserve kind + ref
+            } else {
+                Canvas::CanvasBlock::CoreBodyArgSpec a;
+                a.paramName = p.name;
+                a.kind      = p.kind;
+                // ref left empty; refreshArgList will auto-select first available
+                newArgs.append(a);
+            }
+        }
+        block->setCoreBodyArgs(std::move(newArgs));
+    }
+
+    m_document->notifyChanged();
+}
+
+
+void AiePropertiesPanel::refreshFifoRows(Canvas::CanvasBlock* block)
+{
+    if (!m_document || !m_tileInputFifosValue || !m_tileOutputFifosValue || !block)
+        return;
+    const QList<TileFifoInfo> fifos = connectedFifosForTile(block, m_document);
+    QStringList inputs, outputs;
+    for (const auto& f : fifos)
+        (f.isInput ? inputs : outputs) << f.name;
+    m_tileInputFifosValue->setText(inputs.isEmpty()  ? QStringLiteral("-") : inputs.join(QStringLiteral(", ")));
+    m_tileOutputFifosValue->setText(outputs.isEmpty() ? QStringLiteral("-") : outputs.join(QStringLiteral(", ")));
+}
+
+void AiePropertiesPanel::refreshArgList(Canvas::CanvasBlock* block)
+{
+    if (!m_argListTable || !block || !m_document)
+        return;
+
+    using Kind = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
+
+    // Available refs per kind.
+    const QStringList& kernelOptions = block->assignedKernels();
+    const QList<TileFifoInfo> fifos  = connectedFifosForTile(block, m_document);
+    QStringList inputOptions, outputOptions;
+    for (const auto& f : fifos)
+        (f.isInput ? inputOptions : outputOptions) << f.name;
+
+    // Build paramName → current ref lookup from existing coreBodyArgs.
+    QHash<QString, QString> refByParam;
+    for (const auto& arg : block->coreBodyArgs())
+        refByParam[arg.paramName] = arg.ref;
+
+    const QList<ParamInfo> params = paramsForBlock(block, m_document);
+
+    // Per-kind counter for auto-assigning refs sequentially when no saved ref exists.
+    // Starts at combo index 1 (skipping the "—" placeholder at index 0).
+    QHash<Kind, int> autoNextIdx;
+
+    m_argListTable->setRowCount(0);
+    for (const auto& param : params) {
+        const int row = m_argListTable->rowCount();
+        m_argListTable->insertRow(row);
+
+        // Argument column: read-only.
+        auto* argItem = new QTableWidgetItem(param.name);
+        argItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        m_argListTable->setItem(row, 0, argItem);
+
+        // Reference column: dropdown filtered by kind.
+        auto* refCombo = new QComboBox();
+        refCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+        refCombo->addItem(QStringLiteral("\u2014")); // "—" unset placeholder
+
+        const QStringList* opts = nullptr;
+        switch (param.kind) {
+            case Kind::Kernel:       opts = &kernelOptions; break;
+            case Kind::FifoConsumer: opts = &inputOptions;  break;
+            case Kind::FifoProducer: opts = &outputOptions; break;
+        }
+        if (opts)
+            for (const QString& opt : *opts)
+                refCombo->addItem(opt);
+
+        // Select current assignment, or auto-select next available for this kind sequentially.
+        const QString cur = refByParam.value(param.name);
+        if (!cur.isEmpty()) {
+            const int idx = refCombo->findText(cur);
+            refCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+        } else {
+            const int nextIdx = autoNextIdx.value(param.kind, 1);
+            if (nextIdx < refCombo->count()) {
+                refCombo->setCurrentIndex(nextIdx);
+                autoNextIdx[param.kind] = nextIdx + 1;
+            }
+            // else no more options for this kind — leave at "—" (index 0)
+        }
+
+        connect(refCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &AiePropertiesPanel::applyArgList);
+        m_argListTable->setCellWidget(row, 1, refCombo);
+    }
+
+    // Check if any row has an auto-selected ref that isn't yet persisted to the model.
+    // This covers both: (a) coreBodyArgs was completely empty, (b) new params were added
+    // with empty refs by applyCoreFunctionBody's reconcile step.
+    const bool hasUnpersistedRefs = [&]() {
+        QHash<QString, QString> existingRefs;
+        for (const auto& a : block->coreBodyArgs())
+            existingRefs[a.paramName] = a.ref;
+        for (int r = 0; r < m_argListTable->rowCount(); ++r) {
+            auto* item = m_argListTable->item(r, 0);
+            auto* combo = qobject_cast<QComboBox*>(m_argListTable->cellWidget(r, 1));
+            if (!item || !combo) continue;
+            const QString paramName = item->text();
+            const QString selected  = combo->currentText();
+            const QString ref = (selected == QStringLiteral("\u2014")) ? QString() : selected;
+            if (ref != existingRefs.value(paramName))
+                return true;
+        }
+        return false;
+    }();
+
+    if (hasUnpersistedRefs && m_argListTable->rowCount() > 0) {
+        QList<Canvas::CanvasBlock::CoreBodyArgSpec> args;
+        for (int row = 0; row < m_argListTable->rowCount(); ++row) {
+            auto* argItem  = m_argListTable->item(row, 0);
+            auto* refCombo = qobject_cast<QComboBox*>(m_argListTable->cellWidget(row, 1));
+            if (!argItem || !refCombo)
+                continue;
+            Canvas::CanvasBlock::CoreBodyArgSpec arg;
+            arg.paramName = argItem->text();
+            arg.kind      = (row < params.size()) ? params[row].kind
+                          : Canvas::CanvasBlock::CoreBodyArgSpec::Kind::FifoConsumer;
+            const QString selected = refCombo->currentText();
+            arg.ref = (selected == QStringLiteral("\u2014")) ? QString() : selected;
+            args.append(arg);
+        }
+        block->setCoreBodyArgs(std::move(args));
+        // intentionally no m_document->notifyChanged() here
+    }
+}
+
+void AiePropertiesPanel::applyArgList()
+{
+    if (m_updatingUi || !m_document || !m_argListTable)
+        return;
+    auto* block = selectedBlock();
+    if (!block)
+        return;
+
+    const QList<ParamInfo> params = paramsForBlock(block, m_document);
+
+    QList<Canvas::CanvasBlock::CoreBodyArgSpec> args;
+    for (int row = 0; row < m_argListTable->rowCount(); ++row) {
+        auto* argItem  = m_argListTable->item(row, 0);
+        auto* refCombo = qobject_cast<QComboBox*>(m_argListTable->cellWidget(row, 1));
+        if (!argItem || !refCombo)
+            continue;
+
+        Canvas::CanvasBlock::CoreBodyArgSpec arg;
+        arg.paramName = argItem->text();
+        arg.kind      = (row < params.size()) ? params[row].kind
+                      : Canvas::CanvasBlock::CoreBodyArgSpec::Kind::FifoConsumer;
+
+        const QString selected = refCombo->currentText();
+        arg.ref = (selected == QStringLiteral("\u2014")) ? QString() : selected;
+
+        args.append(arg);
+    }
+    block->setCoreBodyArgs(std::move(args));
+    m_document->notifyChanged();
+}
+
+void AiePropertiesPanel::autoPopulateArgList(Canvas::CanvasBlock* block)
+{
+    if (!m_document || !block)
+        return;
+
+    using Kind = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
+
+    const QList<ParamInfo> params = paramsForBlock(block, m_document);
+    const QStringList& kernels    = block->assignedKernels();
+    const QList<TileFifoInfo> fifos = connectedFifosForTile(block, m_document);
+    QStringList inputFifos, outputFifos;
+    for (const auto& f : fifos)
+        (f.isInput ? inputFifos : outputFifos) << f.name;
+
+    QList<Canvas::CanvasBlock::CoreBodyArgSpec> args;
+    int kIdx = 0, inIdx = 0, outIdx = 0;
+    for (const auto& param : params) {
+        Canvas::CanvasBlock::CoreBodyArgSpec arg;
+        arg.paramName = param.name;
+        arg.kind      = param.kind;
+        switch (param.kind) {
+            case Kind::Kernel:
+                arg.ref = (kIdx < kernels.size()) ? kernels[kIdx++] : QString();
+                break;
+            case Kind::FifoConsumer:
+                arg.ref = (inIdx < inputFifos.size()) ? inputFifos[inIdx++] : QString();
+                break;
+            case Kind::FifoProducer:
+                arg.ref = (outIdx < outputFifos.size()) ? outputFifos[outIdx++] : QString();
+                break;
+        }
+        args.append(arg);
+    }
+    block->setCoreBodyArgs(std::move(args));
     m_document->notifyChanged();
 }
 

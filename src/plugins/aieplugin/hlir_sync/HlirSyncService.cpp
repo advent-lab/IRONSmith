@@ -1477,6 +1477,35 @@ void HlirSyncService::buildWorkers()
         return 0;
     };
 
+    // Compute the coreBodyArgs lookup name for a hub arm wire.
+    // Format: "hubName[armIndex]" for split/join; "hubName" for broadcast.
+    // The hubName comes from the pivot wire's objectFifo.hubName (set by buildSplitJoinHubs()).
+    auto hubArmFifoName = [&](const Canvas::CanvasBlock* hub,
+                               Canvas::PortId armPortId,
+                               Canvas::PortRole armRole,
+                               bool isBroadcast) -> QString {
+        // Find pivot wire: hub at B, non-hub at A.
+        for (const auto& wItem : items) {
+            const auto* w = dynamic_cast<const Canvas::CanvasWire*>(wItem.get());
+            if (!w || !w->hasObjectFifo()) continue;
+            const auto& wEpB = w->b();
+            if (!wEpB.attached.has_value() || wEpB.attached->itemId != hub->id()) continue;
+            const auto& wEpA = w->a();
+            if (!wEpA.attached.has_value()) continue;
+            const auto* blkA = dynamic_cast<const Canvas::CanvasBlock*>(
+                m_document->findItem(wEpA.attached->itemId));
+            if (!blkA || blkA->isLinkHub()) continue;
+            const auto& pivotCfg = w->objectFifo().value();
+            const QString hubName = pivotCfg.hubName.trimmed().isEmpty()
+                ? pivotCfg.name.trimmed() : pivotCfg.hubName.trimmed();
+            if (hubName.isEmpty()) return QString();
+            if (isBroadcast) return hubName;
+            const int idx = armIndexFor(hub, armPortId, armRole);
+            return QStringLiteral("%1[%2]").arg(hubName).arg(idx);
+        }
+        return QString();
+    };
+
     // True when the hub block is a broadcast (uses FifoForward).
     auto isBroadcastHub = [](const Canvas::CanvasBlock* hub) -> bool {
         const auto* sym = dynamic_cast<const Canvas::BlockContentSymbol*>(hub->content());
@@ -1489,6 +1518,7 @@ void HlirSyncService::buildWorkers()
     struct FifoEndpoint {
         hlir::HlirBridge::FunctionArg arg;
         hlir::ComponentId typeId;
+        QString fifoName; // object-fifo name for coreBodyArgs lookup (empty if unavailable)
     };
 
     struct TileWorkerSpec {
@@ -1563,9 +1593,12 @@ void HlirSyncService::buildWorkers()
                 if (!blockA->isLinkHub()) {
                     // Direct FIFO: tile consumes → input.
                     const hlir::ComponentId fifoId = m_fifoMap.value(wire->id());
-                    if (!fifoId.empty())
+                    if (!fifoId.empty()) {
+                        const QString fifoName = wire->hasObjectFifo()
+                            ? wire->objectFifo().value().name.trimmed() : QString();
                         inputs.append({hlir::HlirBridge::FunctionArg::fifoConsumer(fifoId, 0),
-                                       typeIdForWire(wire)});
+                                       typeIdForWire(wire), fifoName});
+                    }
                 } else {
                     // Arm wire with hub at A — direction depends on hub port role.
                     const hlir::ComponentId hubId = m_splitJoinMap.value(blockA->id());
@@ -1573,21 +1606,27 @@ void HlirSyncService::buildWorkers()
                         continue;
 
                     if (isBroadcastHub(blockA)) {
+                        const QString name = hubArmFifoName(blockA, epA.attached->portId,
+                                                            Canvas::PortRole::Producer, true);
                         inputs.append({hlir::HlirBridge::FunctionArg::forwardConsumer(hubId),
-                                       typeIdForHubArm(wire, blockA)});
+                                       typeIdForHubArm(wire, blockA), name});
                     } else {
                         const Canvas::PortRole role =
                             portRoleFor(blockA, epA.attached->portId);
                         if (role == Canvas::PortRole::Producer) {
                             const int idx = armIndexFor(
                                 blockA, epA.attached->portId, Canvas::PortRole::Producer);
+                            const QString name = hubArmFifoName(blockA, epA.attached->portId,
+                                                                Canvas::PortRole::Producer, false);
                             inputs.append({hlir::HlirBridge::FunctionArg::splitConsumer(hubId, idx),
-                                           typeIdForHubArm(wire, blockA)});
+                                           typeIdForHubArm(wire, blockA), name});
                         } else if (role == Canvas::PortRole::Consumer) {
                             const int idx = armIndexFor(
                                 blockA, epA.attached->portId, Canvas::PortRole::Consumer);
+                            const QString name = hubArmFifoName(blockA, epA.attached->portId,
+                                                                Canvas::PortRole::Consumer, false);
                             outputs.append({hlir::HlirBridge::FunctionArg::joinProducer(hubId, idx),
-                                            typeIdForHubArm(wire, blockA)});
+                                            typeIdForHubArm(wire, blockA), name});
                         }
                     }
                 }
@@ -1600,9 +1639,12 @@ void HlirSyncService::buildWorkers()
 
                 // Direct FIFO: tile produces → output.
                 const hlir::ComponentId fifoId = m_fifoMap.value(wire->id());
-                if (!fifoId.empty())
+                if (!fifoId.empty()) {
+                    const QString fifoName = wire->hasObjectFifo()
+                        ? wire->objectFifo().value().name.trimmed() : QString();
                     outputs.append({hlir::HlirBridge::FunctionArg::fifoProducer(fifoId),
-                                    typeIdForWire(wire)});
+                                    typeIdForWire(wire), fifoName});
+                }
             }
         }
 
@@ -1773,9 +1815,61 @@ void HlirSyncService::buildWorkers()
 
             // ---- Worker for this tile ----
             std::vector<hlir::HlirBridge::FunctionArg> fnArgs;
-            fnArgs.push_back(hlir::HlirBridge::FunctionArg::kernel(kernelResult.value()));
-            for (const auto& ep : spec.inputs)  fnArgs.push_back(ep.arg);
-            for (const auto& ep : spec.outputs) fnArgs.push_back(ep.arg);
+            const QList<Canvas::CanvasBlock::CoreBodyArgSpec> coreArgs =
+                blk ? blk->coreBodyArgs() : QList<Canvas::CanvasBlock::CoreBodyArgSpec>{};
+
+            if (!coreArgs.isEmpty()) {
+                // User-specified fn_args order via the properties panel.
+                QHash<QString, FifoEndpoint> inputByName, outputByName;
+                for (const auto& ep : spec.inputs)
+                    if (!ep.fifoName.isEmpty()) inputByName[ep.fifoName] = ep;
+                for (const auto& ep : spec.outputs)
+                    if (!ep.fifoName.isEmpty()) outputByName[ep.fifoName] = ep;
+
+                for (const auto& argSpec : coreArgs) {
+                    using Kind = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
+                    switch (argSpec.kind) {
+                        case Kind::Kernel: {
+                            // Use current kernel if ref matches, otherwise fall back to kernelMap.
+                            const hlir::ComponentId kid = (argSpec.ref == kernelId)
+                                ? kernelResult.value()
+                                : m_kernelMap.value(argSpec.ref);
+                            if (!kid.empty())
+                                fnArgs.push_back(hlir::HlirBridge::FunctionArg::kernel(kid));
+                            else
+                                qCWarning(hlirSyncLog)
+                                    << "HlirSyncService: coreBodyArgs: kernel" << argSpec.ref
+                                    << "not found for tile" << QString::fromStdString(spec.tileName);
+                            break;
+                        }
+                        case Kind::FifoConsumer: {
+                            const auto it = inputByName.find(argSpec.ref);
+                            if (it != inputByName.end())
+                                fnArgs.push_back(it->arg);
+                            else
+                                qCWarning(hlirSyncLog)
+                                    << "HlirSyncService: coreBodyArgs: input FIFO" << argSpec.ref
+                                    << "not found for tile" << QString::fromStdString(spec.tileName);
+                            break;
+                        }
+                        case Kind::FifoProducer: {
+                            const auto it = outputByName.find(argSpec.ref);
+                            if (it != outputByName.end())
+                                fnArgs.push_back(it->arg);
+                            else
+                                qCWarning(hlirSyncLog)
+                                    << "HlirSyncService: coreBodyArgs: output FIFO" << argSpec.ref
+                                    << "not found for tile" << QString::fromStdString(spec.tileName);
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Default ordering: kernel first, then inputs, then outputs.
+                fnArgs.push_back(hlir::HlirBridge::FunctionArg::kernel(kernelResult.value()));
+                for (const auto& ep : spec.inputs)  fnArgs.push_back(ep.arg);
+                for (const auto& ep : spec.outputs) fnArgs.push_back(ep.arg);
+            }
 
             auto workerResult = m_bridge->addWorker(
                 "worker_" + spec.tileName,

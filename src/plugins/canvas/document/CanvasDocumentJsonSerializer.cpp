@@ -452,6 +452,25 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
                 obj.insert(u"coreFn"_s, cfnObj);
             }
 
+            if (!block->coreBodyArgs().isEmpty()) {
+                QJsonArray argsArr;
+                for (const auto& arg : block->coreBodyArgs()) {
+                    QJsonObject argObj;
+                    switch (arg.kind) {
+                    case CanvasBlock::CoreBodyArgSpec::Kind::Kernel:
+                        argObj.insert(u"kind"_s, u"kernel"_s); break;
+                    case CanvasBlock::CoreBodyArgSpec::Kind::FifoConsumer:
+                        argObj.insert(u"kind"_s, u"fifo_in"_s); break;
+                    case CanvasBlock::CoreBodyArgSpec::Kind::FifoProducer:
+                        argObj.insert(u"kind"_s, u"fifo_out"_s); break;
+                    }
+                    argObj.insert(u"paramName"_s, arg.paramName);
+                    argObj.insert(u"ref"_s, arg.ref);
+                    argsArr.append(argObj);
+                }
+                obj.insert(u"coreBodyArgs"_s, argsArr);
+            }
+
             items.append(obj);
             continue;
         }
@@ -796,6 +815,27 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                     cfg.mode = CanvasBlock::CoreFunctionConfig::Mode::BodyStmts;
                 cfg.bodyStmtsJson = coreFnObject.value(u"bodyStmtsJson"_s).toString();
                 block->setCoreFunctionConfig(std::move(cfg));
+            }
+
+            {
+                QList<CanvasBlock::CoreBodyArgSpec> args;
+                for (const auto& v : item.value(u"coreBodyArgs"_s).toArray()) {
+                    const QJsonObject a = v.toObject();
+                    CanvasBlock::CoreBodyArgSpec spec;
+                    const QString kind = a.value(u"kind"_s).toString();
+                    if (kind == u"kernel"_s)
+                        spec.kind = CanvasBlock::CoreBodyArgSpec::Kind::Kernel;
+                    else if (kind == u"fifo_out"_s)
+                        spec.kind = CanvasBlock::CoreBodyArgSpec::Kind::FifoProducer;
+                    else
+                        spec.kind = CanvasBlock::CoreBodyArgSpec::Kind::FifoConsumer;
+                    spec.paramName = a.value(u"paramName"_s).toString();
+                    spec.ref       = a.value(u"ref"_s).toString();
+                    if (!spec.paramName.isEmpty() && !spec.ref.isEmpty())
+                        args.append(spec);
+                }
+                if (!args.isEmpty())
+                    block->setCoreBodyArgs(std::move(args));
             }
 
             const ObjectId blockId = block->id();

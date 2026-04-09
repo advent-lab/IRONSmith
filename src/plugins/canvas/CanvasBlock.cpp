@@ -45,6 +45,7 @@ std::unique_ptr<CanvasItem> CanvasBlock::clone() const
     if (m_coreFunctionConfig.has_value())
         blk->setCoreFunctionConfig(*m_coreFunctionConfig);
     blk->setAssignedKernels(m_assignedKernels);
+    blk->setCoreBodyArgs(m_coreBodyArgs);
     blk->setId(id());
     return blk;
 }

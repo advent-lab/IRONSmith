@@ -12,6 +12,7 @@
 #include <optional>
 
 #include <QtGui/QColor>
+#include <QtCore/QList>
 #include <QtCore/QString>
 #include <QtCore/QMarginsF>
 #include <QtCore/QStringList>
@@ -31,6 +32,15 @@ public:
         enum class Mode : uint8_t { Default, BodyStmts };
         Mode    mode         = Mode::Default;
         QString bodyStmtsJson; // JSON array of body statements (non-empty when mode == BodyStmts)
+    };
+
+    // One entry in the explicit fn_args list for a worker.
+    // Order is preserved; buildWorkers() iterates this list to emit fn_args=[...].
+    struct CoreBodyArgSpec final {
+        enum class Kind : uint8_t { Kernel, FifoConsumer, FifoProducer };
+        Kind    kind;
+        QString paramName; // user-visible name: "kernel1", "fifoA", etc.
+        QString ref;       // kernel id  OR  object fifo name (e.g. "splitA1")
     };
 
 
@@ -122,6 +132,12 @@ public:
     void setCoreFunctionConfig(CoreFunctionConfig config);
     void clearCoreFunctionConfig();
 
+    // Explicit worker fn_args ordering. When non-empty, buildWorkers() uses this list
+    // verbatim instead of auto-deriving args from wire classification.
+    const QList<CoreBodyArgSpec>& coreBodyArgs() const noexcept { return m_coreBodyArgs; }
+    void setCoreBodyArgs(QList<CoreBodyArgSpec> args) { m_coreBodyArgs = std::move(args); }
+    void clearCoreBodyArgs() { m_coreBodyArgs.clear(); }
+
     const QMarginsF& contentPadding() const { return m_contentPadding; }
     void setContentPadding(const QMarginsF& padding) { m_contentPadding = padding; }
 
@@ -165,6 +181,7 @@ private:
     double m_cornerRadius = -1.0;
     std::optional<CoreFunctionConfig> m_coreFunctionConfig;
     QStringList m_assignedKernels;
+    QList<CoreBodyArgSpec> m_coreBodyArgs;
 };
 
 } // namespace Canvas
