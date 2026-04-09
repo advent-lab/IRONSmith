@@ -109,6 +109,11 @@ void HlirSyncService::setSymbolsController(SymbolsController* controller)
     m_symbolsController = controller;
 }
 
+void HlirSyncService::setCanvasDocumentService(Canvas::Api::ICanvasDocumentService* service)
+{
+    m_canvasDocuments = service;
+}
+
 HlirSyncService::ResolvedType
 HlirSyncService::resolveType(const Canvas::CanvasWire::ObjectFifoTypeAbstraction& typeAbs,
                               const QHash<QString, qint64>& /*constants*/) const
@@ -1734,44 +1739,131 @@ void HlirSyncService::buildWorkers()
         // ---- Core function + worker per tile ----
         // Default tiles share one "core_{kernelId}" (created lazily on first default tile).
         // Custom body_stmts tiles each get "core_{tileName}".
+        // SharedRef tiles referencing the same library name share one registration keyed by name.
         hlir::ComponentId sharedDefaultCoreFnId; // empty until first default tile registers it
+        QHash<QString, hlir::ComponentId> sharedRefCoreFnIds; // libraryName → ComponentId
+
+        // Load the shared core function library from document metadata (if available).
+        QHash<QString, QString> sharedFnLibrary; // name → bodyStmtsJson
+        if (m_canvasDocuments && m_canvasDocuments->hasOpenDocument()) {
+            const QJsonArray lib =
+                m_canvasDocuments->activeMetadata()
+                    .value(QStringLiteral("coreFunctionLibrary")).toArray();
+            for (const auto& v : lib) {
+                const QJsonObject entry = v.toObject();
+                const QString name = entry.value(QStringLiteral("name")).toString().trimmed();
+                const QString body = entry.value(QStringLiteral("bodyStmtsJson")).toString();
+                if (!name.isEmpty() && !body.isEmpty())
+                    sharedFnLibrary.insert(name, body);
+            }
+        }
 
         for (const auto& spec : tileSpecs) {
             const Canvas::CanvasBlock* blk = blockById.value(spec.blockId, nullptr);
+            using Mode = Canvas::CanvasBlock::CoreFunctionConfig::Mode;
             const bool isCustom = blk
                 && blk->hasCoreFunctionConfig()
-                && blk->coreFunctionConfig()->mode
-                       == Canvas::CanvasBlock::CoreFunctionConfig::Mode::BodyStmts
+                && blk->coreFunctionConfig()->mode == Mode::BodyStmts
                 && !blk->coreFunctionConfig()->bodyStmtsJson.isEmpty();
+            const bool isSharedRef = blk
+                && blk->hasCoreFunctionConfig()
+                && blk->coreFunctionConfig()->mode == Mode::SharedRef
+                && !blk->coreFunctionConfig()->sharedFunctionName.isEmpty();
 
             hlir::ComponentId coreFnId;
 
-            if (isCustom) {
+            if (isSharedRef) {
+                // Shared library function — one registration per unique name.
+                const QString fnName = blk->coreFunctionConfig()->sharedFunctionName;
+                if (sharedRefCoreFnIds.contains(fnName)) {
+                    coreFnId = sharedRefCoreFnIds[fnName];
+                } else {
+                    const QString bodyStmtsJson = sharedFnLibrary.value(fnName);
+                    if (bodyStmtsJson.isEmpty()) {
+                        qCWarning(hlirSyncLog)
+                            << "HlirSyncService: shared function" << fnName
+                            << "not found in library — skipping tile"
+                            << QString::fromStdString(spec.tileName);
+                        continue;
+                    }
+                    std::vector<std::string> sharedParams;
+                    QString bodyOnlyJson;
+                    if (!parseBodyStmtsJson(bodyStmtsJson, sharedParams, bodyOnlyJson)) {
+                        qCWarning(hlirSyncLog)
+                            << "HlirSyncService: shared function" << fnName
+                            << "has no parameters or failed to parse — skipping tile"
+                            << QString::fromStdString(spec.tileName);
+                        continue;
+                    }
+                    const std::string regName = "core_shared_" + fnName.toStdString();
+                    auto result = m_bridge->addCoreFunctionBody(
+                        regName, sharedParams, bodyOnlyJson.toStdString(), {});
+                    if (!result) {
+                        qCWarning(hlirSyncLog)
+                            << "HlirSyncService: failed to add shared core function" << fnName;
+                        continue;
+                    }
+                    coreFnId = result.value();
+                    sharedRefCoreFnIds[fnName] = coreFnId;
+                }
+                m_coreFuncMap[spec.blockId] = coreFnId;
+            } else if (isCustom) {
                 // Per-tile custom body_stmts core function.
-                // Build the params vector by scanning the JSON for every fifo_param and
-                // kernel_param referenced, so the names the user wrote (e.g. "a_in", "matvec")
-                // are used as-is instead of the generic "in0" / "kernel" names.
-                std::vector<std::string> customParams;
-                QString bodyOnlyJson;
-                if (!parseBodyStmtsJson(blk->coreFunctionConfig()->bodyStmtsJson,
-                                        customParams, bodyOnlyJson)) {
-                    qCWarning(hlirSyncLog)
-                        << "HlirSyncService: body_stmts JSON for" << QString::fromStdString(spec.tileName)
-                        << "references no parameters or failed to parse — skipping tile";
-                    continue;
+                // If the tile owns a shared function (sharedFunctionName set), register once
+                // under "core_shared_{name}" and reuse for all tiles referencing the same name.
+                const QString ownedSharedName =
+                    blk->coreFunctionConfig()->sharedFunctionName.trimmed();
+                if (!ownedSharedName.isEmpty()) {
+                    // Owner of a shared function — register as core_shared_{name} once.
+                    if (sharedRefCoreFnIds.contains(ownedSharedName)) {
+                        coreFnId = sharedRefCoreFnIds[ownedSharedName];
+                    } else {
+                        std::vector<std::string> sharedParams;
+                        QString bodyOnlyJson;
+                        if (!parseBodyStmtsJson(blk->coreFunctionConfig()->bodyStmtsJson,
+                                                sharedParams, bodyOnlyJson)) {
+                            qCWarning(hlirSyncLog)
+                                << "HlirSyncService: body_stmts JSON for shared owner"
+                                << QString::fromStdString(spec.tileName)
+                                << "references no parameters or failed to parse — skipping tile";
+                            continue;
+                        }
+                        const std::string regName = "core_shared_" + ownedSharedName.toStdString();
+                        auto result = m_bridge->addCoreFunctionBody(
+                            regName, sharedParams, bodyOnlyJson.toStdString(), {});
+                        if (!result) {
+                            qCWarning(hlirSyncLog)
+                                << "HlirSyncService: failed to add shared core function"
+                                << ownedSharedName;
+                            continue;
+                        }
+                        coreFnId = result.value();
+                        sharedRefCoreFnIds[ownedSharedName] = coreFnId;
+                    }
+                } else {
+                    // Pure per-tile custom body — register under core_{tileName}.
+                    std::vector<std::string> customParams;
+                    QString bodyOnlyJson;
+                    if (!parseBodyStmtsJson(blk->coreFunctionConfig()->bodyStmtsJson,
+                                            customParams, bodyOnlyJson)) {
+                        qCWarning(hlirSyncLog)
+                            << "HlirSyncService: body_stmts JSON for" << QString::fromStdString(spec.tileName)
+                            << "references no parameters or failed to parse — skipping tile";
+                        continue;
+                    }
+                    auto result = m_bridge->addCoreFunctionBody(
+                        "core_" + spec.tileName,
+                        customParams,
+                        bodyOnlyJson.toStdString(),
+                        {});
+                    if (!result) {
+                        qCWarning(hlirSyncLog)
+                            << "HlirSyncService: failed to add custom core function for"
+                            << QString::fromStdString(spec.tileName);
+                        continue;
+                    }
+                    coreFnId = result.value();
                 }
-                auto result = m_bridge->addCoreFunctionBody(
-                    "core_" + spec.tileName,
-                    customParams,
-                    bodyOnlyJson.toStdString(),
-                    {});
-                if (!result) {
-                    qCWarning(hlirSyncLog)
-                        << "HlirSyncService: failed to add custom core function for"
-                        << QString::fromStdString(spec.tileName);
-                    continue;
-                }
-                coreFnId = result.value();
                 m_coreFuncMap[spec.blockId] = coreFnId;
             } else {
                 // Default acquire/call/release — shared across all default tiles for this kernel.

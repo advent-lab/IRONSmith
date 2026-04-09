@@ -30,6 +30,7 @@
 #include <QtCore/QTimer>
 #include <QtCore/QtGlobal>
 #include <QtWidgets/QComboBox>
+#include <QtWidgets/QInputDialog>
 #include <QtWidgets/QCompleter>
 #include <QtWidgets/QFrame>
 #include <QtWidgets/QFormLayout>
@@ -58,6 +59,7 @@ namespace {
 using namespace Qt::StringLiterals;
 
 const QString kSymbolsMetadataKey = u"symbols"_s;
+const QString kCoreFunctionLibraryKey = u"coreFunctionLibrary"_s;
 const QString kObjectFifoDefaultsKey = u"objectFifoDefaults"_s;
 const QString kObjectFifoDefaultNameKey = u"name"_s;
 const QString kObjectFifoDefaultDepthKey = u"depth"_s;
@@ -993,6 +995,8 @@ void AiePropertiesPanel::buildUi()
                              QStringLiteral("default"));
     coreFnModeCombo->addItem(QStringLiteral("Body Statements (custom)"),
                              QStringLiteral("bodyStmts"));
+    coreFnModeCombo->addItem(QStringLiteral("Shared Function"),
+                             QStringLiteral("sharedRef"));
     {
         auto* lbl = new QLabel(QStringLiteral("Mode"), coreFnGroup);
         lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
@@ -1038,15 +1042,58 @@ void AiePropertiesPanel::buildUi()
     auto* coreFnEditor = new BodyStmtsEditor(coreFnGroup);
     coreFnVLayout->addWidget(coreFnEditor);
 
-    auto* coreFnClearBtn = new QPushButton(QStringLiteral("Clear"), coreFnGroup);
+    // --- Shared Function picker row (visible when mode == SharedRef) ---
+    auto* sharedFnRow = new QWidget(coreFnGroup);
+    auto* sharedFnRowLayout = new QHBoxLayout(sharedFnRow);
+    sharedFnRowLayout->setContentsMargins(0, 0, 0, 0);
+    sharedFnRowLayout->setSpacing(6);
+    auto* sharedFnCombo = new QComboBox(sharedFnRow);
+    sharedFnCombo->setObjectName(QStringLiteral("AiePropertiesField"));
+    sharedFnCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    sharedFnRowLayout->addWidget(new QLabel(QStringLiteral("Function:"), sharedFnRow));
+    sharedFnRowLayout->addWidget(sharedFnCombo);
+    coreFnVLayout->addWidget(sharedFnRow);
+
+    auto* sharedFnPreviewLabel = new QLabel(coreFnGroup);
+    sharedFnPreviewLabel->setObjectName(QStringLiteral("AiePropertiesInfoLabel"));
+    sharedFnPreviewLabel->setWordWrap(true);
+    sharedFnPreviewLabel->setTextFormat(Qt::PlainText);
+    coreFnVLayout->addWidget(sharedFnPreviewLabel);
+
+    // --- Bottom buttons row ---
+    auto* coreFnBtnRow = new QWidget(coreFnGroup);
+    auto* coreFnBtnLayout = new QHBoxLayout(coreFnBtnRow);
+    coreFnBtnLayout->setContentsMargins(0, 0, 0, 0);
+    coreFnBtnLayout->setSpacing(6);
+
+    auto* coreFnClearBtn = new QPushButton(QStringLiteral("Clear"), coreFnBtnRow);
     coreFnClearBtn->setObjectName(QStringLiteral("AiePropertiesClearBtn"));
     coreFnClearBtn->setToolTip(QStringLiteral("Clear custom body and revert to Default mode"));
-    coreFnVLayout->addWidget(coreFnClearBtn, 0, Qt::AlignLeft);
 
-    m_coreFnGroup     = coreFnGroup;
-    m_coreFnModeCombo = coreFnModeCombo;
-    m_coreFnEditor    = coreFnEditor;
-    m_coreFnClearBtn  = coreFnClearBtn;
+    auto* coreFnSaveAsSharedBtn = new QPushButton(QStringLiteral("Save as Shared\u2026"), coreFnBtnRow);
+    coreFnSaveAsSharedBtn->setObjectName(QStringLiteral("AiePropertiesField"));
+    coreFnSaveAsSharedBtn->setToolTip(QStringLiteral("Save this custom body to the document library so other tiles can reference it"));
+
+    auto* coreFnRemoveSharedBtn = new QPushButton(QStringLiteral("Remove as Shared"), coreFnBtnRow);
+    coreFnRemoveSharedBtn->setObjectName(QStringLiteral("AiePropertiesClearBtn"));
+    coreFnRemoveSharedBtn->setToolTip(QStringLiteral("Remove this function from the shared library and revert all referencing tiles to Default mode"));
+    coreFnRemoveSharedBtn->setVisible(false);
+
+    coreFnBtnLayout->addWidget(coreFnClearBtn);
+    coreFnBtnLayout->addWidget(coreFnSaveAsSharedBtn);
+    coreFnBtnLayout->addWidget(coreFnRemoveSharedBtn);
+    coreFnBtnLayout->addStretch(1);
+    coreFnVLayout->addWidget(coreFnBtnRow);
+
+    m_coreFnGroup             = coreFnGroup;
+    m_coreFnModeCombo         = coreFnModeCombo;
+    m_coreFnEditor            = coreFnEditor;
+    m_coreFnClearBtn          = coreFnClearBtn;
+    m_coreFnSaveAsSharedBtn   = coreFnSaveAsSharedBtn;
+    m_coreFnRemoveSharedBtn   = coreFnRemoveSharedBtn;
+    m_sharedFnRow             = sharedFnRow;
+    m_sharedFnCombo           = sharedFnCombo;
+    m_sharedFnPreviewLabel    = sharedFnPreviewLabel;
 
     fieldsLayout->addWidget(tileGroup);
     fieldsLayout->addWidget(coreFnGroup);
@@ -1147,9 +1194,17 @@ void AiePropertiesPanel::buildUi()
             m_coreFnEditor->setJson(QString{});
             m_coreFnEditor->setVisible(false);
             m_coreFnClearBtn->setVisible(false);
+            if (m_sharedFnRow)        m_sharedFnRow->setVisible(false);
+            if (m_sharedFnPreviewLabel) m_sharedFnPreviewLabel->setVisible(false);
         }
         m_document->notifyChanged();
     });
+    connect(coreFnSaveAsSharedBtn, &QPushButton::clicked,
+            this, &AiePropertiesPanel::saveCoreFunctionAsShared);
+    connect(coreFnRemoveSharedBtn, &QPushButton::clicked,
+            this, &AiePropertiesPanel::removeCoreFunctionShared);
+    connect(sharedFnCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AiePropertiesPanel::applySharedFunctionSelection);
 
     // fn_args list buttons
     connect(argAutoBtn, &QPushButton::clicked, this, [this]() {
@@ -1693,12 +1748,14 @@ void AiePropertiesPanel::refreshSelection()
             const bool hasKernel = isComputeTile && !block->assignedKernels().isEmpty();
             m_tileIsKernelTile = hasKernel;
             if (hasKernel && m_coreFnModeCombo && m_coreFnEditor) {
+                using Mode = Canvas::CanvasBlock::CoreFunctionConfig::Mode;
                 const auto& cfg = block->coreFunctionConfig();
-                const bool isBodyStmts = cfg.has_value()
-                    && cfg->mode == Canvas::CanvasBlock::CoreFunctionConfig::Mode::BodyStmts;
+                const bool isBodyStmts = cfg.has_value() && cfg->mode == Mode::BodyStmts;
+                const bool isSharedRef  = cfg.has_value() && cfg->mode == Mode::SharedRef;
                 QSignalBlocker modeBlock(m_coreFnModeCombo);
                 QSignalBlocker editorBlock(m_coreFnEditor);
-                m_coreFnModeCombo->setCurrentIndex(isBodyStmts ? 1 : 0);
+                // Index: 0=default, 1=bodyStmts, 2=sharedRef
+                m_coreFnModeCombo->setCurrentIndex(isBodyStmts ? 1 : isSharedRef ? 2 : 0);
                 const QString newJson = cfg.has_value() ? cfg->bodyStmtsJson : QString{};
                 // Only rebuild the visual editor when content actually changed from outside
                 // (avoids resetting widget state on every keystroke cycle-back).
@@ -1706,7 +1763,29 @@ void AiePropertiesPanel::refreshSelection()
                 if (newJson != currentJson && !(newJson.isEmpty() && m_coreFnEditor->isEmpty()))
                     m_coreFnEditor->setJson(newJson);
                 m_coreFnEditor->setVisible(isBodyStmts);
-                if (m_coreFnClearBtn) m_coreFnClearBtn->setVisible(isBodyStmts);
+                const QString existingSharedName = cfg.has_value() ? cfg->sharedFunctionName : QString{};
+                const bool isOwner = isBodyStmts && !existingSharedName.isEmpty();
+                if (m_coreFnClearBtn)        m_coreFnClearBtn->setVisible(isBodyStmts || isSharedRef);
+                if (m_coreFnSaveAsSharedBtn) {
+                    m_coreFnSaveAsSharedBtn->setVisible(isBodyStmts);
+                    m_coreFnSaveAsSharedBtn->setText(isOwner
+                        ? QStringLiteral("Update Shared")
+                        : QStringLiteral("Save as Shared\u2026"));
+                }
+                if (m_coreFnRemoveSharedBtn) m_coreFnRemoveSharedBtn->setVisible(isOwner);
+                if (m_sharedFnRow) {
+                    m_sharedFnRow->setVisible(isSharedRef);
+                    if (m_sharedFnPreviewLabel) m_sharedFnPreviewLabel->setVisible(isSharedRef);
+                    if (isSharedRef) {
+                        refreshSharedFunctionCombo();
+                        // Restore selected function name.
+                        if (m_sharedFnCombo && cfg.has_value()) {
+                            QSignalBlocker sb(m_sharedFnCombo);
+                            const int idx = m_sharedFnCombo->findData(cfg->sharedFunctionName);
+                            m_sharedFnCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+                        }
+                    }
+                }
             }
             if (hasKernel)
                 refreshArgList(block);
@@ -2224,18 +2303,33 @@ void AiePropertiesPanel::applyCoreFunctionBody()
     if (!block)
         return;
 
-    const bool isBodyStmts = (m_coreFnModeCombo->currentData().toString() == QStringLiteral("bodyStmts"));
-
-    m_coreFnEditor->setVisible(isBodyStmts);
-
-    Canvas::CanvasBlock::CoreFunctionConfig cfg;
-    cfg.mode = isBodyStmts
-        ? Canvas::CanvasBlock::CoreFunctionConfig::Mode::BodyStmts
-        : Canvas::CanvasBlock::CoreFunctionConfig::Mode::Default;
+    using Mode = Canvas::CanvasBlock::CoreFunctionConfig::Mode;
+    const QString modeKey = m_coreFnModeCombo->currentData().toString();
+    const bool isBodyStmts = (modeKey == QStringLiteral("bodyStmts"));
+    const bool isSharedRef = (modeKey == QStringLiteral("sharedRef"));
 
     const auto& existing = block->coreFunctionConfig();
+    const QString existingSharedName = existing.has_value() ? existing->sharedFunctionName : QString{};
+    const bool isOwner = isBodyStmts && !existingSharedName.isEmpty();
+
+    // Update widget visibility.
+    m_coreFnEditor->setVisible(isBodyStmts);
+    if (m_sharedFnRow)           m_sharedFnRow->setVisible(isSharedRef);
+    if (m_sharedFnPreviewLabel)  m_sharedFnPreviewLabel->setVisible(isSharedRef);
+    if (m_coreFnClearBtn)        m_coreFnClearBtn->setVisible(isBodyStmts || isSharedRef);
+    if (m_coreFnSaveAsSharedBtn) {
+        m_coreFnSaveAsSharedBtn->setVisible(isBodyStmts);
+        m_coreFnSaveAsSharedBtn->setText(isOwner
+            ? QStringLiteral("Update Shared")
+            : QStringLiteral("Save as Shared\u2026"));
+    }
+    if (m_coreFnRemoveSharedBtn) m_coreFnRemoveSharedBtn->setVisible(isOwner);
+    if (isSharedRef)             refreshSharedFunctionCombo();
+
+    Canvas::CanvasBlock::CoreFunctionConfig cfg;
 
     if (isBodyStmts) {
+        cfg.mode = Mode::BodyStmts;
         // If switching into BodyStmts with no saved body, auto-populate the default template.
         const QString savedJson = existing.has_value() ? existing->bodyStmtsJson : QString{};
         if (savedJson.isEmpty() && m_coreFnEditor->isEmpty()) {
@@ -2243,18 +2337,40 @@ void AiePropertiesPanel::applyCoreFunctionBody()
             QSignalBlocker blk(m_coreFnEditor);
             m_coreFnEditor->setJson(defaultJson);
         }
-        cfg.bodyStmtsJson = m_coreFnEditor->toJson();
-    } else {
-        // Preserve bodyStmtsJson when switching back to Default so it can be restored.
+        cfg.bodyStmtsJson      = m_coreFnEditor->toJson();
+        cfg.sharedFunctionName = existingSharedName;
+
+        // If this tile owns a shared function, auto-update the library entry.
+        if (!existingSharedName.isEmpty() && m_canvasDocuments
+            && m_canvasDocuments->hasOpenDocument()) {
+            QJsonObject metadata = m_canvasDocuments->activeMetadata();
+            QJsonArray library = metadata.value(kCoreFunctionLibraryKey).toArray();
+            for (int i = 0; i < library.size(); ++i) {
+                QJsonObject entry = library[i].toObject();
+                if (entry.value(u"name"_s).toString().trimmed() == existingSharedName) {
+                    entry.insert(u"bodyStmtsJson"_s, cfg.bodyStmtsJson);
+                    library[i] = entry;
+                    break;
+                }
+            }
+            metadata.insert(kCoreFunctionLibraryKey, library);
+            m_canvasDocuments->updateActiveMetadata(metadata);
+        }
+    } else if (isSharedRef) {
+        cfg.mode = Mode::SharedRef;
         cfg.bodyStmtsJson = existing.has_value() ? existing->bodyStmtsJson : QString{};
+        // sharedFunctionName is written by applySharedFunctionSelection; preserve current value.
+        cfg.sharedFunctionName = existing.has_value() ? existing->sharedFunctionName : QString{};
+    } else {
+        cfg.mode = Mode::Default;
+        // Preserve both when switching back to Default so they can be restored later.
+        cfg.bodyStmtsJson      = existing.has_value() ? existing->bodyStmtsJson      : QString{};
+        cfg.sharedFunctionName = existing.has_value() ? existing->sharedFunctionName : QString{};
     }
 
     block->setCoreFunctionConfig(std::move(cfg));
 
     // Reconcile coreBodyArgs to match the updated param list so the arg table stays in sync.
-    // Strategy: derive the new canonical param list from the body JSON (bypassing the
-    // coreBodyArgs priority-1 path by temporarily clearing it), then rebuild coreBodyArgs
-    // preserving existing refs for unchanged param names.
     {
         const QList<Canvas::CanvasBlock::CoreBodyArgSpec> oldArgs = block->coreBodyArgs();
         QHash<QString, Canvas::CanvasBlock::CoreBodyArgSpec> oldByParam;
@@ -2273,7 +2389,6 @@ void AiePropertiesPanel::applyCoreFunctionBody()
                 Canvas::CanvasBlock::CoreBodyArgSpec a;
                 a.paramName = p.name;
                 a.kind      = p.kind;
-                // ref left empty; refreshArgList will auto-select first available
                 newArgs.append(a);
             }
         }
@@ -2283,6 +2398,183 @@ void AiePropertiesPanel::applyCoreFunctionBody()
     m_document->notifyChanged();
 }
 
+
+void AiePropertiesPanel::refreshSharedFunctionCombo()
+{
+    if (!m_sharedFnCombo || !m_canvasDocuments || !m_canvasDocuments->hasOpenDocument())
+        return;
+
+    const QJsonObject metadata = m_canvasDocuments->activeMetadata();
+    const QJsonArray library = metadata.value(kCoreFunctionLibraryKey).toArray();
+
+    QSignalBlocker blk(m_sharedFnCombo);
+    const QString current = m_sharedFnCombo->currentText();
+    m_sharedFnCombo->clear();
+    m_sharedFnCombo->addItem(QStringLiteral("(select\u2026)"), QString{});
+    for (const auto& v : library) {
+        const QString name = v.toObject().value(u"name"_s).toString().trimmed();
+        if (!name.isEmpty())
+            m_sharedFnCombo->addItem(name, name);
+    }
+
+    // Restore selection if still present.
+    const int idx = m_sharedFnCombo->findData(current);
+    m_sharedFnCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+
+    // Update preview label — just show the function name, not the full JSON body.
+    const QString selName = m_sharedFnCombo->currentData().toString();
+    if (m_sharedFnPreviewLabel) {
+        m_sharedFnPreviewLabel->setText(selName.isEmpty()
+            ? QString{}
+            : QStringLiteral("Shared Function: ") + selName);
+    }
+}
+
+void AiePropertiesPanel::applySharedFunctionSelection()
+{
+    if (m_updatingUi || !m_document || !m_sharedFnCombo)
+        return;
+
+    auto* block = selectedBlock();
+    if (!block)
+        return;
+
+    const QString name = m_sharedFnCombo->currentData().toString();
+
+    auto cfg = block->coreFunctionConfig().value_or(Canvas::CanvasBlock::CoreFunctionConfig{});
+    cfg.mode               = Canvas::CanvasBlock::CoreFunctionConfig::Mode::SharedRef;
+    cfg.sharedFunctionName = name;
+    block->setCoreFunctionConfig(std::move(cfg));
+
+    // Update the preview label — show just the function name.
+    if (m_sharedFnPreviewLabel) {
+        m_sharedFnPreviewLabel->setText(name.isEmpty()
+            ? QString{}
+            : QStringLiteral("Shared Function: ") + name);
+    }
+
+    m_document->notifyChanged();
+}
+
+void AiePropertiesPanel::saveCoreFunctionAsShared()
+{
+    if (!m_document || !m_coreFnEditor || !m_canvasDocuments
+        || !m_canvasDocuments->hasOpenDocument())
+        return;
+
+    auto* block = selectedBlock();
+    if (!block)
+        return;
+
+    const QString bodyJson = m_coreFnEditor->toJson().trimmed();
+    if (bodyJson.isEmpty())
+        return;
+
+    // Ask for a name via an inline input dialog.
+    bool ok = false;
+    const QString name = QInputDialog::getText(
+        this,
+        QStringLiteral("Save as Shared Function"),
+        QStringLiteral("Function name:"),
+        QLineEdit::Normal,
+        block->label().trimmed().isEmpty()
+            ? QStringLiteral("shared_fn") : block->label().trimmed(),
+        &ok).trimmed();
+    if (!ok || name.isEmpty())
+        return;
+
+    QJsonObject metadata = m_canvasDocuments->activeMetadata();
+    QJsonArray library = metadata.value(kCoreFunctionLibraryKey).toArray();
+
+    // Overwrite entry with same name if it exists, otherwise append.
+    bool found = false;
+    for (int i = 0; i < library.size(); ++i) {
+        QJsonObject entry = library[i].toObject();
+        if (entry.value(u"name"_s).toString().trimmed() == name) {
+            entry.insert(u"bodyStmtsJson"_s, bodyJson);
+            library[i] = entry;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        QJsonObject entry;
+        entry.insert(u"name"_s, name);
+        entry.insert(u"bodyStmtsJson"_s, bodyJson);
+        library.append(entry);
+    }
+
+    metadata.insert(kCoreFunctionLibraryKey, library);
+    m_canvasDocuments->updateActiveMetadata(metadata);
+
+    // Mark this tile as the owner of the shared function so "Remove as Shared" is shown
+    // and so the body auto-updates the library whenever it changes.
+    auto cfg = block->coreFunctionConfig().value_or(Canvas::CanvasBlock::CoreFunctionConfig{});
+    cfg.sharedFunctionName = name;
+    block->setCoreFunctionConfig(std::move(cfg));
+
+    if (m_coreFnSaveAsSharedBtn)   m_coreFnSaveAsSharedBtn->setText(QStringLiteral("Update Shared"));
+    if (m_coreFnRemoveSharedBtn)   m_coreFnRemoveSharedBtn->setVisible(true);
+
+    m_document->notifyChanged();
+
+    // Refresh the shared fn combo so the new name appears immediately.
+    refreshSharedFunctionCombo();
+}
+
+void AiePropertiesPanel::removeCoreFunctionShared()
+{
+    if (!m_document || !m_canvasDocuments || !m_canvasDocuments->hasOpenDocument())
+        return;
+
+    auto* block = selectedBlock();
+    if (!block)
+        return;
+
+    const auto& cfg = block->coreFunctionConfig();
+    if (!cfg.has_value() || cfg->sharedFunctionName.isEmpty())
+        return;
+
+    const QString name = cfg->sharedFunctionName;
+
+    // Remove from library.
+    QJsonObject metadata = m_canvasDocuments->activeMetadata();
+    QJsonArray library = metadata.value(kCoreFunctionLibraryKey).toArray();
+    for (int i = 0; i < library.size(); ++i) {
+        if (library[i].toObject().value(u"name"_s).toString().trimmed() == name) {
+            library.removeAt(i);
+            break;
+        }
+    }
+    metadata.insert(kCoreFunctionLibraryKey, library);
+    m_canvasDocuments->updateActiveMetadata(metadata);
+
+    // Revert all SharedRef tiles referencing this name back to Default,
+    // and clear sharedFunctionName from the owner tile.
+    for (const auto& item : m_document->items()) {
+        auto* blk = dynamic_cast<Canvas::CanvasBlock*>(item.get());
+        if (!blk || !blk->hasCoreFunctionConfig())
+            continue;
+        const auto& blkCfg = blk->coreFunctionConfig();
+        using Mode = Canvas::CanvasBlock::CoreFunctionConfig::Mode;
+        if (blkCfg->mode == Mode::SharedRef && blkCfg->sharedFunctionName == name) {
+            Canvas::CanvasBlock::CoreFunctionConfig newCfg;
+            newCfg.mode = Mode::Default;
+            blk->setCoreFunctionConfig(std::move(newCfg));
+        } else if (blkCfg->sharedFunctionName == name) {
+            // This is the owner tile — clear the sharedFunctionName.
+            Canvas::CanvasBlock::CoreFunctionConfig newCfg = *blkCfg;
+            newCfg.sharedFunctionName = QString{};
+            blk->setCoreFunctionConfig(std::move(newCfg));
+        }
+    }
+
+    // Update the owner tile's button state.
+    if (m_coreFnSaveAsSharedBtn)  m_coreFnSaveAsSharedBtn->setText(QStringLiteral("Save as Shared\u2026"));
+    if (m_coreFnRemoveSharedBtn)  m_coreFnRemoveSharedBtn->setVisible(false);
+
+    m_document->notifyChanged();
+}
 
 void AiePropertiesPanel::refreshFifoRows(Canvas::CanvasBlock* block)
 {

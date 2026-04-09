@@ -93,6 +93,10 @@ private:
 
     void applyTileLabel();
     void applyCoreFunctionBody();
+    void applySharedFunctionSelection();
+    void saveCoreFunctionAsShared();
+    void removeCoreFunctionShared();
+    void refreshSharedFunctionCombo();
     void rebuildKernelChips(const QStringList& kernels, const QString& tileSpecId);
     void refreshFifoRows(Canvas::CanvasBlock* block);
     void refreshArgList(Canvas::CanvasBlock* block);
@@ -188,6 +192,11 @@ private:
     QPointer<QComboBox>       m_coreFnModeCombo;
     QPointer<BodyStmtsEditor> m_coreFnEditor;
     QPointer<QPushButton>     m_coreFnClearBtn;
+    QPointer<QPushButton>     m_coreFnSaveAsSharedBtn;
+    QPointer<QPushButton>     m_coreFnRemoveSharedBtn;
+    QPointer<QWidget>         m_sharedFnRow;         // widget shown when mode == SharedRef
+    QPointer<QComboBox>       m_sharedFnCombo;
+    QPointer<QLabel>          m_sharedFnPreviewLabel;
 
     Canvas::ObjectId m_effectiveFifoWireId{};
     bool m_tileIsKernelTile = false; // set in refreshSelection(), used by showSelectionState()

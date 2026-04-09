@@ -444,11 +444,16 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
             if (block->hasCoreFunctionConfig()) {
                 const auto& cfg = block->coreFunctionConfig().value();
                 QJsonObject cfnObj;
-                cfnObj.insert(u"mode"_s,
-                    cfg.mode == CanvasBlock::CoreFunctionConfig::Mode::BodyStmts
-                        ? u"bodyStmts"_s : u"default"_s);
+                QString modeStr = u"default"_s;
+                if (cfg.mode == CanvasBlock::CoreFunctionConfig::Mode::BodyStmts)
+                    modeStr = u"bodyStmts"_s;
+                else if (cfg.mode == CanvasBlock::CoreFunctionConfig::Mode::SharedRef)
+                    modeStr = u"sharedRef"_s;
+                cfnObj.insert(u"mode"_s, modeStr);
                 if (!cfg.bodyStmtsJson.isEmpty())
                     cfnObj.insert(u"bodyStmtsJson"_s, cfg.bodyStmtsJson);
+                if (!cfg.sharedFunctionName.isEmpty())
+                    cfnObj.insert(u"sharedFunctionName"_s, cfg.sharedFunctionName);
                 obj.insert(u"coreFn"_s, cfnObj);
             }
 
@@ -811,9 +816,13 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
             const QJsonObject coreFnObject = item.value(u"coreFn"_s).toObject();
             if (!coreFnObject.isEmpty()) {
                 CanvasBlock::CoreFunctionConfig cfg;
-                if (coreFnObject.value(u"mode"_s).toString().trimmed() == u"bodyStmts"_s)
+                const QString modeStr = coreFnObject.value(u"mode"_s).toString().trimmed();
+                if (modeStr == u"bodyStmts"_s)
                     cfg.mode = CanvasBlock::CoreFunctionConfig::Mode::BodyStmts;
-                cfg.bodyStmtsJson = coreFnObject.value(u"bodyStmtsJson"_s).toString();
+                else if (modeStr == u"sharedRef"_s)
+                    cfg.mode = CanvasBlock::CoreFunctionConfig::Mode::SharedRef;
+                cfg.bodyStmtsJson       = coreFnObject.value(u"bodyStmtsJson"_s).toString();
+                cfg.sharedFunctionName  = coreFnObject.value(u"sharedFunctionName"_s).toString();
                 block->setCoreFunctionConfig(std::move(cfg));
             }
 

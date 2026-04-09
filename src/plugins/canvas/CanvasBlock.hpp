@@ -29,9 +29,10 @@ public:
     // When mode == BodyStmts and bodyStmtsJson is non-empty, buildWorkers() calls
     // addCoreFunctionBody() instead of the default addCoreFunction().
     struct CoreFunctionConfig final {
-        enum class Mode : uint8_t { Default, BodyStmts };
-        Mode    mode         = Mode::Default;
-        QString bodyStmtsJson; // JSON array of body statements (non-empty when mode == BodyStmts)
+        enum class Mode : uint8_t { Default, BodyStmts, SharedRef };
+        Mode    mode              = Mode::Default;
+        QString bodyStmtsJson;        // non-empty when mode == BodyStmts
+        QString sharedFunctionName;   // non-empty when mode == SharedRef
     };
 
     // One entry in the explicit fn_args list for a worker.

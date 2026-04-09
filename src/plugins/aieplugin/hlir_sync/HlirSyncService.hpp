@@ -7,6 +7,7 @@
 #include "aieplugin/hlir_sync/DesignVerifier.hpp"
 #include "canvas/CanvasTypes.hpp"
 #include "canvas/CanvasWire.hpp"
+#include "canvas/api/ICanvasDocumentService.hpp"
 #include "hlir_cpp_bridge/HlirTypes.hpp"
 
 #include <QtCore/QHash>
@@ -59,6 +60,10 @@ public:
     /// Set the symbol table controller. When set, TypeAbstraction symbol references on
     /// wires are resolved to named tensor types during sync.
     void setSymbolsController(SymbolsController* controller);
+
+    /// Set the canvas document service. Used to look up the shared core function library
+    /// stored in document metadata when resolving SharedRef core function configs.
+    void setCanvasDocumentService(Canvas::Api::ICanvasDocumentService* service);
 
     /// Disable the per-step animation delay (250 ms sleep). Call in test fixtures.
     static void setAnimateSteps(bool enabled) { s_animateSteps = enabled; }
@@ -181,6 +186,7 @@ private:
     QPointer<Canvas::CanvasDocument> m_document;
     QPointer<KernelRegistryService> m_kernelRegistry;
     QPointer<SymbolsController> m_symbolsController;
+    QPointer<Canvas::Api::ICanvasDocumentService> m_canvasDocuments;
     QString m_outputDir;
     bool m_syncInProgress = false;
 
