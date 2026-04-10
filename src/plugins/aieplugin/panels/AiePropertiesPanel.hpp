@@ -7,9 +7,11 @@
 #include "canvas/CanvasWire.hpp"
 
 #include <QtCore/QPointer>
+#include <QtCore/QStringList>
 #include <QtWidgets/QWidget>
 
 QT_BEGIN_NAMESPACE
+class QHBoxLayout;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -37,6 +39,8 @@ class ICanvasDocumentService;
 namespace Aie::Internal {
 
 class AieService;
+class BodyStmtsEditor;
+class KernelAssignmentController;
 class SymbolsController;
 
 class AiePropertiesPanel final : public QWidget
@@ -49,6 +53,7 @@ public:
                                 QWidget* parent = nullptr);
 
     void setSymbolsController(SymbolsController* controller);
+    void setKernelAssignmentController(KernelAssignmentController* controller);
 
 private:
     enum class SelectionKind : uint8_t {
@@ -87,7 +92,16 @@ private:
     Canvas::CanvasWire* findPivotWireForArmWire(Canvas::CanvasWire* wire) const;
 
     void applyTileLabel();
-    void applyTileStereotype();
+    void applyCoreFunctionBody();
+    void applySharedFunctionSelection();
+    void saveCoreFunctionAsShared();
+    void removeCoreFunctionShared();
+    void refreshSharedFunctionCombo();
+    void rebuildKernelChips(const QStringList& kernels, const QString& tileSpecId);
+    void refreshFifoRows(Canvas::CanvasBlock* block);
+    void refreshArgList(Canvas::CanvasBlock* block);
+    void applyArgList();
+    void autoPopulateArgList(Canvas::CanvasBlock* block);
     void applyFifoAnnotation();
     void applyHubPivotProperties();
     void applyDdrTransferHubTap();
@@ -118,15 +132,21 @@ private:
     QPointer<QSpinBox> m_objectFifoDefaultDepthSpin;
     QPointer<QComboBox> m_objectFifoDefaultTypeCombo;
 
+    QPointer<KernelAssignmentController> m_kernelAssignmentController;
+
     QPointer<QGroupBox> m_tileGroup;
     QPointer<QLabel> m_tileIdValue;
     QPointer<QLabel> m_tileSpecIdValue;
     QPointer<QLabel> m_tileBoundsValue;
     QPointer<QLineEdit> m_tileLabelEdit;
-    QPointer<QLineEdit> m_tileStereotypeEdit;
-    QPointer<QPushButton> m_tileStereotypeClearBtn;
     QPointer<QWidget> m_tileKernelRow;
     QPointer<QLabel> m_tileKernelRowLabel;
+    QHBoxLayout* m_kernelChipsLayout = nullptr; // layout inside m_tileKernelRow; not owned via QPointer
+    QPointer<QLabel>       m_tileInputFifosValue;
+    QPointer<QLabel>       m_tileOutputFifosValue;
+
+    QPointer<QGroupBox>    m_argListGroup;
+    QPointer<QTableWidget> m_argListTable;
 
     QPointer<QGroupBox> m_hubPivotGroup;
     QPointer<QLineEdit> m_hubPivotNameEdit;
@@ -165,10 +185,21 @@ private:
     QPointer<QGroupBox> m_ddrPivotWireGroup;
     QPointer<QLineEdit> m_ddrPivotParamEdit;
 
-    QPointer<QGroupBox> m_armWireGroup;
-    QPointer<QLineEdit> m_armFifoEdit;   // typed FIFO name for arm wire
+    QPointer<QGroupBox>      m_armWireGroup;
+    QPointer<QLineEdit>      m_armFifoEdit;   // typed FIFO name for arm wire
+
+    QPointer<QGroupBox>       m_coreFnGroup;
+    QPointer<QComboBox>       m_coreFnModeCombo;
+    QPointer<BodyStmtsEditor> m_coreFnEditor;
+    QPointer<QPushButton>     m_coreFnClearBtn;
+    QPointer<QPushButton>     m_coreFnSaveAsSharedBtn;
+    QPointer<QPushButton>     m_coreFnRemoveSharedBtn;
+    QPointer<QWidget>         m_sharedFnRow;         // widget shown when mode == SharedRef
+    QPointer<QComboBox>       m_sharedFnCombo;
+    QPointer<QLabel>          m_sharedFnPreviewLabel;
 
     Canvas::ObjectId m_effectiveFifoWireId{};
+    bool m_tileIsKernelTile = false; // set in refreshSelection(), used by showSelectionState()
     Canvas::ObjectId m_armWireId{};      // currently-selected arm wire
     Canvas::ObjectId m_ddrPivotWireId{}; // currently-selected DDR pivot wire
     Canvas::ObjectId m_ddrTapWireId{};   // wire whose TAP is being edited

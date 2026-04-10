@@ -61,9 +61,11 @@ public:
     void setSelectedKernelId(const QString& kernelId);
     void clearSelectedKernel();
 
-    QHash<QString, QString> assignments() const { return m_assignmentsByTileSpecId; }
+    QHash<QString, QStringList> assignments() const { return m_assignmentsByTileSpecId; }
+    QStringList kernelsByTile(const QString& tileSpecId) const;
 
     Utils::Result assignKernelToTile(const QString& tileSpecId, const QString& kernelId);
+    Utils::Result removeKernelFromTile(const QString& tileSpecId, const QString& kernelId);
     void clearAssignments();
 
     void rehydrateAssignmentsFromCanvas();
@@ -120,7 +122,7 @@ private:
 
     QString m_selectedKernelId;
     Canvas::ObjectId m_hoveredStereotypeItemId{};
-    QHash<QString, QString> m_assignmentsByTileSpecId;
+    QHash<QString, QStringList> m_assignmentsByTileSpecId;
     AieKernelAssignmentState m_assignmentState;
 };
 

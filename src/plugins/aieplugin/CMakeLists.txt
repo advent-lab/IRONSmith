@@ -54,6 +54,8 @@ ironsmith_add_plugin(AiePlugin
             panels/AieKernelsPanel.cpp
             panels/AiePropertiesPanel.hpp
             panels/AiePropertiesPanel.cpp
+            panels/BodyStmtsEditor.hpp
+            panels/BodyStmtsEditor.cpp
             symbol_table/SymbolTableTypes.hpp
             symbol_table/SymbolTableTypes.cpp
             symbol_table/SymbolsController.hpp
@@ -94,6 +96,8 @@ ironsmith_add_plugin(AiePlugin
             hlir_sync/DesignVerifier.cpp
             hlir_sync/HlirDirectExecution.hpp
             hlir_sync/HlirDirectExecution.cpp
+            hlir_sync/TileFifoInfo.hpp
+            hlir_sync/TileFifoInfo.cpp
 
         PUBLIC_DEPENDS
             ${QT6_REQUIRED_COMPONENTS}

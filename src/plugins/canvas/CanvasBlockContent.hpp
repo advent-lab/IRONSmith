@@ -27,6 +27,7 @@ struct CANVAS_EXPORT BlockContentStyle final {
     QColor outline = QColor(Constants::kBlockOutlineColor);
     QColor text = QColor(Constants::kBlockTextColor);
     double cornerRadius = Constants::kBlockCornerRadius;
+    double fontSize = Constants::kBlockLabelPointSize; // scene-units point size
 };
 
 class CANVAS_EXPORT BlockContent

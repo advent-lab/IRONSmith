@@ -20,18 +20,18 @@ namespace {
 constexpr double kLabelPadX = Constants::kBlockLabelPadX;
 constexpr double kLabelPadY = Constants::kBlockLabelPadY;
 
-QFont blockLabelFont(const QPainter& p)
+QFont blockLabelFont(const QPainter& p, double fontSize = Constants::kBlockLabelPointSize)
 {
     QFont f = p.font();
-    f.setPointSizeF(Constants::kBlockLabelPointSize);
+    f.setPointSizeF(fontSize);
     f.setBold(true);
     return f;
 }
 
-QSizeF labelSize(const QString& text)
+QSizeF labelSize(const QString& text, double fontSize = Constants::kBlockLabelPointSize)
 {
     QFont f;
-    f.setPointSizeF(Constants::kBlockLabelPointSize);
+    f.setPointSizeF(fontSize);
     f.setBold(true);
     QFontMetricsF metrics(f);
     const QSizeF textSize = metrics.size(Qt::TextSingleLine, text);
@@ -88,7 +88,7 @@ QSizeF BlockContentBlock::measure(const CanvasRenderContext& ctx) const
         return m_preferredSize;
     if (m_label.isEmpty())
         return QSizeF();
-    return labelSize(m_label);
+    return labelSize(m_label, m_style.fontSize);
 }
 
 void BlockContentBlock::draw(QPainter& p, const CanvasRenderContext& ctx) const
@@ -98,7 +98,7 @@ void BlockContentBlock::draw(QPainter& p, const CanvasRenderContext& ctx) const
     if (m_label.isEmpty())
         return;
 
-    QFont f = blockLabelFont(p);
+    QFont f = blockLabelFont(p, m_style.fontSize);
     p.setFont(f);
     p.setPen(m_style.text);
 

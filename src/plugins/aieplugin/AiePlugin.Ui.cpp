@@ -160,6 +160,7 @@ void AiePlugin::registerPropertiesSidebarTool(const RuntimeDependencies& deps)
     const auto factory = [this, canvasDocuments = QPointer<Canvas::Api::ICanvasDocumentService>(deps.canvasDocumentService)](QWidget* parent) -> QWidget* {
         auto* panel = new AiePropertiesPanel(m_service, canvasDocuments, parent);
         panel->setSymbolsController(m_symbolsController);
+        panel->setKernelAssignmentController(m_kernelAssignments);
         return panel;
     };
 

@@ -142,7 +142,7 @@ TEST(KernelAssignmentControllerTests, AssignKernelToTileAcceptsOnlyAieTiles)
     const Utils::Result aieResult =
         controller.assignKernelToTile(QStringLiteral("aie0_0"), kernel.id);
     EXPECT_TRUE(aieResult.ok) << aieResult.errors.join('\n').toStdString();
-    EXPECT_EQ(controller.assignments().value(QStringLiteral("aie0_0")), kernel.id);
+    EXPECT_EQ(controller.assignments().value(QStringLiteral("aie0_0")), QStringList{kernel.id});
 }
 
 TEST(KernelAssignmentControllerTests, RehydrateAssignmentsIgnoresNonAieTiles)
@@ -175,9 +175,9 @@ TEST(KernelAssignmentControllerTests, RehydrateAssignmentsIgnoresNonAieTiles)
     controller.setCanvasHost(&host);
     controller.rehydrateAssignmentsFromCanvas();
 
-    const QHash<QString, QString> assignments = controller.assignments();
+    const QHash<QString, QStringList> assignments = controller.assignments();
     EXPECT_EQ(assignments.size(), 1);
-    EXPECT_EQ(assignments.value(QStringLiteral("aie0_0")), kernel.id);
+    EXPECT_EQ(assignments.value(QStringLiteral("aie0_0")), QStringList{kernel.id});
     EXPECT_FALSE(assignments.contains(QStringLiteral("shim0_0")));
     EXPECT_FALSE(assignments.contains(QStringLiteral("mem0_0")));
 }

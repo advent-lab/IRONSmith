@@ -122,6 +122,11 @@ void KernelAssignmentController::clearSelectedKernel()
     setSelectedKernelId(QString());
 }
 
+QStringList KernelAssignmentController::kernelsByTile(const QString& tileSpecId) const
+{
+    return m_assignmentsByTileSpecId.value(cleanedId(tileSpecId));
+}
+
 Utils::Result KernelAssignmentController::assignKernelToTile(const QString& tileSpecId,
                                                              const QString& kernelId)
 {
@@ -140,10 +145,32 @@ Utils::Result KernelAssignmentController::assignKernelToTile(const QString& tile
                                           .arg(cleanedKernel));
     }
 
-    if (m_assignmentsByTileSpecId.value(cleanedTile) == cleanedKernel)
+    auto& list = m_assignmentsByTileSpecId[cleanedTile];
+    if (list.contains(cleanedKernel))
         return Utils::Result::success();
 
-    m_assignmentsByTileSpecId.insert(cleanedTile, cleanedKernel);
+    if (list.size() >= 4)
+        return Utils::Result::failure(QStringLiteral("Tile '%1' already has the maximum of 4 kernels assigned.")
+                                          .arg(cleanedTile));
+
+    list.append(cleanedKernel);
+    applyLabelOverrides();
+    emit assignmentsChanged();
+    return Utils::Result::success();
+}
+
+Utils::Result KernelAssignmentController::removeKernelFromTile(const QString& tileSpecId,
+                                                               const QString& kernelId)
+{
+    const QString cleanedTile   = cleanedId(tileSpecId);
+    const QString cleanedKernel = normalizedKernelId(kernelId);
+    auto it = m_assignmentsByTileSpecId.find(cleanedTile);
+    if (it == m_assignmentsByTileSpecId.end() || !it->removeOne(cleanedKernel))
+        return Utils::Result::success();
+
+    if (it->isEmpty())
+        m_assignmentsByTileSpecId.erase(it);
+
     applyLabelOverrides();
     emit assignmentsChanged();
     return Utils::Result::success();
@@ -153,7 +180,6 @@ void KernelAssignmentController::clearAssignments()
 {
     if (m_assignmentsByTileSpecId.isEmpty())
         return;
-
     m_assignmentsByTileSpecId.clear();
     applyLabelOverrides();
     emit assignmentsChanged();
@@ -180,16 +206,21 @@ void KernelAssignmentController::rehydrateAssignmentsFromCanvas()
         if (!isAssignableTile(specId))
             continue;
 
-        QString kernelId = parseKernelIdFromLabel(block->stereotype());
-        if (kernelId.isEmpty())
-            kernelId = parseKernelIdFromLabel(block->label());
-        if (kernelId.isEmpty())
-            continue;
+        // Prefer the new assignedKernels list; fall back to legacy stereotype for old documents.
+        QStringList kernels = block->assignedKernels();
+        if (kernels.isEmpty()) {
+            const QString legacyId = parseKernelIdFromLabel(block->stereotype());
+            if (!legacyId.isEmpty())
+                kernels.append(legacyId);
+        }
 
-        if (m_registry && !m_registry->kernelById(kernelId))
-            continue;
-
-        m_assignmentsByTileSpecId.insert(specId, kernelId);
+        QStringList valid;
+        for (const QString& k : kernels) {
+            if (!m_registry || m_registry->kernelById(normalizedKernelId(k)))
+                valid.append(normalizedKernelId(k));
+        }
+        if (!valid.isEmpty())
+            m_assignmentsByTileSpecId.insert(specId, valid);
     }
 
     applyLabelOverrides();
@@ -525,18 +556,32 @@ void KernelAssignmentController::applyLabelOverrides()
         return;
 
     m_coordinator->setBlockLabelOverrides({});
+    m_coordinator->setBlockStereotypeOverrides({}); // clear legacy stereotype display
 
-    QHash<QString, QString> stereotypeOverrides;
-    for (auto it = m_assignmentsByTileSpecId.constBegin(); it != m_assignmentsByTileSpecId.constEnd(); ++it) {
-        const QString tileSpecId = cleanedId(it.key());
-        const QString kernelId = normalizedKernelId(it.value());
-        if (!isAssignableTile(tileSpecId) || kernelId.isEmpty())
-            continue;
+    auto* host     = m_canvasHost.data();
+    auto* document = host ? host->document() : nullptr;
+    if (!document)
+        return;
 
-        stereotypeOverrides.insert(tileSpecId, stereotypeLabelFor(kernelId));
+    // First clear kernel chips from all assignable tiles.
+    for (const auto& item : document->items()) {
+        auto* block = dynamic_cast<Canvas::CanvasBlock*>(item.get());
+        if (block && isAssignableTile(cleanedId(block->specId())))
+            block->setAssignedKernels({});
     }
 
-    m_coordinator->setBlockStereotypeOverrides(stereotypeOverrides);
+    // Then apply current assignments.
+    for (const auto& item : document->items()) {
+        auto* block = dynamic_cast<Canvas::CanvasBlock*>(item.get());
+        if (!block)
+            continue;
+        const QString specId = cleanedId(block->specId());
+        auto it = m_assignmentsByTileSpecId.constFind(specId);
+        if (it != m_assignmentsByTileSpecId.constEnd() && !it->isEmpty())
+            block->setAssignedKernels(*it);
+    }
+
+    document->notifyChanged();
 }
 
 bool KernelAssignmentController::isAssignableTile(const QString& tileSpecId) const
@@ -588,12 +633,8 @@ void KernelAssignmentController::onCanvasMousePressed(const QPointF& scenePos,
     if (!isAssignableTile(tileSpecId))
         return;
 
-    const QString currentKernelId = normalizedKernelId(m_assignmentsByTileSpecId.value(tileSpecId));
-    if (!currentKernelId.isEmpty() && currentKernelId != m_selectedKernelId) {
-        if (!confirmReassignment(tileSpecId, currentKernelId, m_selectedKernelId))
-            return;
-    }
-
+    // Multiple kernels can be assigned to the same tile — just append (duplicates are silently
+    // ignored inside assignKernelToTile).
     const Utils::Result assignmentResult = assignKernelToTile(tileSpecId, m_selectedKernelId);
     if (!assignmentResult)
         emit assignmentFailed(assignmentResult.errors.join("\n"));

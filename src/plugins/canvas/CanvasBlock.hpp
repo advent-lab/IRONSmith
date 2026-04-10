@@ -12,8 +12,11 @@
 #include <optional>
 
 #include <QtGui/QColor>
+#include <QtCore/QList>
 #include <QtCore/QString>
 #include <QtCore/QMarginsF>
+#include <QtCore/QStringList>
+#include <cstdint>
 
 namespace Canvas {
 
@@ -22,6 +25,26 @@ class BlockContent;
 class CANVAS_EXPORT CanvasBlock final : public CanvasItem
 {
 public:
+    // Configuration for custom core function body (body_stmts mode).
+    // When mode == BodyStmts and bodyStmtsJson is non-empty, buildWorkers() calls
+    // addCoreFunctionBody() instead of the default addCoreFunction().
+    struct CoreFunctionConfig final {
+        enum class Mode : uint8_t { Default, BodyStmts, SharedRef };
+        Mode    mode              = Mode::Default;
+        QString bodyStmtsJson;        // non-empty when mode == BodyStmts
+        QString sharedFunctionName;   // non-empty when mode == SharedRef
+    };
+
+    // One entry in the explicit fn_args list for a worker.
+    // Order is preserved; buildWorkers() iterates this list to emit fn_args=[...].
+    struct CoreBodyArgSpec final {
+        enum class Kind : uint8_t { Kernel, FifoConsumer, FifoProducer };
+        Kind    kind;
+        QString paramName; // user-visible name: "kernel1", "fifoA", etc.
+        QString ref;       // kernel id  OR  object fifo name (e.g. "splitA1")
+    };
+
+
     CanvasBlock(QRectF boundsScene, bool movable, QString label = {})
         : m_boundsScene(boundsScene)
         , m_movable(movable)
@@ -98,6 +121,24 @@ public:
     BlockContent* content() const { return m_content.get(); }
     void clearContent() { m_content.reset(); }
 
+    // Assigned kernels — displayed as chips inside the tile.
+    // The list is ordered; code generation uses the first entry.
+    const QStringList& assignedKernels() const noexcept;
+    void setAssignedKernels(QStringList kernels);
+    void addAssignedKernel(const QString& kernelId);
+    void removeAssignedKernel(const QString& kernelId);
+
+    bool hasCoreFunctionConfig() const noexcept { return m_coreFunctionConfig.has_value(); }
+    const std::optional<CoreFunctionConfig>& coreFunctionConfig() const noexcept { return m_coreFunctionConfig; }
+    void setCoreFunctionConfig(CoreFunctionConfig config);
+    void clearCoreFunctionConfig();
+
+    // Explicit worker fn_args ordering. When non-empty, buildWorkers() uses this list
+    // verbatim instead of auto-deriving args from wire classification.
+    const QList<CoreBodyArgSpec>& coreBodyArgs() const noexcept { return m_coreBodyArgs; }
+    void setCoreBodyArgs(QList<CoreBodyArgSpec> args) { m_coreBodyArgs = std::move(args); }
+    void clearCoreBodyArgs() { m_coreBodyArgs.clear(); }
+
     const QMarginsF& contentPadding() const { return m_contentPadding; }
     void setContentPadding(const QMarginsF& padding) { m_contentPadding = padding; }
 
@@ -139,6 +180,9 @@ private:
     QColor m_fillColor;
     QColor m_labelColor;
     double m_cornerRadius = -1.0;
+    std::optional<CoreFunctionConfig> m_coreFunctionConfig;
+    QStringList m_assignedKernels;
+    QList<CoreBodyArgSpec> m_coreBodyArgs;
 };
 
 } // namespace Canvas

@@ -382,6 +382,12 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
             obj.insert(u"label"_s, block->label());
             if (!block->stereotype().trimmed().isEmpty())
                 obj.insert(u"stereotype"_s, block->stereotype());
+            if (!block->assignedKernels().isEmpty()) {
+                QJsonArray kernelsArr;
+                for (const auto& k : block->assignedKernels())
+                    kernelsArr.append(k);
+                obj.insert(u"assignedKernels"_s, kernelsArr);
+            }
             obj.insert(u"specId"_s, specId);
             obj.insert(u"showPorts"_s, block->showPorts());
             obj.insert(u"allowMultiplePorts"_s, block->allowMultiplePorts());
@@ -434,6 +440,42 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
                 ports.append(portObject);
             }
             obj.insert(u"ports"_s, ports);
+
+            if (block->hasCoreFunctionConfig()) {
+                const auto& cfg = block->coreFunctionConfig().value();
+                QJsonObject cfnObj;
+                QString modeStr = u"default"_s;
+                if (cfg.mode == CanvasBlock::CoreFunctionConfig::Mode::BodyStmts)
+                    modeStr = u"bodyStmts"_s;
+                else if (cfg.mode == CanvasBlock::CoreFunctionConfig::Mode::SharedRef)
+                    modeStr = u"sharedRef"_s;
+                cfnObj.insert(u"mode"_s, modeStr);
+                if (!cfg.bodyStmtsJson.isEmpty())
+                    cfnObj.insert(u"bodyStmtsJson"_s, cfg.bodyStmtsJson);
+                if (!cfg.sharedFunctionName.isEmpty())
+                    cfnObj.insert(u"sharedFunctionName"_s, cfg.sharedFunctionName);
+                obj.insert(u"coreFn"_s, cfnObj);
+            }
+
+            if (!block->coreBodyArgs().isEmpty()) {
+                QJsonArray argsArr;
+                for (const auto& arg : block->coreBodyArgs()) {
+                    QJsonObject argObj;
+                    switch (arg.kind) {
+                    case CanvasBlock::CoreBodyArgSpec::Kind::Kernel:
+                        argObj.insert(u"kind"_s, u"kernel"_s); break;
+                    case CanvasBlock::CoreBodyArgSpec::Kind::FifoConsumer:
+                        argObj.insert(u"kind"_s, u"fifo_in"_s); break;
+                    case CanvasBlock::CoreBodyArgSpec::Kind::FifoProducer:
+                        argObj.insert(u"kind"_s, u"fifo_out"_s); break;
+                    }
+                    argObj.insert(u"paramName"_s, arg.paramName);
+                    argObj.insert(u"ref"_s, arg.ref);
+                    argsArr.append(argObj);
+                }
+                obj.insert(u"coreBodyArgs"_s, argsArr);
+            }
+
             items.append(obj);
             continue;
         }
@@ -649,6 +691,13 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
             block->setDeletable(item.value(u"deletable"_s).toBool(true));
             block->setStereotype(item.value(u"stereotype"_s).toString());
             block->setSpecId(specId);
+            {
+                QStringList kernels;
+                for (const auto& v : item.value(u"assignedKernels"_s).toArray())
+                    kernels.append(v.toString());
+                if (!kernels.isEmpty())
+                    block->setAssignedKernels(kernels);
+            }
             block->setShowPorts(item.value(u"showPorts"_s).toBool(true));
             block->setAllowMultiplePorts(item.value(u"allowMultiplePorts"_s).toBool(false));
             block->setAutoOppositeProducerPort(item.value(u"autoOppositeProducerPort"_s).toBool(false));
@@ -763,6 +812,40 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
             }
             normalizeAutoOppositePortNames(ports, block->autoOppositeProducerPort());
             block->setPorts(std::move(ports));
+
+            const QJsonObject coreFnObject = item.value(u"coreFn"_s).toObject();
+            if (!coreFnObject.isEmpty()) {
+                CanvasBlock::CoreFunctionConfig cfg;
+                const QString modeStr = coreFnObject.value(u"mode"_s).toString().trimmed();
+                if (modeStr == u"bodyStmts"_s)
+                    cfg.mode = CanvasBlock::CoreFunctionConfig::Mode::BodyStmts;
+                else if (modeStr == u"sharedRef"_s)
+                    cfg.mode = CanvasBlock::CoreFunctionConfig::Mode::SharedRef;
+                cfg.bodyStmtsJson       = coreFnObject.value(u"bodyStmtsJson"_s).toString();
+                cfg.sharedFunctionName  = coreFnObject.value(u"sharedFunctionName"_s).toString();
+                block->setCoreFunctionConfig(std::move(cfg));
+            }
+
+            {
+                QList<CanvasBlock::CoreBodyArgSpec> args;
+                for (const auto& v : item.value(u"coreBodyArgs"_s).toArray()) {
+                    const QJsonObject a = v.toObject();
+                    CanvasBlock::CoreBodyArgSpec spec;
+                    const QString kind = a.value(u"kind"_s).toString();
+                    if (kind == u"kernel"_s)
+                        spec.kind = CanvasBlock::CoreBodyArgSpec::Kind::Kernel;
+                    else if (kind == u"fifo_out"_s)
+                        spec.kind = CanvasBlock::CoreBodyArgSpec::Kind::FifoProducer;
+                    else
+                        spec.kind = CanvasBlock::CoreBodyArgSpec::Kind::FifoConsumer;
+                    spec.paramName = a.value(u"paramName"_s).toString();
+                    spec.ref       = a.value(u"ref"_s).toString();
+                    if (!spec.paramName.isEmpty() && !spec.ref.isEmpty())
+                        args.append(spec);
+                }
+                if (!args.isEmpty())
+                    block->setCoreBodyArgs(std::move(args));
+            }
 
             const ObjectId blockId = block->id();
             if (!document.insertItem(document.items().size(), std::move(block))) {

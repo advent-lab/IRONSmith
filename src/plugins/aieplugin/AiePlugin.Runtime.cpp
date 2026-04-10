@@ -63,6 +63,9 @@ Utils::Result AiePlugin::configureService(const RuntimeDependencies& deps)
     if (m_symbolsController)
         m_symbolsController->setCanvasDocumentService(deps.canvasDocumentService);
 
+    if (m_hlirSync)
+        m_hlirSync->setCanvasDocumentService(deps.canvasDocumentService);
+
     const Utils::Result loadResult =
         m_service->loadProfileCatalog(QString::fromLatin1(Aie::kDeviceTopologiesResource));
     if (!loadResult)

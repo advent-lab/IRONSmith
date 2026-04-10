@@ -10,6 +10,7 @@
 #include "canvas/utils/CanvasAutoPorts.hpp"
 
 #include <QtCore/QHash>
+#include <QtCore/QSizeF>
 #include <QtGui/QPainter>
 #include <algorithm>
 #include <cmath>
@@ -41,6 +42,10 @@ std::unique_ptr<CanvasItem> CanvasBlock::clone() const
     if (m_hasCustomColors)
         blk->setCustomColors(m_outlineColor, m_fillColor, m_labelColor);
     blk->setCornerRadius(m_cornerRadius);
+    if (m_coreFunctionConfig.has_value())
+        blk->setCoreFunctionConfig(*m_coreFunctionConfig);
+    blk->setAssignedKernels(m_assignedKernels);
+    blk->setCoreBodyArgs(m_coreBodyArgs);
     blk->setId(id());
     return blk;
 }
@@ -311,10 +316,43 @@ void CanvasBlock::draw(QPainter& p, const CanvasRenderContext& ctx) const
     }
     if (ctx.selected(id()))
         CanvasStyle::drawBlockSelection(p, m_boundsScene, ctx.zoom);
-    if (!m_label.isEmpty())
+    // Kernel chip layout rules:
+    //   1 kernel  → chip covers 50% of tile height; AIE label visible
+    //   2 kernels → chips cover 50% of tile height (25% each); AIE label visible
+    //   3 kernels → chips cover 75% of tile height (25% each); AIE label hidden
+    //   4 kernels → chips cover 100% of tile height (25% each); AIE label hidden
+    const int kernelCount = std::min(static_cast<int>(m_assignedKernels.size()), 4);
+    const bool hasKernelChips = (kernelCount > 0) && m_content;
+
+    const bool showLabel = !hasKernelChips || kernelCount < 3;
+    if (!m_label.isEmpty() && showLabel)
         CanvasStyle::drawBlockLabel(p, m_boundsScene, ctx.zoom, m_label,
                                     m_hasCustomColors ? m_labelColor : QColor(Constants::kBlockTextColor));
-    if (m_content) {
+
+    if (hasKernelChips) {
+        const double tileH  = m_boundsScene.height();
+        const double margin = 4.0 * Constants::kWorldScale;
+        const double gap    = 3.0 * Constants::kWorldScale;
+
+        // Total height the chip stack occupies (25% per chip, except 1 chip = 50%).
+        const double chipFraction = (kernelCount == 1) ? 0.50 : 0.25;
+        const double stackH = kernelCount * chipFraction * tileH
+                              + (kernelCount - 1) * gap;
+
+        // For 1-2 kernels anchor to the bottom so the label stays visible at the top.
+        // For 3-4 kernels fill from the top (label is suppressed).
+        const double topY = (kernelCount >= 3)
+            ? (m_boundsScene.top() + margin)
+            : (m_boundsScene.bottom() - stackH - margin);
+
+        const QRectF chipRect(m_boundsScene.left()  + margin,
+                              topY,
+                              m_boundsScene.width() - 2.0 * margin,
+                              stackH);
+
+        m_content->layout(chipRect, ctx);
+        m_content->draw(p, ctx);
+    } else if (m_content) {
         const QRectF contentRect = m_boundsScene.adjusted(m_contentPadding.left(),
                                                           m_contentPadding.top(),
                                                           -m_contentPadding.right(),
@@ -387,6 +425,73 @@ QRectF CanvasBlock::keepoutSceneRect() const
 void CanvasBlock::setContent(std::unique_ptr<BlockContent> content)
 {
     m_content = std::move(content);
+}
+
+void CanvasBlock::setCoreFunctionConfig(CoreFunctionConfig config)
+{
+    m_coreFunctionConfig = std::move(config);
+}
+
+void CanvasBlock::clearCoreFunctionConfig()
+{
+    m_coreFunctionConfig.reset();
+}
+
+// ── Assigned kernels ─────────────────────────────────────────────────────────
+
+const QStringList& CanvasBlock::assignedKernels() const noexcept
+{
+    return m_assignedKernels;
+}
+
+void CanvasBlock::setAssignedKernels(QStringList kernels)
+{
+    m_assignedKernels = std::move(kernels);
+
+    if (m_assignedKernels.isEmpty()) {
+        clearContent();
+        return;
+    }
+
+    // Chips are laid out dynamically in draw() based on live tile bounds.
+    // Here we just build the chip objects with flexible size (preferred = 0)
+    // so the Vertical container distributes height equally among them.
+    const int count = std::min(static_cast<int>(m_assignedKernels.size()), 4);
+
+    auto container = std::make_unique<BlockContentContainer>(
+        BlockContentContainer::Layout::Vertical);
+    container->setGap(3.0 * Constants::kWorldScale);
+    container->setPadding(QMarginsF(0.0, 0.0, 0.0, 0.0)); // draw() owns the rect
+
+    for (int i = 0; i < count; ++i) {
+        const QString displayName = m_assignedKernels[i].section(u'_', 0, 0);
+        BlockContentStyle chipStyle;
+        chipStyle.fill         = QColor(QStringLiteral("#2D7A45"));
+        chipStyle.outline      = QColor(QStringLiteral("#1E5430"));
+        chipStyle.text         = QColor(QStringLiteral("#FFFFFF"));
+        chipStyle.cornerRadius = 3.0 * Constants::kWorldScale;
+        chipStyle.fontSize     = 7.0 * Constants::kWorldScale;
+        auto chip = std::make_unique<BlockContentBlock>(displayName, chipStyle);
+        chip->setPreferredSize(QSizeF(0.0, 0.0)); // flexible — fills equally
+        container->addChild(std::move(chip));
+    }
+
+    setContent(std::move(container));
+}
+
+void CanvasBlock::addAssignedKernel(const QString& kernelId)
+{
+    if (kernelId.isEmpty() || m_assignedKernels.contains(kernelId))
+        return;
+    m_assignedKernels.append(kernelId);
+    setAssignedKernels(m_assignedKernels); // rebuild content
+}
+
+void CanvasBlock::removeAssignedKernel(const QString& kernelId)
+{
+    if (!m_assignedKernels.removeOne(kernelId))
+        return;
+    setAssignedKernels(m_assignedKernels); // rebuild content
 }
 
 } // namespace Canvas
