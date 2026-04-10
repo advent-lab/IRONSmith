@@ -1,0 +1,13 @@
+{
+  "id": "relu_i16",
+  "name": "ReLU (INT16)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void relu_i16(int16_t* a_in, int16_t* c_out);",
+  "description": "Vectorized INT16 ReLU activation. Clamps each element to max(0, x) over a 256-element tile using AIE2 vector intrinsics.",
+  "entry": "relu_i16.cc",
+  "files": [
+    "relu_i16.cc"
+  ],
+  "tags": ["relu", "activation", "i16", "unary", "aie2"]
+}

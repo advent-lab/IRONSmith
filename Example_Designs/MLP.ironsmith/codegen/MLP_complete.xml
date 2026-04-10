@@ -1,0 +1,2182 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Module name="gui_design">
+  <Symbols>
+    <Import name="numpy" alias="np"/>
+    <Import name="ml_dtypes" alias="ml_dtypes"/>
+    <Import name="aie.iron" alias="iron">
+      <Submodule name="Program"/>
+      <Submodule name="Runtime"/>
+      <Submodule name="Worker"/>
+      <Submodule name="ObjectFifo"/>
+      <Submodule name="SequentialPlacer"/>
+      <Submodule name="AnyComputeTile"/>
+      <Submodule name="Tile"/>
+      <Submodule name="ExternalFunction"/>
+      <Submodule name="jit"/>
+      <Submodule name="dataflow"/>
+      <Function name="get_current_device"/>
+      <Function name="arange"/>
+      <Function name="zeros"/>
+    </Import>
+    <Import name="aie.helpers.taplib">
+      <Submodule name="TensorAccessPattern"/>
+    </Import>
+    <TypeAbstraction name="type_int16_1x256">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>1</expr>
+          </tuple>
+          <tuple>
+            <expr>256</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="type_int16_64">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>64</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TensorAccessPattern name="Newtap" offset="0" tensor_dims="16, 16" sizes="4, 4" strides="16, 1"/>
+  </Symbols>
+  <DataFlow>
+    <ExternalFunction name="kernel_matmul_bf16">
+      <attributes>
+        <kwarg name="name" value="matmul_bf16_bf16"/>
+        <kwarg name="source_file" value="C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_bf16/mm.cc"/>
+        <kwarg name="arg_types">
+          <list>
+            <type_ref>type_int16_1x256</type_ref>
+            <type_ref>type_int16_64</type_ref>
+            <type_ref>type_int16_64</type_ref>
+          </list>
+        </kwarg>
+        <kwarg name="include_dirs">
+          <list>
+            <string>C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_bf16</string>
+          </list>
+        </kwarg>
+      </attributes>
+    </ExternalFunction>
+    <ExternalFunction name="kernel_relu_bf16">
+      <attributes>
+        <kwarg name="name" value="bf16_relu"/>
+        <kwarg name="source_file" value="C:/Users/fasta/Projects/IRONSmith/resources/kernels/relu_bf16/relu.cc"/>
+        <kwarg name="arg_types">
+          <list>
+            <type_ref>type_int16_1x256</type_ref>
+            <type_ref>type_int16_64</type_ref>
+            <type_ref>type_int16_64</type_ref>
+          </list>
+        </kwarg>
+        <kwarg name="include_dirs">
+          <list>
+            <string>C:/Users/fasta/Projects/IRONSmith/resources/kernels/relu_bf16</string>
+          </list>
+        </kwarg>
+      </attributes>
+    </ExternalFunction>
+    <CoreFunction name="core_shared_matmul_relu">
+      <parameters>
+        <param name="Kernel1"/>
+        <param name="Kernel2"/>
+        <param name="in0"/>
+        <param name="in1"/>
+        <param name="out0"/>
+      </parameters>
+      <body>
+        <Acquire name="buf_in0">
+          <call>
+            <method ref="in0" name="acquire">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Acquire>
+        <Acquire name="buf_in1">
+          <call>
+            <method ref="in1" name="acquire">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Acquire>
+        <Acquire name="buf_out0">
+          <call>
+            <method ref="out0" name="acquire">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Acquire>
+        <Call>
+          <function ref="Kernel1">
+            <arg>
+              <var ref="buf_in0"/>
+            </arg>
+            <arg>
+              <var ref="buf_in1"/>
+            </arg>
+            <arg>
+              <var ref="buf_out0"/>
+            </arg>
+          </function>
+        </Call>
+        <Call>
+          <function ref="Kernel2">
+            <arg>
+              <var ref="buf_in0"/>
+            </arg>
+            <arg>
+              <var ref="buf_in1"/>
+            </arg>
+            <arg>
+              <var ref="buf_out0"/>
+            </arg>
+          </function>
+        </Call>
+        <Release>
+          <call>
+            <method ref="in0" name="release">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Release>
+        <Release>
+          <call>
+            <method ref="in1" name="release">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Release>
+        <Release>
+          <call>
+            <method ref="out0" name="release">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Release>
+      </body>
+    </CoreFunction>
+    <CoreFunction name="core_shared_matmul_final">
+      <parameters>
+        <param name="kernel"/>
+        <param name="in0"/>
+        <param name="in1"/>
+        <param name="out0"/>
+      </parameters>
+      <body>
+        <Acquire name="buf_in0">
+          <call>
+            <method ref="in0" name="acquire">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Acquire>
+        <Acquire name="buf_in1">
+          <call>
+            <method ref="in1" name="acquire">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Acquire>
+        <Acquire name="buf_out0">
+          <call>
+            <method ref="out0" name="acquire">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Acquire>
+        <Call>
+          <function ref="kernel">
+            <arg>
+              <var ref="buf_in0"/>
+            </arg>
+            <arg>
+              <var ref="buf_in1"/>
+            </arg>
+            <arg>
+              <var ref="buf_out0"/>
+            </arg>
+          </function>
+        </Call>
+        <Release>
+          <call>
+            <method ref="in0" name="release">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Release>
+        <Release>
+          <call>
+            <method ref="in1" name="release">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Release>
+        <Release>
+          <call>
+            <method ref="out0" name="release">
+              <arg>
+                <const>1</const>
+              </arg>
+            </method>
+          </call>
+        </Release>
+      </body>
+    </CoreFunction>
+    <ObjectFifo name="input_activation_fifo">
+      <obj_type>
+        <type_ref>type_int16_1x256</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="input_activation_fifo"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="inter_activation_fifo1">
+      <obj_type>
+        <type_ref>type_int16_1x256</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="inter_activation_fifo1"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="weights_col0_fifo">
+      <obj_type>
+        <type_ref>type_int16_1x256</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="weights_col0_fifo"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="weights_col1_fifo">
+      <obj_type>
+        <type_ref>type_int16_1x256</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="weights_col1_fifo"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="weights_col2_fifo">
+      <obj_type>
+        <type_ref>type_int16_1x256</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="weights_col2_fifo"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="weights_col3_fifo">
+      <obj_type>
+        <type_ref>type_int16_1x256</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="weights_col3_fifo"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="output_activation_fifo">
+      <obj_type>
+        <type_ref>type_int16_1x256</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="output_activation_fifo"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="inter_activation_fifo2">
+      <obj_type>
+        <type_ref>type_int16_1x256</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="inter_activation_fifo2"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="inter_activation_fifo3">
+      <obj_type>
+        <type_ref>type_int16_1x256</type_ref>
+      </obj_type>
+      <attributes>
+        <kwarg name="depth" value="2"/>
+        <kwarg name="name" value="inter_activation_fifo3"/>
+      </attributes>
+    </ObjectFifo>
+    <ObjectFifo name="input_activation_col0_fifo">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="input_activation_fifo"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="forward"/>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>0</const>
+                </arg>
+                <arg>
+                  <const>1</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="activation_tile_join_col0">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inter_activation_fifo1"/>
+          </base>
+          <call>
+            <method name="prod"/>
+          </call>
+          <call>
+            <method name="join">
+              <kwarg name="obj_types">
+                <list>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                </list>
+              </kwarg>
+              <kwarg name="names">
+                <list>
+                  <string>activation_tile_join_col0_in1</string>
+                  <string>activation_tile_join_col0_in2</string>
+                  <string>activation_tile_join_col0_in3</string>
+                  <string>activation_tile_join_col0_in4</string>
+                </list>
+              </kwarg>
+              <kwarg name="placement">
+                <constructor ref="Tile">
+                  <arg>
+                    <const>0</const>
+                  </arg>
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                </constructor>
+              </kwarg>
+              <kwarg name="offsets">
+                <list>
+                  <const>0</const>
+                  <const>64</const>
+                  <const>128</const>
+                  <const>192</const>
+                </list>
+              </kwarg>
+            </method>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="weight_tile_split_col0">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="weights_col0_fifo"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="split">
+              <kwarg name="obj_types">
+                <list>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                </list>
+              </kwarg>
+              <kwarg name="offsets">
+                <list>
+                  <const>0</const>
+                  <const>64</const>
+                  <const>128</const>
+                  <const>192</const>
+                </list>
+              </kwarg>
+              <kwarg name="names">
+                <list>
+                  <string>weight_tile_split_col0_out1</string>
+                  <string>weight_tile_split_col0_out2</string>
+                  <string>weight_tile_split_col0_out3</string>
+                  <string>weight_tile_split_col0_out4</string>
+                </list>
+              </kwarg>
+              <kwarg name="placement">
+                <constructor ref="Tile">
+                  <arg>
+                    <const>0</const>
+                  </arg>
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                </constructor>
+              </kwarg>
+            </method>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="input_activation_col1_fifo">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inter_activation_fifo1"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="forward"/>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>1</const>
+                </arg>
+                <arg>
+                  <const>1</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="input_activation_col2_fifo">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inter_activation_fifo2"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="forward"/>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>2</const>
+                </arg>
+                <arg>
+                  <const>1</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="input_activation_col3_fifo">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inter_activation_fifo3"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="forward"/>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>3</const>
+                </arg>
+                <arg>
+                  <const>1</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="weight_tile_split_col1">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="weights_col1_fifo"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="split">
+              <kwarg name="obj_types">
+                <list>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                </list>
+              </kwarg>
+              <kwarg name="offsets">
+                <list>
+                  <const>0</const>
+                  <const>64</const>
+                  <const>128</const>
+                  <const>192</const>
+                </list>
+              </kwarg>
+              <kwarg name="names">
+                <list>
+                  <string>weight_tile_split_col1_out1</string>
+                  <string>weight_tile_split_col1_out2</string>
+                  <string>weight_tile_split_col1_out3</string>
+                  <string>weight_tile_split_col1_out4</string>
+                </list>
+              </kwarg>
+              <kwarg name="placement">
+                <constructor ref="Tile">
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                </constructor>
+              </kwarg>
+            </method>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="weight_tile_split_col2">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="weights_col2_fifo"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="split">
+              <kwarg name="obj_types">
+                <list>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                </list>
+              </kwarg>
+              <kwarg name="offsets">
+                <list>
+                  <const>0</const>
+                  <const>64</const>
+                  <const>128</const>
+                  <const>192</const>
+                </list>
+              </kwarg>
+              <kwarg name="names">
+                <list>
+                  <string>weight_tile_split_col2_out1</string>
+                  <string>weight_tile_split_col2_out2</string>
+                  <string>weight_tile_split_col2_out3</string>
+                  <string>weight_tile_split_col2_out4</string>
+                </list>
+              </kwarg>
+              <kwarg name="placement">
+                <constructor ref="Tile">
+                  <arg>
+                    <const>2</const>
+                  </arg>
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                </constructor>
+              </kwarg>
+            </method>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="weight_tile_split_col3">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="weights_col3_fifo"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="split">
+              <kwarg name="obj_types">
+                <list>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                </list>
+              </kwarg>
+              <kwarg name="offsets">
+                <list>
+                  <const>0</const>
+                  <const>64</const>
+                  <const>128</const>
+                  <const>192</const>
+                </list>
+              </kwarg>
+              <kwarg name="names">
+                <list>
+                  <string>weight_tile_split_col3_out1</string>
+                  <string>weight_tile_split_col3_out2</string>
+                  <string>weight_tile_split_col3_out3</string>
+                  <string>weight_tile_split_col3_out4</string>
+                </list>
+              </kwarg>
+              <kwarg name="placement">
+                <constructor ref="Tile">
+                  <arg>
+                    <const>3</const>
+                  </arg>
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                </constructor>
+              </kwarg>
+            </method>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="activation_tile_join_col1">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inter_activation_fifo2"/>
+          </base>
+          <call>
+            <method name="prod"/>
+          </call>
+          <call>
+            <method name="join">
+              <kwarg name="obj_types">
+                <list>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                </list>
+              </kwarg>
+              <kwarg name="names">
+                <list>
+                  <string>activation_tile_join_col1_in1</string>
+                  <string>activation_tile_join_col1_in2</string>
+                  <string>activation_tile_join_col1_in3</string>
+                  <string>activation_tile_join_col1_in4</string>
+                </list>
+              </kwarg>
+              <kwarg name="placement">
+                <constructor ref="Tile">
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                </constructor>
+              </kwarg>
+              <kwarg name="offsets">
+                <list>
+                  <const>0</const>
+                  <const>64</const>
+                  <const>128</const>
+                  <const>192</const>
+                </list>
+              </kwarg>
+            </method>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="activation_tile_join_col2">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inter_activation_fifo3"/>
+          </base>
+          <call>
+            <method name="prod"/>
+          </call>
+          <call>
+            <method name="join">
+              <kwarg name="obj_types">
+                <list>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                </list>
+              </kwarg>
+              <kwarg name="names">
+                <list>
+                  <string>activation_tile_join_col2_in1</string>
+                  <string>activation_tile_join_col2_in2</string>
+                  <string>activation_tile_join_col2_in3</string>
+                  <string>activation_tile_join_col2_in4</string>
+                </list>
+              </kwarg>
+              <kwarg name="placement">
+                <constructor ref="Tile">
+                  <arg>
+                    <const>2</const>
+                  </arg>
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                </constructor>
+              </kwarg>
+              <kwarg name="offsets">
+                <list>
+                  <const>0</const>
+                  <const>64</const>
+                  <const>128</const>
+                  <const>192</const>
+                </list>
+              </kwarg>
+            </method>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="activation_tile_join_col3">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="output_activation_fifo"/>
+          </base>
+          <call>
+            <method name="prod"/>
+          </call>
+          <call>
+            <method name="join">
+              <kwarg name="obj_types">
+                <list>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                </list>
+              </kwarg>
+              <kwarg name="names">
+                <list>
+                  <string>activation_tile_join_col3_in1</string>
+                  <string>activation_tile_join_col3_in2</string>
+                  <string>activation_tile_join_col3_in3</string>
+                  <string>activation_tile_join_col3_in4</string>
+                </list>
+              </kwarg>
+              <kwarg name="placement">
+                <constructor ref="Tile">
+                  <arg>
+                    <const>3</const>
+                  </arg>
+                  <arg>
+                    <const>1</const>
+                  </arg>
+                </constructor>
+              </kwarg>
+              <kwarg name="offsets">
+                <list>
+                  <const>0</const>
+                  <const>64</const>
+                  <const>128</const>
+                  <const>192</const>
+                </list>
+              </kwarg>
+            </method>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <Worker name="worker_aie0_2">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col0_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col0"/>
+                </base>
+                <index_value>
+                  <const>0</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col0"/>
+                </base>
+                <index_value>
+                  <const>0</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>0</const>
+          </arg>
+          <arg>
+            <const>2</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie1_2">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col1_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col1"/>
+                </base>
+                <index_value>
+                  <const>0</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col1"/>
+                </base>
+                <index_value>
+                  <const>0</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>1</const>
+          </arg>
+          <arg>
+            <const>2</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie2_2">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col2_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col2"/>
+                </base>
+                <index_value>
+                  <const>0</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col2"/>
+                </base>
+                <index_value>
+                  <const>0</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>2</const>
+          </arg>
+          <arg>
+            <const>2</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie3_2">
+      <core_fn ref="core_shared_matmul_final"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col3_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col3"/>
+                </base>
+                <index_value>
+                  <const>0</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col3"/>
+                </base>
+                <index_value>
+                  <const>0</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>3</const>
+          </arg>
+          <arg>
+            <const>2</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie0_3">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col0_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col0"/>
+                </base>
+                <index_value>
+                  <const>1</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col0"/>
+                </base>
+                <index_value>
+                  <const>1</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>0</const>
+          </arg>
+          <arg>
+            <const>3</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie1_3">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col1_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col1"/>
+                </base>
+                <index_value>
+                  <const>1</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col1"/>
+                </base>
+                <index_value>
+                  <const>1</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>1</const>
+          </arg>
+          <arg>
+            <const>3</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie2_3">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col2_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col2"/>
+                </base>
+                <index_value>
+                  <const>1</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col2"/>
+                </base>
+                <index_value>
+                  <const>1</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>2</const>
+          </arg>
+          <arg>
+            <const>3</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie3_3">
+      <core_fn ref="core_shared_matmul_final"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col3_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col3"/>
+                </base>
+                <index_value>
+                  <const>1</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col3"/>
+                </base>
+                <index_value>
+                  <const>1</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>3</const>
+          </arg>
+          <arg>
+            <const>3</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie0_4">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col0_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col0"/>
+                </base>
+                <index_value>
+                  <const>2</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col0"/>
+                </base>
+                <index_value>
+                  <const>2</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>0</const>
+          </arg>
+          <arg>
+            <const>4</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie1_4">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col1_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col1"/>
+                </base>
+                <index_value>
+                  <const>2</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col1"/>
+                </base>
+                <index_value>
+                  <const>2</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>1</const>
+          </arg>
+          <arg>
+            <const>4</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie2_4">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col2_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col2"/>
+                </base>
+                <index_value>
+                  <const>2</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col2"/>
+                </base>
+                <index_value>
+                  <const>2</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>2</const>
+          </arg>
+          <arg>
+            <const>4</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie3_4">
+      <core_fn ref="core_shared_matmul_final"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col3_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col3"/>
+                </base>
+                <index_value>
+                  <const>2</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col3"/>
+                </base>
+                <index_value>
+                  <const>2</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>3</const>
+          </arg>
+          <arg>
+            <const>4</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie0_5">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col0_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col0"/>
+                </base>
+                <index_value>
+                  <const>3</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col0"/>
+                </base>
+                <index_value>
+                  <const>3</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>0</const>
+          </arg>
+          <arg>
+            <const>5</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie1_5">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col1_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col1"/>
+                </base>
+                <index_value>
+                  <const>3</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col1"/>
+                </base>
+                <index_value>
+                  <const>3</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>1</const>
+          </arg>
+          <arg>
+            <const>5</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie2_5">
+      <core_fn ref="core_shared_matmul_relu"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <var ref="kernel_relu_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col2_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col2"/>
+                </base>
+                <index_value>
+                  <const>3</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col2"/>
+                </base>
+                <index_value>
+                  <const>3</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>2</const>
+          </arg>
+          <arg>
+            <const>5</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Worker name="worker_aie3_5">
+      <core_fn ref="core_shared_matmul_final"/>
+      <fn_args>
+        <arg>
+          <var ref="kernel_matmul_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="input_activation_col3_fifo"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="weight_tile_split_col3"/>
+                </base>
+                <index_value>
+                  <const>3</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <index>
+                <base>
+                  <var ref="activation_tile_join_col3"/>
+                </base>
+                <index_value>
+                  <const>3</const>
+                </index_value>
+              </index>
+            </base>
+            <call>
+              <method name="prod"/>
+            </call>
+          </method_chain>
+        </arg>
+      </fn_args>
+      <placement>
+        <constructor ref="Tile">
+          <arg>
+            <const>3</const>
+          </arg>
+          <arg>
+            <const>5</const>
+          </arg>
+        </constructor>
+      </placement>
+    </Worker>
+    <Runtime name="rt">
+      <instance>
+        <constructor ref="Runtime"/>
+      </instance>
+    </Runtime>
+    <List name="Workers">
+      <items>
+        <var ref="worker_aie0_2"/>
+        <var ref="worker_aie1_2"/>
+        <var ref="worker_aie2_2"/>
+        <var ref="worker_aie3_2"/>
+        <var ref="worker_aie0_3"/>
+        <var ref="worker_aie1_3"/>
+        <var ref="worker_aie2_3"/>
+        <var ref="worker_aie3_3"/>
+        <var ref="worker_aie0_4"/>
+        <var ref="worker_aie1_4"/>
+        <var ref="worker_aie2_4"/>
+        <var ref="worker_aie3_4"/>
+        <var ref="worker_aie0_5"/>
+        <var ref="worker_aie1_5"/>
+        <var ref="worker_aie2_5"/>
+        <var ref="worker_aie3_5"/>
+      </items>
+    </List>
+    <SequenceBlock>
+      <context>
+        <call>
+          <method ref="rt" name="sequence">
+            <arg type_ref="type_int16_1x256"/>
+            <arg type_ref="type_int16_1x256"/>
+            <arg type_ref="type_int16_1x256"/>
+            <arg type_ref="type_int16_1x256"/>
+          </method>
+        </call>
+      </context>
+      <bindings>
+        <bind name="input_activation_in" type_ref="type_int16_1x256"/>
+        <bind name="weight_layer1_in" type_ref="type_int16_1x256"/>
+        <bind name="weight_layer2_in" type_ref="type_int16_1x256"/>
+        <bind name="weight_layer3_in" type_ref="type_int16_1x256"/>
+      </bindings>
+      <body>
+        <Operation name="start">
+          <target>
+            <method ref="rt" name="start"/>
+          </target>
+          <args>
+            <arg>
+              <var ref="Workers"/>
+            </arg>
+          </args>
+        </Operation>
+        <Operation name="fill_input_activation_in_col0">
+          <target>
+            <method ref="rt" name="fill"/>
+          </target>
+          <args>
+            <arg>
+              <call>
+                <method ref="input_activation_fifo" name="prod"/>
+              </call>
+            </arg>
+            <arg>
+              <var ref="input_activation_in"/>
+            </arg>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>0</const>
+                </arg>
+                <arg>
+                  <const>0</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </args>
+        </Operation>
+        <Operation name="fill_weight_layer1_in_col0">
+          <target>
+            <method ref="rt" name="fill"/>
+          </target>
+          <args>
+            <arg>
+              <call>
+                <method ref="weights_col1_fifo" name="prod"/>
+              </call>
+            </arg>
+            <arg>
+              <var ref="weight_layer1_in"/>
+            </arg>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>1</const>
+                </arg>
+                <arg>
+                  <const>0</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </args>
+        </Operation>
+        <Operation name="fill_weight_layer2_in_col0">
+          <target>
+            <method ref="rt" name="fill"/>
+          </target>
+          <args>
+            <arg>
+              <call>
+                <method ref="weights_col2_fifo" name="prod"/>
+              </call>
+            </arg>
+            <arg>
+              <var ref="weight_layer2_in"/>
+            </arg>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>2</const>
+                </arg>
+                <arg>
+                  <const>0</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </args>
+        </Operation>
+        <Operation name="fill_weight_layer3_in_col0">
+          <target>
+            <method ref="rt" name="fill"/>
+          </target>
+          <args>
+            <arg>
+              <call>
+                <method ref="weights_col3_fifo" name="prod"/>
+              </call>
+            </arg>
+            <arg>
+              <var ref="weight_layer3_in"/>
+            </arg>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>3</const>
+                </arg>
+                <arg>
+                  <const>0</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </args>
+        </Operation>
+      </body>
+    </SequenceBlock>
+    <Program name="my_program">
+      <constructor>
+        <call>
+          <constructor ref="Program">
+            <arg>
+              <call>
+                <function ref="iron.get_current_device"/>
+              </call>
+            </arg>
+            <arg>
+              <var ref="rt"/>
+            </arg>
+          </constructor>
+        </call>
+      </constructor>
+    </Program>
+    <ResolveProgram>
+      <target>
+        <method ref="my_program" name="resolve_program">
+          <arg>
+            <constructor ref="SequentialPlacer"/>
+          </arg>
+        </method>
+      </target>
+      <returns>
+        <symbol ref="my_program_resolved"/>
+      </returns>
+    </ResolveProgram>
+  </DataFlow>
+  <Function name="gui_design_jit" decorator="iron.jit">
+    <parameters>
+      <param name="input_activation" type_ref="type_int16_1x256"/>
+      <param name="weight_layer1" type_ref="type_int16_1x256"/>
+      <param name="weight_layer2" type_ref="type_int16_1x256"/>
+      <param name="weight_layer3" type_ref="type_int16_1x256"/>
+    </parameters>
+    <attributes>
+      <kwarg name="is_placed" value="False"/>
+    </attributes>
+    <body>
+      <UseDataFlow>
+        <UseType name="type_int16_1x256"/>
+        <UseType name="type_int16_64"/>
+      </UseDataFlow>
+      <Return>
+        <var ref="program"/>
+      </Return>
+    </body>
+  </Function>
+  <Function name="main">
+    <body>
+      <Assign>
+        <target>input_activation</target>
+        <source>
+          <call>
+            <function ref="iron.arange">
+              <arg>
+                <var>(1</var>
+              </arg>
+              <arg>
+                <var>256)</var>
+              </arg>
+              <kwarg name="dtype">
+                <var>np.int16</var>
+              </kwarg>
+              <kwarg name="device">
+                <string>npu</string>
+              </kwarg>
+            </function>
+          </call>
+        </source>
+      </Assign>
+      <Assign>
+        <target>weight_layer1</target>
+        <source>
+          <call>
+            <function ref="iron.arange">
+              <arg>
+                <var>(1</var>
+              </arg>
+              <arg>
+                <var>256)</var>
+              </arg>
+              <kwarg name="dtype">
+                <var>np.int16</var>
+              </kwarg>
+              <kwarg name="device">
+                <string>npu</string>
+              </kwarg>
+            </function>
+          </call>
+        </source>
+      </Assign>
+      <Assign>
+        <target>weight_layer2</target>
+        <source>
+          <call>
+            <function ref="iron.arange">
+              <arg>
+                <var>(1</var>
+              </arg>
+              <arg>
+                <var>256)</var>
+              </arg>
+              <kwarg name="dtype">
+                <var>np.int16</var>
+              </kwarg>
+              <kwarg name="device">
+                <string>npu</string>
+              </kwarg>
+            </function>
+          </call>
+        </source>
+      </Assign>
+      <Assign>
+        <target>weight_layer3</target>
+        <source>
+          <call>
+            <function ref="iron.arange">
+              <arg>
+                <var>(1</var>
+              </arg>
+              <arg>
+                <var>256)</var>
+              </arg>
+              <kwarg name="dtype">
+                <var>np.int16</var>
+              </kwarg>
+              <kwarg name="device">
+                <string>npu</string>
+              </kwarg>
+            </function>
+          </call>
+        </source>
+      </Assign>
+      <Call>
+        <function ref="gui_design_jit">
+          <arg>
+            <var>input_activation</var>
+          </arg>
+          <arg>
+            <var>weight_layer1</var>
+          </arg>
+          <arg>
+            <var>weight_layer2</var>
+          </arg>
+          <arg>
+            <var>weight_layer3</var>
+          </arg>
+        </function>
+      </Call>
+    </body>
+  </Function>
+  <EntryPoint>
+    <If condition="__name__ == '__main__'">
+      <Call>
+        <function ref="main"/>
+      </Call>
+    </If>
+  </EntryPoint>
+</Module>

@@ -1,0 +1,14 @@
+{
+  "id": "matmul_i16_i16",
+  "name": "GEMM (INT16 × INT16)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void matmul_i16_i16(int16_t* a_in, int16_t* b_in, int16_t* c_out);",
+  "description": "Vectorized INT16 matrix multiply with INT16 output. Tile sizes controlled by DIM_M/DIM_K/DIM_N defines (default 4x4x4). Uses 4x4 mmul expansion for AIE2 efficiency. Instantiated from mm.cc combos macro.",
+  "entry": "mm.cc",
+  "files": [
+    "mm.cc",
+    "zero.cc"
+  ],
+  "tags": ["gemm", "matmul", "i16", "aie2"]
+}

@@ -1,0 +1,408 @@
+<?xml version="1.0" ?>
+<Module name="gui_design">
+    <Symbols>
+        <TypeAbstraction name="type_int16_1x256">
+            <ndarray>
+                <shape>1, 256</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="type_int16_64">
+            <ndarray>
+                <shape>64</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TAP name="Newtap" offset="0" use_tiler2d="false">
+            <tensor_dims>16, 16</tensor_dims>
+            <sizes>4, 4</sizes>
+            <strides>16, 1</strides>
+        </TAP>
+    </Symbols>
+    <DataFlow>
+        <ExternalFunction name="kernel_matmul_bf16">
+            <kernel>matmul_bf16_bf16</kernel>
+            <source>C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_bf16/mm.cc</source>
+            <arg_types>
+                <type>type_int16_1x256</type>
+                <type>type_int16_64</type>
+                <type>type_int16_64</type>
+            </arg_types>
+            <include_dirs>
+                <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_bf16</dir>
+            </include_dirs>
+        </ExternalFunction>
+        <ExternalFunction name="kernel_relu_bf16">
+            <kernel>bf16_relu</kernel>
+            <source>C:/Users/fasta/Projects/IRONSmith/resources/kernels/relu_bf16/relu.cc</source>
+            <arg_types>
+                <type>type_int16_1x256</type>
+                <type>type_int16_64</type>
+                <type>type_int16_64</type>
+            </arg_types>
+            <include_dirs>
+                <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/relu_bf16</dir>
+            </include_dirs>
+        </ExternalFunction>
+        <CoreFunction name="core_shared_matmul_relu">
+            <parameters>
+                <param name="Kernel1" role="external_function"/>
+                <param name="Kernel2" role="unknown"/>
+                <param name="in0" role="unknown"/>
+                <param name="in1" role="unknown"/>
+                <param name="out0" role="unknown"/>
+            </parameters>
+            <body>
+                <Acquire source="in0" count="1" name="buf_in0"/>
+                <Acquire source="in1" count="1" name="buf_in1"/>
+                <Acquire source="out0" count="1" name="buf_out0"/>
+                <Call function="Kernel1" args="buf_in0, buf_in1, buf_out0"/>
+                <Call function="Kernel2" args="buf_in0, buf_in1, buf_out0"/>
+                <Release source="in0" count="1"/>
+                <Release source="in1" count="1"/>
+                <Release source="out0" count="1"/>
+            </body>
+        </CoreFunction>
+        <CoreFunction name="core_shared_matmul_final">
+            <parameters>
+                <param name="kernel" role="external_function"/>
+                <param name="in0" role="unknown"/>
+                <param name="in1" role="unknown"/>
+                <param name="out0" role="unknown"/>
+            </parameters>
+            <body>
+                <Acquire source="in0" count="1" name="buf_in0"/>
+                <Acquire source="in1" count="1" name="buf_in1"/>
+                <Acquire source="out0" count="1" name="buf_out0"/>
+                <Call function="kernel" args="buf_in0, buf_in1, buf_out0"/>
+                <Release source="in0" count="1"/>
+                <Release source="in1" count="1"/>
+                <Release source="out0" count="1"/>
+            </body>
+        </CoreFunction>
+        <ObjectFifo name="input_activation_fifo">
+            <type>type_int16_1x256</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="inter_activation_fifo1">
+            <type>type_int16_1x256</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="weights_col0_fifo">
+            <type>type_int16_1x256</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="weights_col1_fifo">
+            <type>type_int16_1x256</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="weights_col2_fifo">
+            <type>type_int16_1x256</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="weights_col3_fifo">
+            <type>type_int16_1x256</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="output_activation_fifo">
+            <type>type_int16_1x256</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="inter_activation_fifo2">
+            <type>type_int16_1x256</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="inter_activation_fifo3">
+            <type>type_int16_1x256</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifoForward name="input_activation_col0_fifo" source="input_activation_fifo" placement="Tile(0, 1)"/>
+        <ObjectFifoJoin name="activation_tile_join_col0">
+            <dest>inter_activation_fifo1</dest>
+            <num_inputs>4</num_inputs>
+            <input_type>type_int16_64</input_type>
+            <placement>Tile(0, 1)</placement>
+            <offsets>0, 64, 128, 192</offsets>
+        </ObjectFifoJoin>
+        <ObjectFifoSplit name="weight_tile_split_col0">
+            <source>weights_col0_fifo</source>
+            <num_outputs>4</num_outputs>
+            <output_type>type_int16_64</output_type>
+            <placement>Tile(0, 1)</placement>
+            <offsets>0, 64, 128, 192</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoForward name="input_activation_col1_fifo" source="inter_activation_fifo1" placement="Tile(1, 1)"/>
+        <ObjectFifoForward name="input_activation_col2_fifo" source="inter_activation_fifo2" placement="Tile(2, 1)"/>
+        <ObjectFifoForward name="input_activation_col3_fifo" source="inter_activation_fifo3" placement="Tile(3, 1)"/>
+        <ObjectFifoSplit name="weight_tile_split_col1">
+            <source>weights_col1_fifo</source>
+            <num_outputs>4</num_outputs>
+            <output_type>type_int16_64</output_type>
+            <placement>Tile(1, 1)</placement>
+            <offsets>0, 64, 128, 192</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoSplit name="weight_tile_split_col2">
+            <source>weights_col2_fifo</source>
+            <num_outputs>4</num_outputs>
+            <output_type>type_int16_64</output_type>
+            <placement>Tile(2, 1)</placement>
+            <offsets>0, 64, 128, 192</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoSplit name="weight_tile_split_col3">
+            <source>weights_col3_fifo</source>
+            <num_outputs>4</num_outputs>
+            <output_type>type_int16_64</output_type>
+            <placement>Tile(3, 1)</placement>
+            <offsets>0, 64, 128, 192</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoJoin name="activation_tile_join_col1">
+            <dest>inter_activation_fifo2</dest>
+            <num_inputs>4</num_inputs>
+            <input_type>type_int16_64</input_type>
+            <placement>Tile(1, 1)</placement>
+            <offsets>0, 64, 128, 192</offsets>
+        </ObjectFifoJoin>
+        <ObjectFifoJoin name="activation_tile_join_col2">
+            <dest>inter_activation_fifo3</dest>
+            <num_inputs>4</num_inputs>
+            <input_type>type_int16_64</input_type>
+            <placement>Tile(2, 1)</placement>
+            <offsets>0, 64, 128, 192</offsets>
+        </ObjectFifoJoin>
+        <ObjectFifoJoin name="activation_tile_join_col3">
+            <dest>output_activation_fifo</dest>
+            <num_inputs>4</num_inputs>
+            <input_type>type_int16_64</input_type>
+            <placement>Tile(3, 1)</placement>
+            <offsets>0, 64, 128, 192</offsets>
+        </ObjectFifoJoin>
+        <Worker name="worker_aie0_2">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col0_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col0" index="0" mode="consumer"/>
+                <arg ref="activation_tile_join_col0" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 2)</placement>
+        </Worker>
+        <Worker name="worker_aie1_2">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col1_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col1" index="0" mode="consumer"/>
+                <arg ref="activation_tile_join_col1" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 2)</placement>
+        </Worker>
+        <Worker name="worker_aie2_2">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col2_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col2" index="0" mode="consumer"/>
+                <arg ref="activation_tile_join_col2" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 2)</placement>
+        </Worker>
+        <Worker name="worker_aie3_2">
+            <core_function>core_shared_matmul_final</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="input_activation_col3_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col3" index="0" mode="consumer"/>
+                <arg ref="activation_tile_join_col3" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 2)</placement>
+        </Worker>
+        <Worker name="worker_aie0_3">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col0_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col0" index="1" mode="consumer"/>
+                <arg ref="activation_tile_join_col0" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 3)</placement>
+        </Worker>
+        <Worker name="worker_aie1_3">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col1_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col1" index="1" mode="consumer"/>
+                <arg ref="activation_tile_join_col1" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 3)</placement>
+        </Worker>
+        <Worker name="worker_aie2_3">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col2_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col2" index="1" mode="consumer"/>
+                <arg ref="activation_tile_join_col2" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 3)</placement>
+        </Worker>
+        <Worker name="worker_aie3_3">
+            <core_function>core_shared_matmul_final</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="input_activation_col3_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col3" index="1" mode="consumer"/>
+                <arg ref="activation_tile_join_col3" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 3)</placement>
+        </Worker>
+        <Worker name="worker_aie0_4">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col0_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col0" index="2" mode="consumer"/>
+                <arg ref="activation_tile_join_col0" index="2" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 4)</placement>
+        </Worker>
+        <Worker name="worker_aie1_4">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col1_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col1" index="2" mode="consumer"/>
+                <arg ref="activation_tile_join_col1" index="2" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 4)</placement>
+        </Worker>
+        <Worker name="worker_aie2_4">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col2_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col2" index="2" mode="consumer"/>
+                <arg ref="activation_tile_join_col2" index="2" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 4)</placement>
+        </Worker>
+        <Worker name="worker_aie3_4">
+            <core_function>core_shared_matmul_final</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="input_activation_col3_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col3" index="2" mode="consumer"/>
+                <arg ref="activation_tile_join_col3" index="2" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 4)</placement>
+        </Worker>
+        <Worker name="worker_aie0_5">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col0_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col0" index="3" mode="consumer"/>
+                <arg ref="activation_tile_join_col0" index="3" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 5)</placement>
+        </Worker>
+        <Worker name="worker_aie1_5">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col1_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col1" index="3" mode="consumer"/>
+                <arg ref="activation_tile_join_col1" index="3" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 5)</placement>
+        </Worker>
+        <Worker name="worker_aie2_5">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="input_activation_col2_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col2" index="3" mode="consumer"/>
+                <arg ref="activation_tile_join_col2" index="3" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 5)</placement>
+        </Worker>
+        <Worker name="worker_aie3_5">
+            <core_function>core_shared_matmul_final</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_bf16"/>
+                <arg ref="input_activation_col3_fifo" mode="consumer"/>
+                <arg ref="weight_tile_split_col3" index="3" mode="consumer"/>
+                <arg ref="activation_tile_join_col3" index="3" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 5)</placement>
+        </Worker>
+        <Runtime name="runtime">
+            <Sequence inputs="type_int16_1x256, type_int16_1x256, type_int16_1x256, type_int16_1x256" as="input_activation_in, weight_layer1_in, weight_layer2_in, weight_layer3_in">
+                <Start>worker_aie3_4, worker_aie3_5, worker_aie0_3, worker_aie3_3, worker_aie0_5, worker_aie1_2, worker_aie1_4, worker_aie2_2, worker_aie1_3, worker_aie2_4, worker_aie0_4, worker_aie0_2, worker_aie2_5, worker_aie1_5, worker_aie2_3, worker_aie3_2</Start>
+                <Fill target="input_activation_fifo" source="input_activation_in" data_ref="input_activation" use_tap="false">
+                    <placement>Tile(0, 0)</placement>
+                </Fill>
+                <Fill target="weights_col1_fifo" source="weight_layer1_in" data_ref="weight_layer1" use_tap="false">
+                    <placement>Tile(1, 0)</placement>
+                </Fill>
+                <Fill target="weights_col2_fifo" source="weight_layer2_in" data_ref="weight_layer2" use_tap="false">
+                    <placement>Tile(2, 0)</placement>
+                </Fill>
+                <Fill target="weights_col3_fifo" source="weight_layer3_in" data_ref="weight_layer3" use_tap="false">
+                    <placement>Tile(3, 0)</placement>
+                </Fill>
+            </Sequence>
+        </Runtime>
+        <Program name="program">
+            <device>current_device</device>
+            <runtime>runtime</runtime>
+            <placer>SequentialPlacer</placer>
+        </Program>
+    </DataFlow>
+    <Function name="jit_function" decorator="iron.jit" entry="gui_design_jit">
+        <parameters>
+            <param name="input_activation" type="type_int16_1x256"/>
+            <param name="weight_layer1" type="type_int16_1x256"/>
+            <param name="weight_layer2" type="type_int16_1x256"/>
+            <param name="weight_layer3" type="type_int16_1x256"/>
+        </parameters>
+        <body>
+            <UseDataFlow/>
+            <Return>program</Return>
+        </body>
+    </Function>
+    <Function name="main_function" entry="main">
+        <body>
+            <Tensor name="input_activation">
+                <init>iron.arange((1, 256), dtype=np.int16, device="npu")</init>
+            </Tensor>
+            <Tensor name="weight_layer1">
+                <init>iron.arange((1, 256), dtype=np.int16, device="npu")</init>
+            </Tensor>
+            <Tensor name="weight_layer2">
+                <init>iron.arange((1, 256), dtype=np.int16, device="npu")</init>
+            </Tensor>
+            <Tensor name="weight_layer3">
+                <init>iron.arange((1, 256), dtype=np.int16, device="npu")</init>
+            </Tensor>
+            <Call function="jit_function" args="input_activation, weight_layer1, weight_layer2, weight_layer3"/>
+        </body>
+    </Function>
+    <EntryPoint>
+        <If condition="__name__ == '__main__'">
+            <Call function="main_function"/>
+        </If>
+    </EntryPoint>
+</Module>

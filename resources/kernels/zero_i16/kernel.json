@@ -1,0 +1,14 @@
+{
+  "id": "zero_i16",
+  "name": "Zero (INT16)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void zero_i16(int16_t* c_out);",
+  "description": "Vectorized INT16 zero-fill. Fills the output tile with zeros. Tile size controlled by DIM_M/DIM_N defines (default 4x4). Instantiated from mm.cc combos macro.",
+  "entry": "mm.cc",
+  "files": [
+    "mm.cc",
+    "zero.cc"
+  ],
+  "tags": ["zero", "i16", "fill", "aie2"]
+}
