@@ -2022,9 +2022,7 @@ void AiePropertiesPanel::applyTileLabel()
 static QString buildDefaultBodyJson(const Canvas::CanvasBlock* block,
                                     const Canvas::CanvasDocument* document)
 {
-    // Collect kernel name — prefer new assignedKernels list; fall back to "kernel".
     const QStringList& assigned = block->assignedKernels();
-    QString kernelName = assigned.isEmpty() ? u"kernel"_s : assigned.first();
 
     // If the user has explicitly assigned fn_args via coreBodyArgs, derive the template from
     // those rather than from raw wire counts, so param names match the fifo/kernel names.
@@ -2042,14 +2040,16 @@ static QString buildDefaultBodyJson(const Canvas::CanvasBlock* block,
                 case Kind::FifoProducer: outputParams << name; break;
             }
         }
-        if (!kernelParams.isEmpty()) kernelName = kernelParams.first();
-
         QJsonArray  params;
         QJsonObject paramRoles;
         auto addPm = [&](const QString& n, int role) { params.append(n); paramRoles[n] = role; };
         for (const QString& n : kernelParams) addPm(n, 0);
         for (const QString& n : inputParams)  addPm(n, 1);
         for (const QString& n : outputParams) addPm(n, 2);
+
+        QJsonArray bufArgs;
+        for (const QString& n : inputParams)  bufArgs.append(u"buf_"_s + n);
+        for (const QString& n : outputParams) bufArgs.append(u"buf_"_s + n);
 
         QJsonArray body;
         for (const QString& n : inputParams) {
@@ -2068,14 +2068,13 @@ static QString buildDefaultBodyJson(const Canvas::CanvasBlock* block,
             acq[u"local_var"_s]  = u"buf_"_s + n;
             body.append(acq);
         }
-        QJsonObject call;
-        call[u"type"_s]         = u"KernelCall"_s;
-        call[u"kernel_param"_s] = kernelName;
-        QJsonArray args;
-        for (const QString& n : inputParams)  args.append(u"buf_"_s + n);
-        for (const QString& n : outputParams) args.append(u"buf_"_s + n);
-        call[u"args"_s] = args;
-        body.append(call);
+        for (const QString& kp : kernelParams) {
+            QJsonObject call;
+            call[u"type"_s]         = u"KernelCall"_s;
+            call[u"kernel_param"_s] = kp;
+            call[u"args"_s]         = bufArgs;
+            body.append(call);
+        }
         for (const QString& n : inputParams) {
             QJsonObject rel;
             rel[u"type"_s]       = u"Release"_s;
@@ -2155,19 +2154,25 @@ static QString buildDefaultBodyJson(const Canvas::CanvasBlock* block,
         }
     }
 
-    // Build params array and role map: kernel first, then inputs, then outputs.
+    // Build params array and role map: all kernels first, then inputs, then outputs.
     // param_roles: 0=kernel, 1=input, 2=output — read by BodyStmtsEditor::setJson.
+    // Kernel names: "kernel" for the first, "kernel2", "kernel3", ... for extras.
+    QStringList allKernelParams;
+    allKernelParams.append(assigned.isEmpty() ? u"kernel"_s : assigned.first());
+    for (int ki = 1; ki < assigned.size(); ++ki)
+        allKernelParams.append(QStringLiteral("kernel%1").arg(ki + 1));
+
     QJsonArray  params;
     QJsonObject paramRoles;
     auto addParam = [&](const QString& name, int role) {
         params.append(name);
         paramRoles.insert(name, role);
     };
-    addParam(kernelName, 0);
+    for (const QString& kp : allKernelParams) addParam(kp, 0);
     for (int i = 0; i < numInputs;  ++i) addParam(QString(u"in%1"_s).arg(i),  1);
     for (int i = 0; i < numOutputs; ++i) addParam(QString(u"out%1"_s).arg(i), 2);
 
-    // Build body statements: acquire all, kernel call, release all
+    // Build body statements: acquire all FIFOs, one kernel call per kernel, release all FIFOs.
     QJsonArray body;
     for (int i = 0; i < numInputs; ++i) {
         QJsonObject acq;
@@ -2186,14 +2191,16 @@ static QString buildDefaultBodyJson(const Canvas::CanvasBlock* block,
         body.append(acq);
     }
 
-    QJsonObject call;
-    call[u"type"_s]         = u"KernelCall"_s;
-    call[u"kernel_param"_s] = kernelName;
-    QJsonArray args;
-    for (int i = 0; i < numInputs;  ++i) args.append(QString(u"buf_in%1"_s).arg(i));
-    for (int i = 0; i < numOutputs; ++i) args.append(QString(u"buf_out%1"_s).arg(i));
-    call[u"args"_s] = args;
-    body.append(call);
+    QJsonArray callArgs;
+    for (int i = 0; i < numInputs;  ++i) callArgs.append(QString(u"buf_in%1"_s).arg(i));
+    for (int i = 0; i < numOutputs; ++i) callArgs.append(QString(u"buf_out%1"_s).arg(i));
+    for (const QString& kp : allKernelParams) {
+        QJsonObject call;
+        call[u"type"_s]         = u"KernelCall"_s;
+        call[u"kernel_param"_s] = kp;
+        call[u"args"_s]         = callArgs;
+        body.append(call);
+    }
 
     for (int i = 0; i < numInputs; ++i) {
         QJsonObject rel;

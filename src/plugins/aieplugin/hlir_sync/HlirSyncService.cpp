@@ -1532,6 +1532,7 @@ void HlirSyncService::buildWorkers()
         hlir::ComponentId tileId;
         QList<FifoEndpoint> inputs;
         QList<FifoEndpoint> outputs;
+        QStringList allKernels; // all assigned kernel IDs; [0] == the primary (group key)
     };
 
     QHash<QString, QList<TileWorkerSpec>> specsByKernelId;
@@ -1658,7 +1659,9 @@ void HlirSyncService::buildWorkers()
             block->specId().toStdString(),
             tileId,
             std::move(inputs),
-            std::move(outputs)
+            std::move(outputs),
+            block->assignedKernels().isEmpty()
+                ? QStringList{kernelId} : block->assignedKernels()
         });
     }
 
@@ -1770,6 +1773,42 @@ void HlirSyncService::buildWorkers()
                 && blk->coreFunctionConfig()->mode == Mode::SharedRef
                 && !blk->coreFunctionConfig()->sharedFunctionName.isEmpty();
 
+            // --- Register external kernels for any additional assigned kernels ---
+            // The primary kernel (spec.allKernels[0]) was registered above; ensure
+            // every extra kernel also has an external declaration before we build the
+            // core function and worker args that reference it.
+            for (int ki = 1; ki < spec.allKernels.size(); ++ki) {
+                const QString& extraKernelId = spec.allKernels[ki];
+                if (m_kernelMap.contains(extraKernelId))
+                    continue; // already registered (possibly by another tile)
+                const KernelAsset* extraKernel = m_kernelRegistry->kernelById(extraKernelId);
+                if (!extraKernel) {
+                    qCWarning(hlirSyncLog)
+                        << "HlirSyncService: extra kernel not found:" << extraKernelId;
+                    continue;
+                }
+                std::vector<hlir::ComponentId> extraArgTypes;
+                for (const auto& ep : spec.inputs)  extraArgTypes.push_back(ep.typeId);
+                for (const auto& ep : spec.outputs) extraArgTypes.push_back(ep.typeId);
+                std::vector<std::string> extraIncludeDirs;
+                for (const QString& dir : extraKernel->includeDirs)
+                    extraIncludeDirs.push_back(dir.toStdString());
+                auto extraResult = m_bridge->addExternalKernel(
+                    "kernel_" + extraKernel->id.toStdString(),
+                    functionNameFromSig(extraKernel->signature, extraKernel->id).toStdString(),
+                    extraKernel->absoluteEntryPath().toStdString(),
+                    extraArgTypes,
+                    extraIncludeDirs,
+                    {});
+                if (extraResult)
+                    m_kernelMap[extraKernelId] = extraResult.value();
+                else
+                    qCWarning(hlirSyncLog)
+                        << "HlirSyncService: failed to add extra external kernel" << extraKernelId;
+            }
+
+            const bool isMultiKernel = (spec.allKernels.size() > 1);
+
             hlir::ComponentId coreFnId;
 
             if (isSharedRef) {
@@ -1865,8 +1904,80 @@ void HlirSyncService::buildWorkers()
                     coreFnId = result.value();
                 }
                 m_coreFuncMap[spec.blockId] = coreFnId;
+            } else if (isMultiKernel) {
+                // Multi-kernel default: generate a per-tile core function body that calls
+                // each assigned kernel in order with all buffer variables as arguments.
+                // Named "kernel", "kernel2", "kernel3", ..., then "in0"/"out0" for FIFOs.
+                std::vector<std::string> mkParams;
+                mkParams.push_back("kernel");
+                for (int ki = 1; ki < spec.allKernels.size(); ++ki)
+                    mkParams.push_back("kernel" + std::to_string(ki + 1));
+                for (int i = 0; i < numInputs;  ++i) mkParams.push_back("in"  + std::to_string(i));
+                for (int i = 0; i < numOutputs; ++i) mkParams.push_back("out" + std::to_string(i));
+
+                // Build buffer var names used in acquire/release and kernel call args.
+                std::vector<std::string> bufVars;
+                for (int i = 0; i < numInputs;  ++i) bufVars.push_back("buf_in"  + std::to_string(i));
+                for (int i = 0; i < numOutputs; ++i) bufVars.push_back("buf_out" + std::to_string(i));
+
+                // Build body JSON array.
+                QJsonArray bodyArr;
+                for (int i = 0; i < numInputs; ++i) {
+                    QJsonObject acq;
+                    acq[QStringLiteral("type")]       = QStringLiteral("Acquire");
+                    acq[QStringLiteral("fifo_param")] = QStringLiteral("in%1").arg(i);
+                    acq[QStringLiteral("count")]      = 1;
+                    acq[QStringLiteral("local_var")]  = QStringLiteral("buf_in%1").arg(i);
+                    bodyArr.append(acq);
+                }
+                for (int i = 0; i < numOutputs; ++i) {
+                    QJsonObject acq;
+                    acq[QStringLiteral("type")]       = QStringLiteral("Acquire");
+                    acq[QStringLiteral("fifo_param")] = QStringLiteral("out%1").arg(i);
+                    acq[QStringLiteral("count")]      = 1;
+                    acq[QStringLiteral("local_var")]  = QStringLiteral("buf_out%1").arg(i);
+                    bodyArr.append(acq);
+                }
+                QJsonArray bufVarsJson;
+                for (const auto& bv : bufVars) bufVarsJson.append(QString::fromStdString(bv));
+                for (int ki = 0; ki < spec.allKernels.size(); ++ki) {
+                    QJsonObject kc;
+                    kc[QStringLiteral("type")]         = QStringLiteral("KernelCall");
+                    kc[QStringLiteral("kernel_param")] = (ki == 0)
+                        ? QStringLiteral("kernel")
+                        : QStringLiteral("kernel%1").arg(ki + 1);
+                    kc[QStringLiteral("args")]         = bufVarsJson;
+                    bodyArr.append(kc);
+                }
+                for (int i = 0; i < numInputs; ++i) {
+                    QJsonObject rel;
+                    rel[QStringLiteral("type")]       = QStringLiteral("Release");
+                    rel[QStringLiteral("fifo_param")] = QStringLiteral("in%1").arg(i);
+                    rel[QStringLiteral("count")]      = 1;
+                    bodyArr.append(rel);
+                }
+                for (int i = 0; i < numOutputs; ++i) {
+                    QJsonObject rel;
+                    rel[QStringLiteral("type")]       = QStringLiteral("Release");
+                    rel[QStringLiteral("fifo_param")] = QStringLiteral("out%1").arg(i);
+                    rel[QStringLiteral("count")]      = 1;
+                    bodyArr.append(rel);
+                }
+                const std::string mkBodyJson =
+                    QJsonDocument(bodyArr).toJson(QJsonDocument::Compact).toStdString();
+
+                auto result = m_bridge->addCoreFunctionBody(
+                    "core_" + spec.tileName, mkParams, mkBodyJson, {});
+                if (!result) {
+                    qCWarning(hlirSyncLog)
+                        << "HlirSyncService: failed to add multi-kernel core function for"
+                        << QString::fromStdString(spec.tileName);
+                    continue;
+                }
+                coreFnId = result.value();
+                m_coreFuncMap[spec.blockId] = coreFnId;
             } else {
-                // Default acquire/call/release — shared across all default tiles for this kernel.
+                // Default single-kernel acquire/call/release — shared across all default tiles.
                 if (sharedDefaultCoreFnId.empty()) {
                     std::vector<hlir::HlirBridge::AcquireSpec> acquires;
                     for (int i = 0; i < numInputs;  ++i)
@@ -1957,8 +2068,18 @@ void HlirSyncService::buildWorkers()
                     }
                 }
             } else {
-                // Default ordering: kernel first, then inputs, then outputs.
-                fnArgs.push_back(hlir::HlirBridge::FunctionArg::kernel(kernelResult.value()));
+                // Default ordering: all kernels first (in assigned order), then inputs, then outputs.
+                for (const auto& kid : spec.allKernels) {
+                    const hlir::ComponentId kId = (kid == kernelId)
+                        ? kernelResult.value()
+                        : m_kernelMap.value(kid);
+                    if (!kId.empty())
+                        fnArgs.push_back(hlir::HlirBridge::FunctionArg::kernel(kId));
+                    else
+                        qCWarning(hlirSyncLog)
+                            << "HlirSyncService: kernel" << kid << "not in map for tile"
+                            << QString::fromStdString(spec.tileName);
+                }
                 for (const auto& ep : spec.inputs)  fnArgs.push_back(ep.arg);
                 for (const auto& ep : spec.outputs) fnArgs.push_back(ep.arg);
             }
