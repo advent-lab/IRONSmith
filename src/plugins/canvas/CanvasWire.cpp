@@ -776,8 +776,19 @@ QString CanvasWire::annotationText(AnnotationDetail detail, const CanvasRenderCo
     if (m_fillDrain.has_value())
         return fillDrainAnnotationText(*m_fillDrain, detail == AnnotationDetail::Compact);
 
-    if (m_objectFifo.has_value())
-        return objectFifoAnnotationText(*m_objectFifo, detail == AnnotationDetail::Compact);
+    if (m_objectFifo.has_value()) {
+        // BCAST pivot wire: if the source FIFO is already a join target in this
+        // document, the broadcast is redundant — show only "BCAST: {fifoName}"
+        // (no hub name) to signal the reduced role.  Valid broadcasts keep the
+        // full "BCAST: {hubName}, {fifoName}" format.
+        const auto& of = *m_objectFifo;
+        if (of.operation == ObjectFifoOperation::Forward
+                && !of.hubName.trimmed().isEmpty()
+                && ctx.joinTargetFifoNames.contains(of.name.trimmed()))
+            return QStringLiteral("BCAST: ") + of.name.trimmed();
+
+        return objectFifoAnnotationText(of, detail == AnnotationDetail::Compact);
+    }
 
     if (const QString legacyDdrLabel = legacyDdrAnnotationText(m_a, m_b, ctx);
         !legacyDdrLabel.isEmpty())

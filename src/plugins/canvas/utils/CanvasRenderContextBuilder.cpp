@@ -5,6 +5,7 @@
 
 #include "canvas/CanvasDocument.hpp"
 #include "canvas/CanvasView.hpp"
+#include "canvas/CanvasWire.hpp"
 
 #include <algorithm>
 
@@ -59,6 +60,20 @@ CanvasRenderContext buildRenderContext(const CanvasDocument* doc,
     ctx.wireAnnotationDetailMode = annotations.wireAnnotationDetailMode;
     ctx.wireAnnotationsScaleWithZoom = annotations.wireAnnotationsScaleWithZoom;
     ctx.showAllWireAnnotations = (annotations.wireAnnotationVisibilityMode == WireAnnotationVisibilityMode::ShowAll);
+
+    // Collect FIFO names that are Join-hub pivot targets so that BCAST pivot
+    // annotation can suppress the hub name when its source was already joined.
+    if (doc) {
+        for (const auto& item : doc->items()) {
+            const auto* wire = dynamic_cast<const CanvasWire*>(item.get());
+            if (!wire || !wire->hasObjectFifo()) continue;
+            const auto& cfg = wire->objectFifo().value();
+            if (cfg.operation == CanvasWire::ObjectFifoOperation::Join
+                    && !cfg.hubName.trimmed().isEmpty()
+                    && !cfg.name.trimmed().isEmpty())
+                ctx.joinTargetFifoNames.insert(cfg.name.trimmed());
+        }
+    }
 
     return ctx;
 }

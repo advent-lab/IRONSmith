@@ -7,6 +7,7 @@
 #include "canvas/CanvasTypes.hpp"
 
 #include <QtCore/QRectF>
+#include <QtCore/QSet>
 #include <QtCore/QString>
 #include <cstdint>
 
@@ -140,6 +141,10 @@ struct CANVAS_EXPORT CanvasRenderContext final {
     WireAnnotationVisibilityMode wireAnnotationVisibilityMode = WireAnnotationVisibilityMode::Auto;
     WireAnnotationDetailMode wireAnnotationDetailMode = WireAnnotationDetailMode::Adaptive;
     bool wireAnnotationsScaleWithZoom = true;
+
+    // FIFO names that appear as Join-hub pivot targets in the document.
+    // Used by BCAST pivot wire annotation to decide whether to suppress the hub name.
+    QSet<QString> joinTargetFifoNames;
 };
 
 } // namespace Canvas

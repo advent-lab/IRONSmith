@@ -46,9 +46,6 @@ def gui_design_jit(input_activation, weight_layer0, weight_layer1, weight_layer2
     activation_tile_join_col3 = output_activation_fifo.prod().join(names=["activation_tile_join_col3_in1", "activation_tile_join_col3_in2", "activation_tile_join_col3_in3", "activation_tile_join_col3_in4"], obj_types=[type_int16_64, type_int16_64, type_int16_64, type_int16_64], offsets=[0, 64, 128, 192], placement=Tile(3, 1))
     # Broadcasts
     input_activation_col0_fifo = input_activation_fifo.cons().forward(placement=Tile(0, 1))
-    input_activation_col1_fifo = inter_activation_fifo1.cons().forward(placement=Tile(1, 1))
-    input_activation_col2_fifo = inter_activation_fifo2.cons().forward(placement=Tile(2, 1))
-    input_activation_col3_fifo = inter_activation_fifo3.cons().forward(placement=Tile(3, 1))
 
     # Compute Kernels
     kernel_matmul_i16_i16 = ExternalFunction(
@@ -93,21 +90,21 @@ def gui_design_jit(input_activation, weight_layer0, weight_layer1, weight_layer2
     # Workers
     Workers = []
     worker_aie0_2 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col0_fifo.cons(), weight_tile_split_col0[0].cons(), activation_tile_join_col0[0].prod()], placement=Tile(0, 2))
-    worker_aie1_2 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col1_fifo.cons(), weight_tile_split_col1[0].cons(), activation_tile_join_col1[0].prod()], placement=Tile(1, 2))
-    worker_aie2_2 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col2_fifo.cons(), weight_tile_split_col2[0].cons(), activation_tile_join_col2[0].prod()], placement=Tile(2, 2))
-    worker_aie3_2 = Worker(core_fn=core_shared_matmul_softmax, fn_args=[kernel_matmul_i16_i16, kernel_zero_i16, kernel_softmax_bf16, input_activation_col3_fifo.cons(), weight_tile_split_col3[0].cons(), activation_tile_join_col3[0].prod()], placement=Tile(3, 2))
+    worker_aie1_2 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, inter_activation_fifo1.cons(), weight_tile_split_col1[0].cons(), activation_tile_join_col1[0].prod()], placement=Tile(1, 2))
+    worker_aie2_2 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, inter_activation_fifo2.cons(), weight_tile_split_col2[0].cons(), activation_tile_join_col2[0].prod()], placement=Tile(2, 2))
+    worker_aie3_2 = Worker(core_fn=core_shared_matmul_softmax, fn_args=[kernel_matmul_i16_i16, kernel_zero_i16, kernel_softmax_bf16, inter_activation_fifo3.cons(), weight_tile_split_col3[0].cons(), activation_tile_join_col3[0].prod()], placement=Tile(3, 2))
     worker_aie0_3 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col0_fifo.cons(), weight_tile_split_col0[1].cons(), activation_tile_join_col0[1].prod()], placement=Tile(0, 3))
-    worker_aie1_3 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col1_fifo.cons(), weight_tile_split_col1[1].cons(), activation_tile_join_col1[1].prod()], placement=Tile(1, 3))
-    worker_aie2_3 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col2_fifo.cons(), weight_tile_split_col2[1].cons(), activation_tile_join_col2[1].prod()], placement=Tile(2, 3))
-    worker_aie3_3 = Worker(core_fn=core_shared_matmul_softmax, fn_args=[kernel_matmul_i16_i16, kernel_zero_i16, kernel_softmax_bf16, input_activation_col3_fifo.cons(), weight_tile_split_col3[1].cons(), activation_tile_join_col3[1].prod()], placement=Tile(3, 3))
+    worker_aie1_3 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, inter_activation_fifo1.cons(), weight_tile_split_col1[1].cons(), activation_tile_join_col1[1].prod()], placement=Tile(1, 3))
+    worker_aie2_3 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, inter_activation_fifo2.cons(), weight_tile_split_col2[1].cons(), activation_tile_join_col2[1].prod()], placement=Tile(2, 3))
+    worker_aie3_3 = Worker(core_fn=core_shared_matmul_softmax, fn_args=[kernel_matmul_i16_i16, kernel_zero_i16, kernel_softmax_bf16, inter_activation_fifo3.cons(), weight_tile_split_col3[1].cons(), activation_tile_join_col3[1].prod()], placement=Tile(3, 3))
     worker_aie0_4 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col0_fifo.cons(), weight_tile_split_col0[2].cons(), activation_tile_join_col0[2].prod()], placement=Tile(0, 4))
-    worker_aie1_4 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col1_fifo.cons(), weight_tile_split_col1[2].cons(), activation_tile_join_col1[2].prod()], placement=Tile(1, 4))
-    worker_aie2_4 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col2_fifo.cons(), weight_tile_split_col2[2].cons(), activation_tile_join_col2[2].prod()], placement=Tile(2, 4))
-    worker_aie3_4 = Worker(core_fn=core_shared_matmul_softmax, fn_args=[kernel_matmul_i16_i16, kernel_zero_i16, kernel_softmax_bf16, input_activation_col3_fifo.cons(), weight_tile_split_col3[2].cons(), activation_tile_join_col3[2].prod()], placement=Tile(3, 4))
+    worker_aie1_4 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, inter_activation_fifo1.cons(), weight_tile_split_col1[2].cons(), activation_tile_join_col1[2].prod()], placement=Tile(1, 4))
+    worker_aie2_4 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, inter_activation_fifo2.cons(), weight_tile_split_col2[2].cons(), activation_tile_join_col2[2].prod()], placement=Tile(2, 4))
+    worker_aie3_4 = Worker(core_fn=core_shared_matmul_softmax, fn_args=[kernel_matmul_i16_i16, kernel_zero_i16, kernel_softmax_bf16, inter_activation_fifo3.cons(), weight_tile_split_col3[2].cons(), activation_tile_join_col3[2].prod()], placement=Tile(3, 4))
     worker_aie0_5 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col0_fifo.cons(), weight_tile_split_col0[3].cons(), activation_tile_join_col0[3].prod()], placement=Tile(0, 5))
-    worker_aie1_5 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col1_fifo.cons(), weight_tile_split_col1[3].cons(), activation_tile_join_col1[3].prod()], placement=Tile(1, 5))
-    worker_aie2_5 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, input_activation_col2_fifo.cons(), weight_tile_split_col2[3].cons(), activation_tile_join_col2[3].prod()], placement=Tile(2, 5))
-    worker_aie3_5 = Worker(core_fn=core_shared_matmul_softmax, fn_args=[kernel_matmul_i16_i16, kernel_zero_i16, kernel_softmax_bf16, input_activation_col3_fifo.cons(), weight_tile_split_col3[3].cons(), activation_tile_join_col3[3].prod()], placement=Tile(3, 5))
+    worker_aie1_5 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, inter_activation_fifo1.cons(), weight_tile_split_col1[3].cons(), activation_tile_join_col1[3].prod()], placement=Tile(1, 5))
+    worker_aie2_5 = Worker(core_fn=core_shared_matmul_relu, fn_args=[kernel_matmul_i16_i16, kernel_relu_i16, kernel_zero_i16, inter_activation_fifo2.cons(), weight_tile_split_col2[3].cons(), activation_tile_join_col2[3].prod()], placement=Tile(2, 5))
+    worker_aie3_5 = Worker(core_fn=core_shared_matmul_softmax, fn_args=[kernel_matmul_i16_i16, kernel_zero_i16, kernel_softmax_bf16, inter_activation_fifo3.cons(), weight_tile_split_col3[3].cons(), activation_tile_join_col3[3].prod()], placement=Tile(3, 5))
 
     Workers = [worker_aie0_2, worker_aie1_2, worker_aie2_2, worker_aie3_2, worker_aie0_3, worker_aie1_3, worker_aie2_3, worker_aie3_3, worker_aie0_4, worker_aie1_4, worker_aie2_4, worker_aie3_4, worker_aie0_5, worker_aie1_5, worker_aie2_5, worker_aie3_5]
 

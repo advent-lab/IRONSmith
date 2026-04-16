@@ -1284,6 +1284,28 @@ class CodeGenerator:
             else:
                 standard_ofs.append(of_id)
 
+        # Build set of FIFO names that are already join targets.
+        # A join expression looks like "<fifo_name>.prod().join(...)".
+        join_target_fifo_names: set[str] = set()
+        for _of_id, expr in join_ofs:
+            dot = expr.find('.prod()')
+            if dot != -1:
+                join_target_fifo_names.add(expr[:dot].strip())
+
+        # Build a map: broadcast_fifo_name -> source_fifo_name for any broadcast
+        # that sources from a join-target FIFO.  These forwards are invalid in IRON
+        # because the source FIFO's producer side is already owned by the join.
+        # Workers that reference the broadcast FIFO name should instead call
+        # .cons() directly on the original join-target FIFO.
+        # Store on self so CodeGeneratorExtender can access it during worker gen.
+        self._join_broadcast_map: dict[str, str] = {}
+        for of_id, expr in bcast_ofs:
+            dot = expr.find('.cons()')
+            source_fifo = expr[:dot].strip() if dot != -1 else ''
+            if source_fifo and source_fifo in join_target_fifo_names:
+                of_name = self._get_node_attr(of_id, 'label')
+                self._join_broadcast_map[of_name] = source_fifo
+
         # Data movement section
         self._emit("# Data Movement")
         self._emit("# Object Fifos")
@@ -1299,9 +1321,12 @@ class CodeGenerator:
             for of_id, expr in join_ofs:
                 of_name = self._get_node_attr(of_id, 'label')
                 self._emit(f"{of_name} = {expr}")
-        if bcast_ofs:
+        # Emit only the broadcasts that do NOT source from a join-target FIFO.
+        real_bcast_ofs = [(of_id, expr) for of_id, expr in bcast_ofs
+                         if self._get_node_attr(of_id, 'label') not in self._join_broadcast_map]
+        if real_bcast_ofs:
             self._emit("# Broadcasts")
-            for of_id, expr in bcast_ofs:
+            for of_id, expr in real_bcast_ofs:
                 of_name = self._get_node_attr(of_id, 'label')
                 self._emit(f"{of_name} = {expr}")
 

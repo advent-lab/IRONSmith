@@ -351,10 +351,18 @@ class WorkerCodeGen(CodeGenExtension):
             base_nodes = self._get_children(arg_id, 'base')
             if not base_nodes:
                 return ""
-            
+
             # Reconstruct base
             result = self._reconstruct_expression(base_nodes[0])
-            
+
+            # If the base FIFO name was suppressed because it sourced from a
+            # join-target FIFO, substitute the original join-target FIFO name so
+            # the worker calls .cons() on it directly instead of on the deleted
+            # broadcast alias.
+            join_broadcast_map = getattr(self.generator, '_join_broadcast_map', {})
+            if result in join_broadcast_map:
+                result = join_broadcast_map[result]
+
             # Get method calls in order
             method_nodes = self._get_children(arg_id, 'has_call')
             for method_id in method_nodes:
@@ -368,7 +376,7 @@ class WorkerCodeGen(CodeGenExtension):
                         result += f".{method_name}({kwargs})"
                     else:
                         result += f".{method_name}()"
-            
+
             return result
         
         # For non-MethodChain nodes, use standard reconstruction

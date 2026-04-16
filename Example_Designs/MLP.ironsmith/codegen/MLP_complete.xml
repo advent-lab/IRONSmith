@@ -122,8 +122,8 @@
         <kwarg name="source_file" value="C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16/softmax.cc"/>
         <kwarg name="arg_types">
           <list>
-            <type_ref>type_int16_256</type_ref>
             <type_ref>type_int16_64</type_ref>
+            <type_ref>type_int16_256</type_ref>
             <type_ref>type_int16_64</type_ref>
           </list>
         </kwarg>
@@ -550,81 +550,6 @@
         </method_chain>
       </source>
     </ObjectFifo>
-    <ObjectFifo name="input_activation_col1_fifo">
-      <source>
-        <method_chain>
-          <base>
-            <var ref="inter_activation_fifo1"/>
-          </base>
-          <call>
-            <method name="cons"/>
-          </call>
-          <call>
-            <method name="forward"/>
-            <kwarg name="placement">
-              <constructor ref="Tile">
-                <arg>
-                  <const>1</const>
-                </arg>
-                <arg>
-                  <const>1</const>
-                </arg>
-              </constructor>
-            </kwarg>
-          </call>
-        </method_chain>
-      </source>
-    </ObjectFifo>
-    <ObjectFifo name="input_activation_col2_fifo">
-      <source>
-        <method_chain>
-          <base>
-            <var ref="inter_activation_fifo2"/>
-          </base>
-          <call>
-            <method name="cons"/>
-          </call>
-          <call>
-            <method name="forward"/>
-            <kwarg name="placement">
-              <constructor ref="Tile">
-                <arg>
-                  <const>2</const>
-                </arg>
-                <arg>
-                  <const>1</const>
-                </arg>
-              </constructor>
-            </kwarg>
-          </call>
-        </method_chain>
-      </source>
-    </ObjectFifo>
-    <ObjectFifo name="input_activation_col3_fifo">
-      <source>
-        <method_chain>
-          <base>
-            <var ref="inter_activation_fifo3"/>
-          </base>
-          <call>
-            <method name="cons"/>
-          </call>
-          <call>
-            <method name="forward"/>
-            <kwarg name="placement">
-              <constructor ref="Tile">
-                <arg>
-                  <const>3</const>
-                </arg>
-                <arg>
-                  <const>1</const>
-                </arg>
-              </constructor>
-            </kwarg>
-          </call>
-        </method_chain>
-      </source>
-    </ObjectFifo>
     <ObjectFifo name="weight_tile_split_col1">
       <source>
         <method_chain>
@@ -925,6 +850,81 @@
         </method_chain>
       </source>
     </ObjectFifo>
+    <ObjectFifo name="bcast2">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inter_activation_fifo1"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="forward"/>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>1</const>
+                </arg>
+                <arg>
+                  <const>1</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="bcast3">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inter_activation_fifo2"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="forward"/>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>2</const>
+                </arg>
+                <arg>
+                  <const>1</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
+    <ObjectFifo name="bcast4">
+      <source>
+        <method_chain>
+          <base>
+            <var ref="inter_activation_fifo3"/>
+          </base>
+          <call>
+            <method name="cons"/>
+          </call>
+          <call>
+            <method name="forward"/>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>3</const>
+                </arg>
+                <arg>
+                  <const>1</const>
+                </arg>
+              </constructor>
+            </kwarg>
+          </call>
+        </method_chain>
+      </source>
+    </ObjectFifo>
     <Worker name="worker_aie0_2">
       <core_fn ref="core_shared_matmul_relu"/>
       <fn_args>
@@ -1008,16 +1008,6 @@
         <arg>
           <method_chain>
             <base>
-              <var ref="input_activation_col1_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col1"/>
@@ -1076,16 +1066,6 @@
         <arg>
           <method_chain>
             <base>
-              <var ref="input_activation_col2_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col2"/>
@@ -1140,16 +1120,6 @@
         </arg>
         <arg>
           <var ref="kernel_softmax_bf16"/>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
-              <var ref="input_activation_col3_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
         </arg>
         <arg>
           <method_chain>
@@ -1280,16 +1250,6 @@
         <arg>
           <method_chain>
             <base>
-              <var ref="input_activation_col1_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col1"/>
@@ -1348,16 +1308,6 @@
         <arg>
           <method_chain>
             <base>
-              <var ref="input_activation_col2_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col2"/>
@@ -1412,16 +1362,6 @@
         </arg>
         <arg>
           <var ref="kernel_softmax_bf16"/>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
-              <var ref="input_activation_col3_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
         </arg>
         <arg>
           <method_chain>
@@ -1552,16 +1492,6 @@
         <arg>
           <method_chain>
             <base>
-              <var ref="input_activation_col1_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col1"/>
@@ -1620,16 +1550,6 @@
         <arg>
           <method_chain>
             <base>
-              <var ref="input_activation_col2_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col2"/>
@@ -1684,16 +1604,6 @@
         </arg>
         <arg>
           <var ref="kernel_softmax_bf16"/>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
-              <var ref="input_activation_col3_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
         </arg>
         <arg>
           <method_chain>
@@ -1824,16 +1734,6 @@
         <arg>
           <method_chain>
             <base>
-              <var ref="input_activation_col1_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col1"/>
@@ -1892,16 +1792,6 @@
         <arg>
           <method_chain>
             <base>
-              <var ref="input_activation_col2_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col2"/>
@@ -1956,16 +1846,6 @@
         </arg>
         <arg>
           <var ref="kernel_softmax_bf16"/>
-        </arg>
-        <arg>
-          <method_chain>
-            <base>
-              <var ref="input_activation_col3_fifo"/>
-            </base>
-            <call>
-              <method name="cons"/>
-            </call>
-          </method_chain>
         </arg>
         <arg>
           <method_chain>

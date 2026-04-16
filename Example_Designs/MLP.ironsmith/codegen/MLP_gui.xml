@@ -61,8 +61,8 @@
             <kernel>softmax_bf16</kernel>
             <source>C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16/softmax.cc</source>
             <arg_types>
-                <type>type_int16_256</type>
                 <type>type_int16_64</type>
+                <type>type_int16_256</type>
                 <type>type_int16_64</type>
             </arg_types>
             <include_dirs>
@@ -162,9 +162,6 @@
             <placement>Tile(0, 1)</placement>
             <offsets>0, 64, 128, 192</offsets>
         </ObjectFifoSplit>
-        <ObjectFifoForward name="input_activation_col1_fifo" source="inter_activation_fifo1" placement="Tile(1, 1)"/>
-        <ObjectFifoForward name="input_activation_col2_fifo" source="inter_activation_fifo2" placement="Tile(2, 1)"/>
-        <ObjectFifoForward name="input_activation_col3_fifo" source="inter_activation_fifo3" placement="Tile(3, 1)"/>
         <ObjectFifoSplit name="weight_tile_split_col1">
             <source>weights_col1_fifo</source>
             <num_outputs>4</num_outputs>
@@ -207,6 +204,9 @@
             <placement>Tile(3, 1)</placement>
             <offsets>0, 64, 128, 192</offsets>
         </ObjectFifoJoin>
+        <ObjectFifoForward name="bcast2" source="inter_activation_fifo1" placement="Tile(1, 1)"/>
+        <ObjectFifoForward name="bcast3" source="inter_activation_fifo2" placement="Tile(2, 1)"/>
+        <ObjectFifoForward name="bcast4" source="inter_activation_fifo3" placement="Tile(3, 1)"/>
         <Worker name="worker_aie0_2">
             <core_function>core_shared_matmul_relu</core_function>
             <arguments>
@@ -225,7 +225,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_relu_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="input_activation_col1_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col1" index="0" mode="consumer"/>
                 <arg ref="activation_tile_join_col1" index="0" mode="producer"/>
             </arguments>
@@ -237,7 +236,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_relu_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="input_activation_col2_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col2" index="0" mode="consumer"/>
                 <arg ref="activation_tile_join_col2" index="0" mode="producer"/>
             </arguments>
@@ -249,7 +247,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_zero_i16"/>
                 <arg ref="kernel_softmax_bf16"/>
-                <arg ref="input_activation_col3_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col3" index="0" mode="consumer"/>
                 <arg ref="activation_tile_join_col3" index="0" mode="producer"/>
             </arguments>
@@ -273,7 +270,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_relu_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="input_activation_col1_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col1" index="1" mode="consumer"/>
                 <arg ref="activation_tile_join_col1" index="1" mode="producer"/>
             </arguments>
@@ -285,7 +281,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_relu_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="input_activation_col2_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col2" index="1" mode="consumer"/>
                 <arg ref="activation_tile_join_col2" index="1" mode="producer"/>
             </arguments>
@@ -297,7 +292,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_zero_i16"/>
                 <arg ref="kernel_softmax_bf16"/>
-                <arg ref="input_activation_col3_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col3" index="1" mode="consumer"/>
                 <arg ref="activation_tile_join_col3" index="1" mode="producer"/>
             </arguments>
@@ -321,7 +315,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_relu_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="input_activation_col1_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col1" index="2" mode="consumer"/>
                 <arg ref="activation_tile_join_col1" index="2" mode="producer"/>
             </arguments>
@@ -333,7 +326,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_relu_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="input_activation_col2_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col2" index="2" mode="consumer"/>
                 <arg ref="activation_tile_join_col2" index="2" mode="producer"/>
             </arguments>
@@ -345,7 +337,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_zero_i16"/>
                 <arg ref="kernel_softmax_bf16"/>
-                <arg ref="input_activation_col3_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col3" index="2" mode="consumer"/>
                 <arg ref="activation_tile_join_col3" index="2" mode="producer"/>
             </arguments>
@@ -369,7 +360,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_relu_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="input_activation_col1_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col1" index="3" mode="consumer"/>
                 <arg ref="activation_tile_join_col1" index="3" mode="producer"/>
             </arguments>
@@ -381,7 +371,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_relu_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="input_activation_col2_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col2" index="3" mode="consumer"/>
                 <arg ref="activation_tile_join_col2" index="3" mode="producer"/>
             </arguments>
@@ -393,7 +382,6 @@
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_zero_i16"/>
                 <arg ref="kernel_softmax_bf16"/>
-                <arg ref="input_activation_col3_fifo" mode="consumer"/>
                 <arg ref="weight_tile_split_col3" index="3" mode="consumer"/>
                 <arg ref="activation_tile_join_col3" index="3" mode="producer"/>
             </arguments>
@@ -401,7 +389,7 @@
         </Worker>
         <Runtime name="runtime">
             <Sequence inputs="type_int16_256x256, type_int16_256, type_int16_256, type_int16_256, type_int16_256, type_int16_256" as="input_activation_in, weight_layer0_in, weight_layer1_in, weight_layer2_in, weight_layer3_in, output_activation_out">
-                <Start>worker_aie3_3, worker_aie2_3, worker_aie3_4, worker_aie0_3, worker_aie1_5, worker_aie3_2, worker_aie3_5, worker_aie2_2, worker_aie1_3, worker_aie0_2, worker_aie1_4, worker_aie1_2, worker_aie0_4, worker_aie2_5, worker_aie0_5, worker_aie2_4</Start>
+                <Start>worker_aie0_2, worker_aie0_3, worker_aie3_3, worker_aie1_5, worker_aie0_4, worker_aie2_2, worker_aie1_4, worker_aie0_5, worker_aie3_4, worker_aie3_2, worker_aie2_5, worker_aie1_2, worker_aie2_4, worker_aie3_5, worker_aie1_3, worker_aie2_3</Start>
                 <Fill target="input_activation_fifo" source="input_activation_in" data_ref="input_activation" use_tap="false">
                     <placement>Tile(0, 0)</placement>
                 </Fill>
