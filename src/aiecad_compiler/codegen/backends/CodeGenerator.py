@@ -19,6 +19,7 @@ Key Design Principles:
 4. Complete: Generates all code elements (imports, types, functions, etc.)
 """
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -47,7 +48,8 @@ class CodeGenerator:
         self.code_lines: List[str] = []
         self.indent_level = 0
         self.dataflow_generated = False  # Prevent duplicate DataFlow generation
-        
+        self._use_kernel_api = False     # Set by _needs_kernel_api() during generate()
+
         # Register code generation extensions
         from extension.CodeGeneratorExtender import register_codegen_extensions
         register_codegen_extensions(self)
@@ -57,6 +59,40 @@ class CodeGenerator:
     # ===================================================================
     # Core utilities for traversing graph and emitting formatted code.
     
+    def _needs_kernel_api(self) -> bool:
+        """Return True if any worker uses more than one kernel.
+
+        When multiple kernels share a tile, IRON requires the Kernel API
+        (compiled .a archive) rather than ExternalFunction (source file).
+        """
+        ef_nodes = self._find_nodes_by_kind('ExternalFunction')
+        if not ef_nodes:
+            return False
+        ef_labels = {self._get_node_attr(n, 'label') for n in ef_nodes}
+        for w_id in self._find_nodes_by_kind('Worker'):
+            arg_nodes = self._get_children(w_id, 'has_arg')
+            count = sum(1 for a_id in arg_nodes
+                        if self._get_node_attr(a_id, 'label') in ef_labels)
+            if count > 1:
+                return True
+        return False
+
+    def _get_kernel_iron_signature(self, ef_node_id: str) -> Optional[Dict]:
+        """Load the iron_signature block from the kernel's kernel.json, or None if unavailable."""
+        for kw_id in self._get_children(ef_node_id, 'has_kwarg'):
+            if self._get_node_attr(kw_id, 'name') == 'source_file':
+                source_file = self._get_node_attr(kw_id, 'value')
+                if source_file:
+                    kj = Path(source_file).parent / 'kernel.json'
+                    if kj.is_file():
+                        try:
+                            with open(kj) as f:
+                                data = json.load(f)
+                            return data.get('iron_signature')
+                        except Exception:
+                            pass
+        return None
+
     def _indent(self) -> str:
         """Return current indentation string (4 spaces per level)."""
         return "    " * self.indent_level
@@ -147,11 +183,14 @@ class CodeGenerator:
         Returns:
             str: Complete Python source code
         """
+        # Determine Kernel vs ExternalFunction mode once for the whole module.
+        self._use_kernel_api = self._needs_kernel_api()
+
         # Find module node
         module_nodes = self._find_nodes_by_kind('Module')
         if not module_nodes:
             raise ValueError("No Module node found in graph")
-        
+
         module_id = module_nodes[0]
         module_name = self._get_node_attr(module_id, 'label', 'unnamed')
         
@@ -210,10 +249,15 @@ class CodeGenerator:
                     self._emit("from ml_dtypes import bfloat16")
                 elif name == 'aie.iron':
                     self._emit()
+                    if self._use_kernel_api:
+                        self._emit("import os")
                     self._emit("from aie.iron import Program, Runtime, Worker, ObjectFifo")
                     self._emit("from aie.iron.placers import SequentialPlacer")
                     self._emit("from aie.iron.device.tile import AnyComputeTile")
-                    self._emit("from aie.iron import ExternalFunction, jit")
+                    if self._use_kernel_api:
+                        self._emit("from aie.iron import Kernel, jit")
+                    else:
+                        self._emit("from aie.iron import ExternalFunction, jit")
                     self._emit("from aie.iron.dataflow import ObjectFifoLink")
                     self._emit("from aie.iron.device import Tile")
                     self._emit("from aie.iron.device import NPU1Col1, NPU2Col1, XCVC1902")
@@ -1338,6 +1382,17 @@ class CodeGenerator:
         
         if ext_func_nodes:
             self._emit("# Compute Kernels")
+            if self._use_kernel_api:
+                self._emit('build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "build")')
+                # Emit one archive variable per unique archive name.
+                archives_emitted: Set[str] = set()
+                for ef_id in ext_func_nodes:
+                    iron_sig = self._get_kernel_iron_signature(ef_id)
+                    archive = iron_sig.get('archive', '') if iron_sig else ''
+                    if archive and archive not in archives_emitted:
+                        archive_var = Path(archive).stem + '_archive'
+                        self._emit(f'{archive_var} = os.path.join(build_dir, "{archive}")')
+                        archives_emitted.add(archive)
             for ef_id in ext_func_nodes:
                 # Use extension if available
                 if hasattr(self, '_generate_ext_externalfunction'):

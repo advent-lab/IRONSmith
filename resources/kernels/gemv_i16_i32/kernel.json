@@ -10,5 +10,9 @@
     "mv.cc",
     "zero.cc"
   ],
-  "tags": ["gemv", "matvec", "i16", "i32", "aie2"]
+  "tags": ["gemv", "matvec", "i16", "i32", "aie2"],
+  "iron_signature": {
+    "archive": "mv.a",
+    "arg_types": ["type_int16_256", "type_int16_64", "type_int32_64"]
+  }
 }

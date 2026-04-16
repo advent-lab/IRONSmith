@@ -10,5 +10,9 @@
     "mm.cc",
     "zero.cc"
   ],
-  "tags": ["gemm", "bf16", "matmul", "aie2"]
+  "tags": ["gemm", "bf16", "matmul", "aie2"],
+  "iron_signature": {
+    "archive": "mm.a",
+    "arg_types": ["type_bf16_256", "type_bf16_64", "type_bf16_64"]
+  }
 }

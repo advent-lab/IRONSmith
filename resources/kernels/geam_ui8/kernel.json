@@ -9,5 +9,9 @@
   "files": [
     "addWeighted.cc"
   ],
-  "tags": ["geam", "addweighted", "matrix", "ui8", "aie2"]
+  "tags": ["geam", "addweighted", "matrix", "ui8", "aie2"],
+  "iron_signature": {
+    "archive": "addWeighted.a",
+    "arg_types": ["type_uint8_256", "type_uint8_256", "type_uint8_256"]
+  }
 }

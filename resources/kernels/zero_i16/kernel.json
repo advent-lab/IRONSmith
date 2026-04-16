@@ -10,5 +10,9 @@
     "mm.cc",
     "zero.cc"
   ],
-  "tags": ["zero", "i16", "fill", "aie2"]
+  "tags": ["zero", "i16", "fill", "aie2"],
+  "iron_signature": {
+    "archive": "mm.a",
+    "arg_types": ["type_int16_64"]
+  }
 }

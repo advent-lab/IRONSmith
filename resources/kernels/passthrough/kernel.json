@@ -9,5 +9,9 @@
   "files": [
     "passThrough.cc"
   ],
-  "tags": ["passthrough", "generic", "copy", "identity"]
+  "tags": ["passthrough", "generic", "copy", "identity"],
+  "iron_signature": {
+    "archive": "passThrough.a",
+    "arg_types": ["type_T_N", "type_T_N"]
+  }
 }

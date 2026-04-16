@@ -4,10 +4,11 @@
 import numpy as np
 from ml_dtypes import bfloat16
 
+import os
 from aie.iron import Program, Runtime, Worker, ObjectFifo
 from aie.iron.placers import SequentialPlacer
 from aie.iron.device.tile import AnyComputeTile
-from aie.iron import ExternalFunction, jit
+from aie.iron import Kernel, jit
 from aie.iron.dataflow import ObjectFifoLink
 from aie.iron.device import Tile
 from aie.iron.device import NPU1Col1, NPU2Col1, XCVC1902
@@ -48,21 +49,16 @@ def gui_design_jit(input_activation, weight_layer0, weight_layer1, weight_layer2
     input_activation_col0_fifo = input_activation_fifo.cons().forward(placement=Tile(0, 1))
 
     # Compute Kernels
-    kernel_matmul_i16_i16 = ExternalFunction(
-        name="matmul_i16_i16", source_file="C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_i16_i16/mm.cc", arg_types=[type_int16_256, type_int16_64, type_int16_64], include_dirs=["C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_i16_i16"]
-    )
+    build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "build")
+    mm_archive = os.path.join(build_dir, "mm.a")
+    softmax_archive = os.path.join(build_dir, "softmax.a")
+    kernel_matmul_i16_i16 = Kernel("matmul_i16_i16", mm_archive, [type_int16_256, type_int16_64, type_int16_64])
 
-    kernel_relu_i16 = ExternalFunction(
-        name="relu_i16", source_file="C:/Users/fasta/Projects/IRONSmith/resources/kernels/relu_i16/relu_i16.cc", arg_types=[type_int16_256, type_int16_64, type_int16_64], include_dirs=["C:/Users/fasta/Projects/IRONSmith/resources/kernels/relu_i16"]
-    )
+    kernel_relu_i16 = Kernel("relu_i16", mm_archive, [type_int16_64])
 
-    kernel_zero_i16 = ExternalFunction(
-        name="zero_i16", source_file="C:/Users/fasta/Projects/IRONSmith/resources/kernels/zero_i16/mm.cc", arg_types=[type_int16_256, type_int16_64, type_int16_64], include_dirs=["C:/Users/fasta/Projects/IRONSmith/resources/kernels/zero_i16"]
-    )
+    kernel_zero_i16 = Kernel("zero_i16", mm_archive, [type_int16_64])
 
-    kernel_softmax_bf16 = ExternalFunction(
-        name="softmax_bf16", source_file="C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16/softmax.cc", arg_types=[type_int16_256, type_int16_64, type_int16_64], include_dirs=["C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16"]
-    )
+    kernel_softmax_bf16 = Kernel("softmax_bf16", softmax_archive, [type_bf16_256, type_bf16_256])
 
     # Core Body Functions
     def core_shared_matmul_relu(Kernel1, Kernel2, Kernel3, in0, in1, out0):

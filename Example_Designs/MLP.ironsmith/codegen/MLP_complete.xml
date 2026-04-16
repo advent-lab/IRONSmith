@@ -1008,6 +1008,16 @@
         <arg>
           <method_chain>
             <base>
+              <var ref="bcast2"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col1"/>
@@ -1066,6 +1076,16 @@
         <arg>
           <method_chain>
             <base>
+              <var ref="bcast3"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col2"/>
@@ -1120,6 +1140,16 @@
         </arg>
         <arg>
           <var ref="kernel_softmax_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="bcast4"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
         </arg>
         <arg>
           <method_chain>
@@ -1250,6 +1280,16 @@
         <arg>
           <method_chain>
             <base>
+              <var ref="bcast2"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col1"/>
@@ -1308,6 +1348,16 @@
         <arg>
           <method_chain>
             <base>
+              <var ref="bcast3"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col2"/>
@@ -1362,6 +1412,16 @@
         </arg>
         <arg>
           <var ref="kernel_softmax_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="bcast4"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
         </arg>
         <arg>
           <method_chain>
@@ -1492,6 +1552,16 @@
         <arg>
           <method_chain>
             <base>
+              <var ref="bcast2"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col1"/>
@@ -1550,6 +1620,16 @@
         <arg>
           <method_chain>
             <base>
+              <var ref="bcast3"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col2"/>
@@ -1604,6 +1684,16 @@
         </arg>
         <arg>
           <var ref="kernel_softmax_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="bcast4"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
         </arg>
         <arg>
           <method_chain>
@@ -1734,6 +1824,16 @@
         <arg>
           <method_chain>
             <base>
+              <var ref="bcast2"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col1"/>
@@ -1792,6 +1892,16 @@
         <arg>
           <method_chain>
             <base>
+              <var ref="bcast3"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
               <index>
                 <base>
                   <var ref="weight_tile_split_col2"/>
@@ -1846,6 +1956,16 @@
         </arg>
         <arg>
           <var ref="kernel_softmax_bf16"/>
+        </arg>
+        <arg>
+          <method_chain>
+            <base>
+              <var ref="bcast4"/>
+            </base>
+            <call>
+              <method name="cons"/>
+            </call>
+          </method_chain>
         </arg>
         <arg>
           <method_chain>

@@ -9,5 +9,9 @@
   "files": [
     "mul.cc"
   ],
-  "tags": ["mul", "bf16", "eltwise", "vector", "aie2"]
+  "tags": ["mul", "bf16", "eltwise", "vector", "aie2"],
+  "iron_signature": {
+    "archive": "mul.a",
+    "arg_types": ["type_bf16_1024", "type_bf16_1024", "type_bf16_1024"]
+  }
 }

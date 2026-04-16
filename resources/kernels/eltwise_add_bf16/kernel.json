@@ -9,5 +9,9 @@
   "files": [
     "add.cc"
   ],
-  "tags": ["add", "bf16", "eltwise", "vector", "aie2"]
+  "tags": ["add", "bf16", "eltwise", "vector", "aie2"],
+  "iron_signature": {
+    "archive": "add.a",
+    "arg_types": ["type_bf16_1024", "type_bf16_1024", "type_bf16_1024"]
+  }
 }

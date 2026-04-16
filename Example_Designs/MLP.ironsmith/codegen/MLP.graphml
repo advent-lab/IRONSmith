@@ -2086,592 +2086,575 @@
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_480">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
 <node id="temp_479"/>
-<node id="ConstExpr_481">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
-</node>
-<node id="MethodCall_482">
+<node id="MethodCall_480">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_483">
+<node id="MethodChain_481">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_485">
+<node id="IndexExpr_483">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_484"/>
-<node id="ConstExpr_486">
+<node id="temp_482"/>
+<node id="ConstExpr_484">
   <data key="d0">0</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">0</data>
 </node>
-<node id="MethodCall_487">
+<node id="MethodCall_485">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_486">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_488">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_487"/>
+<node id="ConstExpr_489">
+  <data key="d0">0</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">0</data>
+</node>
+<node id="MethodCall_490">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_488">
+<node id="ConstructorCall_491">
   <data key="d0">Tile()</data>
   <data key="d1">ConstructorCall</data>
 </node>
-<node id="Expr_489">
+<node id="Expr_492">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_490">
+<node id="ConstExpr_493">
   <data key="d0">1</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">1</data>
 </node>
-<node id="Expr_491">
+<node id="Expr_494">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_492">
+<node id="ConstExpr_495">
   <data key="d0">2</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">2</data>
 </node>
-<node id="Worker_493">
+<node id="Worker_496">
   <data key="d0">worker_aie2_2</data>
   <data key="d1">Worker</data>
 </node>
-<node id="MethodChain_494">
+<node id="MethodChain_497">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_496">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_495"/>
-<node id="ConstExpr_497">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
-</node>
-<node id="MethodCall_498">
+<node id="temp_498"/>
+<node id="MethodCall_499">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_499">
+<node id="MethodChain_500">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_501">
+<node id="IndexExpr_502">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_500"/>
-<node id="ConstExpr_502">
+<node id="temp_501"/>
+<node id="ConstExpr_503">
   <data key="d0">0</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">0</data>
 </node>
-<node id="MethodCall_503">
+<node id="MethodCall_504">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_505">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_507">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_506"/>
+<node id="ConstExpr_508">
+  <data key="d0">0</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">0</data>
+</node>
+<node id="MethodCall_509">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_504">
+<node id="ConstructorCall_510">
   <data key="d0">Tile()</data>
   <data key="d1">ConstructorCall</data>
 </node>
-<node id="Expr_505">
+<node id="Expr_511">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_506">
+<node id="ConstExpr_512">
   <data key="d0">2</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">2</data>
 </node>
-<node id="Expr_507">
+<node id="Expr_513">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_508">
+<node id="ConstExpr_514">
   <data key="d0">2</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">2</data>
 </node>
-<node id="Worker_509">
+<node id="Worker_515">
   <data key="d0">worker_aie3_2</data>
   <data key="d1">Worker</data>
 </node>
-<node id="MethodChain_510">
+<node id="MethodChain_516">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_512">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_511"/>
-<node id="ConstExpr_513">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
-</node>
-<node id="MethodCall_514">
+<node id="temp_517"/>
+<node id="MethodCall_518">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_515">
+<node id="MethodChain_519">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_517">
+<node id="IndexExpr_521">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_516"/>
-<node id="ConstExpr_518">
+<node id="temp_520"/>
+<node id="ConstExpr_522">
   <data key="d0">0</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">0</data>
 </node>
-<node id="MethodCall_519">
+<node id="MethodCall_523">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_524">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_526">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_525"/>
+<node id="ConstExpr_527">
+  <data key="d0">0</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">0</data>
+</node>
+<node id="MethodCall_528">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_520">
+<node id="ConstructorCall_529">
   <data key="d0">Tile()</data>
   <data key="d1">ConstructorCall</data>
 </node>
-<node id="Expr_521">
+<node id="Expr_530">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_522">
+<node id="ConstExpr_531">
   <data key="d0">3</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">3</data>
 </node>
-<node id="Expr_523">
+<node id="Expr_532">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_524">
+<node id="ConstExpr_533">
   <data key="d0">2</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">2</data>
 </node>
-<node id="Worker_525">
+<node id="Worker_534">
   <data key="d0">worker_aie0_3</data>
   <data key="d1">Worker</data>
 </node>
-<node id="MethodChain_526">
+<node id="MethodChain_535">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="temp_527"/>
-<node id="MethodCall_528">
+<node id="temp_536"/>
+<node id="MethodCall_537">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_529">
+<node id="MethodChain_538">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_531">
+<node id="IndexExpr_540">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_530"/>
-<node id="ConstExpr_532">
+<node id="temp_539"/>
+<node id="ConstExpr_541">
   <data key="d0">1</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">1</data>
 </node>
-<node id="MethodCall_533">
+<node id="MethodCall_542">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_534">
+<node id="MethodChain_543">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_536">
+<node id="IndexExpr_545">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_535"/>
-<node id="ConstExpr_537">
+<node id="temp_544"/>
+<node id="ConstExpr_546">
   <data key="d0">1</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">1</data>
 </node>
-<node id="MethodCall_538">
+<node id="MethodCall_547">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_539">
+<node id="ConstructorCall_548">
   <data key="d0">Tile()</data>
   <data key="d1">ConstructorCall</data>
 </node>
-<node id="Expr_540">
+<node id="Expr_549">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_541">
+<node id="ConstExpr_550">
   <data key="d0">0</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">0</data>
 </node>
-<node id="Expr_542">
+<node id="Expr_551">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_543">
+<node id="ConstExpr_552">
   <data key="d0">3</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">3</data>
 </node>
-<node id="Worker_544">
+<node id="Worker_553">
   <data key="d0">worker_aie1_3</data>
   <data key="d1">Worker</data>
 </node>
-<node id="MethodChain_545">
+<node id="MethodChain_554">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_547">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_546"/>
-<node id="ConstExpr_548">
-  <data key="d0">1</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">1</data>
-</node>
-<node id="MethodCall_549">
+<node id="temp_555"/>
+<node id="MethodCall_556">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_550">
+<node id="MethodChain_557">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_552">
+<node id="IndexExpr_559">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_551"/>
-<node id="ConstExpr_553">
+<node id="temp_558"/>
+<node id="ConstExpr_560">
   <data key="d0">1</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">1</data>
 </node>
-<node id="MethodCall_554">
+<node id="MethodCall_561">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_562">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_564">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_563"/>
+<node id="ConstExpr_565">
+  <data key="d0">1</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">1</data>
+</node>
+<node id="MethodCall_566">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_555">
+<node id="ConstructorCall_567">
   <data key="d0">Tile()</data>
   <data key="d1">ConstructorCall</data>
 </node>
-<node id="Expr_556">
+<node id="Expr_568">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_557">
-  <data key="d0">1</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">1</data>
-</node>
-<node id="Expr_558">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
-</node>
-<node id="ConstExpr_559">
-  <data key="d0">3</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">3</data>
-</node>
-<node id="Worker_560">
-  <data key="d0">worker_aie2_3</data>
-  <data key="d1">Worker</data>
-</node>
-<node id="MethodChain_561">
-  <data key="d0">method_chain</data>
-  <data key="d1">MethodChain</data>
-</node>
-<node id="IndexExpr_563">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_562"/>
-<node id="ConstExpr_564">
-  <data key="d0">1</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">1</data>
-</node>
-<node id="MethodCall_565">
-  <data key="d0">cons</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="MethodChain_566">
-  <data key="d0">method_chain</data>
-  <data key="d1">MethodChain</data>
-</node>
-<node id="IndexExpr_568">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_567"/>
 <node id="ConstExpr_569">
   <data key="d0">1</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">1</data>
 </node>
-<node id="MethodCall_570">
-  <data key="d0">prod</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="ConstructorCall_571">
-  <data key="d0">Tile()</data>
-  <data key="d1">ConstructorCall</data>
-</node>
-<node id="Expr_572">
+<node id="Expr_570">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_573">
-  <data key="d0">2</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">2</data>
-</node>
-<node id="Expr_574">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
-</node>
-<node id="ConstExpr_575">
+<node id="ConstExpr_571">
   <data key="d0">3</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">3</data>
 </node>
-<node id="Worker_576">
+<node id="Worker_572">
+  <data key="d0">worker_aie2_3</data>
+  <data key="d1">Worker</data>
+</node>
+<node id="MethodChain_573">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="temp_574"/>
+<node id="MethodCall_575">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_576">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_578">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_577"/>
+<node id="ConstExpr_579">
+  <data key="d0">1</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">1</data>
+</node>
+<node id="MethodCall_580">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_581">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_583">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_582"/>
+<node id="ConstExpr_584">
+  <data key="d0">1</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">1</data>
+</node>
+<node id="MethodCall_585">
+  <data key="d0">prod</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="ConstructorCall_586">
+  <data key="d0">Tile()</data>
+  <data key="d1">ConstructorCall</data>
+</node>
+<node id="Expr_587">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_588">
+  <data key="d0">2</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">2</data>
+</node>
+<node id="Expr_589">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_590">
+  <data key="d0">3</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">3</data>
+</node>
+<node id="Worker_591">
   <data key="d0">worker_aie3_3</data>
   <data key="d1">Worker</data>
 </node>
-<node id="MethodChain_577">
+<node id="MethodChain_592">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_579">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_578"/>
-<node id="ConstExpr_580">
-  <data key="d0">1</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">1</data>
-</node>
-<node id="MethodCall_581">
+<node id="temp_593"/>
+<node id="MethodCall_594">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_582">
+<node id="MethodChain_595">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_584">
+<node id="IndexExpr_597">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_583"/>
-<node id="ConstExpr_585">
+<node id="temp_596"/>
+<node id="ConstExpr_598">
   <data key="d0">1</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">1</data>
 </node>
-<node id="MethodCall_586">
+<node id="MethodCall_599">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_600">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_602">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_601"/>
+<node id="ConstExpr_603">
+  <data key="d0">1</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">1</data>
+</node>
+<node id="MethodCall_604">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_587">
+<node id="ConstructorCall_605">
   <data key="d0">Tile()</data>
   <data key="d1">ConstructorCall</data>
 </node>
-<node id="Expr_588">
+<node id="Expr_606">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_589">
+<node id="ConstExpr_607">
   <data key="d0">3</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">3</data>
 </node>
-<node id="Expr_590">
+<node id="Expr_608">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_591">
+<node id="ConstExpr_609">
   <data key="d0">3</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">3</data>
 </node>
-<node id="Worker_592">
+<node id="Worker_610">
   <data key="d0">worker_aie0_4</data>
   <data key="d1">Worker</data>
 </node>
-<node id="MethodChain_593">
+<node id="MethodChain_611">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="temp_594"/>
-<node id="MethodCall_595">
+<node id="temp_612"/>
+<node id="MethodCall_613">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_596">
+<node id="MethodChain_614">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_598">
+<node id="IndexExpr_616">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_597"/>
-<node id="ConstExpr_599">
+<node id="temp_615"/>
+<node id="ConstExpr_617">
   <data key="d0">2</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">2</data>
 </node>
-<node id="MethodCall_600">
+<node id="MethodCall_618">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_601">
+<node id="MethodChain_619">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_603">
+<node id="IndexExpr_621">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_602"/>
-<node id="ConstExpr_604">
+<node id="temp_620"/>
+<node id="ConstExpr_622">
   <data key="d0">2</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">2</data>
 </node>
-<node id="MethodCall_605">
+<node id="MethodCall_623">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_606">
+<node id="ConstructorCall_624">
   <data key="d0">Tile()</data>
   <data key="d1">ConstructorCall</data>
-</node>
-<node id="Expr_607">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
-</node>
-<node id="ConstExpr_608">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
-</node>
-<node id="Expr_609">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
-</node>
-<node id="ConstExpr_610">
-  <data key="d0">4</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">4</data>
-</node>
-<node id="Worker_611">
-  <data key="d0">worker_aie1_4</data>
-  <data key="d1">Worker</data>
-</node>
-<node id="MethodChain_612">
-  <data key="d0">method_chain</data>
-  <data key="d1">MethodChain</data>
-</node>
-<node id="IndexExpr_614">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_613"/>
-<node id="ConstExpr_615">
-  <data key="d0">2</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">2</data>
-</node>
-<node id="MethodCall_616">
-  <data key="d0">cons</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="MethodChain_617">
-  <data key="d0">method_chain</data>
-  <data key="d1">MethodChain</data>
-</node>
-<node id="IndexExpr_619">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_618"/>
-<node id="ConstExpr_620">
-  <data key="d0">2</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">2</data>
-</node>
-<node id="MethodCall_621">
-  <data key="d0">prod</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="ConstructorCall_622">
-  <data key="d0">Tile()</data>
-  <data key="d1">ConstructorCall</data>
-</node>
-<node id="Expr_623">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
-</node>
-<node id="ConstExpr_624">
-  <data key="d0">1</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">1</data>
 </node>
 <node id="Expr_625">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
 <node id="ConstExpr_626">
+  <data key="d0">0</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">0</data>
+</node>
+<node id="Expr_627">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_628">
   <data key="d0">4</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">4</data>
 </node>
-<node id="Worker_627">
-  <data key="d0">worker_aie2_4</data>
+<node id="Worker_629">
+  <data key="d0">worker_aie1_4</data>
   <data key="d1">Worker</data>
 </node>
-<node id="MethodChain_628">
+<node id="MethodChain_630">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_630">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_629"/>
-<node id="ConstExpr_631">
-  <data key="d0">2</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">2</data>
-</node>
+<node id="temp_631"/>
 <node id="MethodCall_632">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
@@ -2691,229 +2674,221 @@
   <data key="d4">2</data>
 </node>
 <node id="MethodCall_637">
-  <data key="d0">prod</data>
+  <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_638">
-  <data key="d0">Tile()</data>
-  <data key="d1">ConstructorCall</data>
+<node id="MethodChain_638">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
 </node>
-<node id="Expr_639">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
+<node id="IndexExpr_640">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
 </node>
-<node id="ConstExpr_640">
+<node id="temp_639"/>
+<node id="ConstExpr_641">
   <data key="d0">2</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">2</data>
 </node>
-<node id="Expr_641">
+<node id="MethodCall_642">
+  <data key="d0">prod</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="ConstructorCall_643">
+  <data key="d0">Tile()</data>
+  <data key="d1">ConstructorCall</data>
+</node>
+<node id="Expr_644">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_642">
+<node id="ConstExpr_645">
+  <data key="d0">1</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">1</data>
+</node>
+<node id="Expr_646">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_647">
   <data key="d0">4</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">4</data>
 </node>
-<node id="Worker_643">
-  <data key="d0">worker_aie3_4</data>
+<node id="Worker_648">
+  <data key="d0">worker_aie2_4</data>
   <data key="d1">Worker</data>
-</node>
-<node id="MethodChain_644">
-  <data key="d0">method_chain</data>
-  <data key="d1">MethodChain</data>
-</node>
-<node id="IndexExpr_646">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_645"/>
-<node id="ConstExpr_647">
-  <data key="d0">2</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">2</data>
-</node>
-<node id="MethodCall_648">
-  <data key="d0">cons</data>
-  <data key="d1">MethodCall</data>
 </node>
 <node id="MethodChain_649">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_651">
+<node id="temp_650"/>
+<node id="MethodCall_651">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_652">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_654">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_650"/>
-<node id="ConstExpr_652">
+<node id="temp_653"/>
+<node id="ConstExpr_655">
   <data key="d0">2</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">2</data>
 </node>
-<node id="MethodCall_653">
+<node id="MethodCall_656">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_657">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_659">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_658"/>
+<node id="ConstExpr_660">
+  <data key="d0">2</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">2</data>
+</node>
+<node id="MethodCall_661">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_654">
+<node id="ConstructorCall_662">
   <data key="d0">Tile()</data>
   <data key="d1">ConstructorCall</data>
 </node>
-<node id="Expr_655">
+<node id="Expr_663">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_656">
-  <data key="d0">3</data>
+<node id="ConstExpr_664">
+  <data key="d0">2</data>
   <data key="d1">ConstExpr</data>
-  <data key="d4">3</data>
+  <data key="d4">2</data>
 </node>
-<node id="Expr_657">
+<node id="Expr_665">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_658">
+<node id="ConstExpr_666">
   <data key="d0">4</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">4</data>
 </node>
-<node id="Worker_659">
-  <data key="d0">worker_aie0_5</data>
+<node id="Worker_667">
+  <data key="d0">worker_aie3_4</data>
   <data key="d1">Worker</data>
-</node>
-<node id="MethodChain_660">
-  <data key="d0">method_chain</data>
-  <data key="d1">MethodChain</data>
-</node>
-<node id="temp_661"/>
-<node id="MethodCall_662">
-  <data key="d0">cons</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="MethodChain_663">
-  <data key="d0">method_chain</data>
-  <data key="d1">MethodChain</data>
-</node>
-<node id="IndexExpr_665">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_664"/>
-<node id="ConstExpr_666">
-  <data key="d0">3</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">3</data>
-</node>
-<node id="MethodCall_667">
-  <data key="d0">cons</data>
-  <data key="d1">MethodCall</data>
 </node>
 <node id="MethodChain_668">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_670">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
 <node id="temp_669"/>
-<node id="ConstExpr_671">
-  <data key="d0">3</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">3</data>
-</node>
-<node id="MethodCall_672">
-  <data key="d0">prod</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="ConstructorCall_673">
-  <data key="d0">Tile()</data>
-  <data key="d1">ConstructorCall</data>
-</node>
-<node id="Expr_674">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
-</node>
-<node id="ConstExpr_675">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
-</node>
-<node id="Expr_676">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
-</node>
-<node id="ConstExpr_677">
-  <data key="d0">5</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">5</data>
-</node>
-<node id="Worker_678">
-  <data key="d0">worker_aie1_5</data>
-  <data key="d1">Worker</data>
-</node>
-<node id="MethodChain_679">
-  <data key="d0">method_chain</data>
-  <data key="d1">MethodChain</data>
-</node>
-<node id="IndexExpr_681">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_680"/>
-<node id="ConstExpr_682">
-  <data key="d0">3</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">3</data>
-</node>
-<node id="MethodCall_683">
+<node id="MethodCall_670">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_684">
+<node id="MethodChain_671">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_686">
+<node id="IndexExpr_673">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_685"/>
-<node id="ConstExpr_687">
+<node id="temp_672"/>
+<node id="ConstExpr_674">
+  <data key="d0">2</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">2</data>
+</node>
+<node id="MethodCall_675">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_676">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_678">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_677"/>
+<node id="ConstExpr_679">
+  <data key="d0">2</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">2</data>
+</node>
+<node id="MethodCall_680">
+  <data key="d0">prod</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="ConstructorCall_681">
+  <data key="d0">Tile()</data>
+  <data key="d1">ConstructorCall</data>
+</node>
+<node id="Expr_682">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_683">
   <data key="d0">3</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">3</data>
 </node>
-<node id="MethodCall_688">
-  <data key="d0">prod</data>
+<node id="Expr_684">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_685">
+  <data key="d0">4</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">4</data>
+</node>
+<node id="Worker_686">
+  <data key="d0">worker_aie0_5</data>
+  <data key="d1">Worker</data>
+</node>
+<node id="MethodChain_687">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="temp_688"/>
+<node id="MethodCall_689">
+  <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_689">
-  <data key="d0">Tile()</data>
-  <data key="d1">ConstructorCall</data>
+<node id="MethodChain_690">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
 </node>
-<node id="Expr_690">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
+<node id="IndexExpr_692">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
 </node>
-<node id="ConstExpr_691">
-  <data key="d0">1</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">1</data>
-</node>
-<node id="Expr_692">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
-</node>
+<node id="temp_691"/>
 <node id="ConstExpr_693">
-  <data key="d0">5</data>
+  <data key="d0">3</data>
   <data key="d1">ConstExpr</data>
-  <data key="d4">5</data>
+  <data key="d4">3</data>
 </node>
-<node id="Worker_694">
-  <data key="d0">worker_aie2_5</data>
-  <data key="d1">Worker</data>
+<node id="MethodCall_694">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
 </node>
 <node id="MethodChain_695">
   <data key="d0">method_chain</data>
@@ -2930,776 +2905,909 @@
   <data key="d4">3</data>
 </node>
 <node id="MethodCall_699">
-  <data key="d0">cons</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="MethodChain_700">
-  <data key="d0">method_chain</data>
-  <data key="d1">MethodChain</data>
-</node>
-<node id="IndexExpr_702">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_701"/>
-<node id="ConstExpr_703">
-  <data key="d0">3</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">3</data>
-</node>
-<node id="MethodCall_704">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_705">
+<node id="ConstructorCall_700">
   <data key="d0">Tile()</data>
   <data key="d1">ConstructorCall</data>
 </node>
-<node id="Expr_706">
+<node id="Expr_701">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_707">
-  <data key="d0">2</data>
+<node id="ConstExpr_702">
+  <data key="d0">0</data>
   <data key="d1">ConstExpr</data>
-  <data key="d4">2</data>
+  <data key="d4">0</data>
 </node>
-<node id="Expr_708">
+<node id="Expr_703">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
-<node id="ConstExpr_709">
+<node id="ConstExpr_704">
   <data key="d0">5</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">5</data>
 </node>
-<node id="Worker_710">
-  <data key="d0">worker_aie3_5</data>
+<node id="Worker_705">
+  <data key="d0">worker_aie1_5</data>
   <data key="d1">Worker</data>
 </node>
-<node id="MethodChain_711">
+<node id="MethodChain_706">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_713">
-  <data key="d0">[]</data>
-  <data key="d1">IndexExpr</data>
-</node>
-<node id="temp_712"/>
-<node id="ConstExpr_714">
-  <data key="d0">3</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">3</data>
-</node>
-<node id="MethodCall_715">
+<node id="temp_707"/>
+<node id="MethodCall_708">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="MethodChain_716">
+<node id="MethodChain_709">
   <data key="d0">method_chain</data>
   <data key="d1">MethodChain</data>
 </node>
-<node id="IndexExpr_718">
+<node id="IndexExpr_711">
   <data key="d0">[]</data>
   <data key="d1">IndexExpr</data>
 </node>
-<node id="temp_717"/>
-<node id="ConstExpr_719">
+<node id="temp_710"/>
+<node id="ConstExpr_712">
   <data key="d0">3</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">3</data>
 </node>
-<node id="MethodCall_720">
+<node id="MethodCall_713">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_714">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_716">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_715"/>
+<node id="ConstExpr_717">
+  <data key="d0">3</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">3</data>
+</node>
+<node id="MethodCall_718">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="ConstructorCall_721">
+<node id="ConstructorCall_719">
   <data key="d0">Tile()</data>
   <data key="d1">ConstructorCall</data>
+</node>
+<node id="Expr_720">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_721">
+  <data key="d0">1</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">1</data>
 </node>
 <node id="Expr_722">
   <data key="d0">arg</data>
   <data key="d1">Expr</data>
 </node>
 <node id="ConstExpr_723">
-  <data key="d0">3</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">3</data>
-</node>
-<node id="Expr_724">
-  <data key="d0">arg</data>
-  <data key="d1">Expr</data>
-</node>
-<node id="ConstExpr_725">
   <data key="d0">5</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">5</data>
 </node>
-<node id="Runtime_726">
+<node id="Worker_724">
+  <data key="d0">worker_aie2_5</data>
+  <data key="d1">Worker</data>
+</node>
+<node id="MethodChain_725">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="temp_726"/>
+<node id="MethodCall_727">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_728">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_730">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_729"/>
+<node id="ConstExpr_731">
+  <data key="d0">3</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">3</data>
+</node>
+<node id="MethodCall_732">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_733">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_735">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_734"/>
+<node id="ConstExpr_736">
+  <data key="d0">3</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">3</data>
+</node>
+<node id="MethodCall_737">
+  <data key="d0">prod</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="ConstructorCall_738">
+  <data key="d0">Tile()</data>
+  <data key="d1">ConstructorCall</data>
+</node>
+<node id="Expr_739">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_740">
+  <data key="d0">2</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">2</data>
+</node>
+<node id="Expr_741">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_742">
+  <data key="d0">5</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">5</data>
+</node>
+<node id="Worker_743">
+  <data key="d0">worker_aie3_5</data>
+  <data key="d1">Worker</data>
+</node>
+<node id="MethodChain_744">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="temp_745"/>
+<node id="MethodCall_746">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_747">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_749">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_748"/>
+<node id="ConstExpr_750">
+  <data key="d0">3</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">3</data>
+</node>
+<node id="MethodCall_751">
+  <data key="d0">cons</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="MethodChain_752">
+  <data key="d0">method_chain</data>
+  <data key="d1">MethodChain</data>
+</node>
+<node id="IndexExpr_754">
+  <data key="d0">[]</data>
+  <data key="d1">IndexExpr</data>
+</node>
+<node id="temp_753"/>
+<node id="ConstExpr_755">
+  <data key="d0">3</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">3</data>
+</node>
+<node id="MethodCall_756">
+  <data key="d0">prod</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="ConstructorCall_757">
+  <data key="d0">Tile()</data>
+  <data key="d1">ConstructorCall</data>
+</node>
+<node id="Expr_758">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_759">
+  <data key="d0">3</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">3</data>
+</node>
+<node id="Expr_760">
+  <data key="d0">arg</data>
+  <data key="d1">Expr</data>
+</node>
+<node id="ConstExpr_761">
+  <data key="d0">5</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">5</data>
+</node>
+<node id="Runtime_762">
   <data key="d0">rt</data>
   <data key="d1">Runtime</data>
 </node>
-<node id="List_727">
+<node id="List_763">
   <data key="d0">Workers</data>
   <data key="d1">List</data>
 </node>
-<node id="SequenceBlock_728">
+<node id="SequenceBlock_764">
   <data key="d0">SequenceBlock</data>
   <data key="d1">SequenceBlock</data>
-</node>
-<node id="Call_729">
-  <data key="d0">call</data>
-  <data key="d1">Call</data>
-</node>
-<node id="MethodCall_730">
-  <data key="d0">sequence</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="Binding_731">
-  <data key="d0">input_activation_in</data>
-  <data key="d1">Binding</data>
-  <data key="d5">type_int16_256x256</data>
-</node>
-<node id="Binding_732">
-  <data key="d0">weight_layer0_in</data>
-  <data key="d1">Binding</data>
-  <data key="d5">type_int16_256</data>
-</node>
-<node id="Binding_733">
-  <data key="d0">weight_layer1_in</data>
-  <data key="d1">Binding</data>
-  <data key="d5">type_int16_256</data>
-</node>
-<node id="Binding_734">
-  <data key="d0">weight_layer2_in</data>
-  <data key="d1">Binding</data>
-  <data key="d5">type_int16_256</data>
-</node>
-<node id="Binding_735">
-  <data key="d0">weight_layer3_in</data>
-  <data key="d1">Binding</data>
-  <data key="d5">type_int16_256</data>
-</node>
-<node id="Binding_736">
-  <data key="d0">output_activation_out</data>
-  <data key="d1">Binding</data>
-  <data key="d5">type_int16_256</data>
-</node>
-<node id="Operation_737">
-  <data key="d0">start</data>
-  <data key="d1">Operation</data>
-</node>
-<node id="MethodCall_738">
-  <data key="d0">start</data>
-  <data key="d1">MethodCall</data>
-  <data key="d6">rt</data>
-</node>
-<node id="Operation_739">
-  <data key="d0">fill_input_activation_in_col0</data>
-  <data key="d1">Operation</data>
-</node>
-<node id="MethodCall_740">
-  <data key="d0">fill</data>
-  <data key="d1">MethodCall</data>
-  <data key="d6">rt</data>
-</node>
-<node id="Call_741">
-  <data key="d0">call</data>
-  <data key="d1">Call</data>
-</node>
-<node id="MethodCall_742">
-  <data key="d0">prod</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="Kwarg_743">
-  <data key="d0">placement=...</data>
-  <data key="d1">Kwarg</data>
-  <data key="d3">placement</data>
-</node>
-<node id="Constructor_744">
-  <data key="d0">Tile</data>
-  <data key="d1">Constructor</data>
-</node>
-<node id="ConstExpr_745">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
-</node>
-<node id="ConstExpr_746">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
-</node>
-<node id="Operation_747">
-  <data key="d0">fill_weight_layer0_in_col0</data>
-  <data key="d1">Operation</data>
-</node>
-<node id="MethodCall_748">
-  <data key="d0">fill</data>
-  <data key="d1">MethodCall</data>
-  <data key="d6">rt</data>
-</node>
-<node id="Call_749">
-  <data key="d0">call</data>
-  <data key="d1">Call</data>
-</node>
-<node id="MethodCall_750">
-  <data key="d0">prod</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="Kwarg_751">
-  <data key="d0">placement=...</data>
-  <data key="d1">Kwarg</data>
-  <data key="d3">placement</data>
-</node>
-<node id="Constructor_752">
-  <data key="d0">Tile</data>
-  <data key="d1">Constructor</data>
-</node>
-<node id="ConstExpr_753">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
-</node>
-<node id="ConstExpr_754">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
-</node>
-<node id="Operation_755">
-  <data key="d0">fill_weight_layer1_in_col0</data>
-  <data key="d1">Operation</data>
-</node>
-<node id="MethodCall_756">
-  <data key="d0">fill</data>
-  <data key="d1">MethodCall</data>
-  <data key="d6">rt</data>
-</node>
-<node id="Call_757">
-  <data key="d0">call</data>
-  <data key="d1">Call</data>
-</node>
-<node id="MethodCall_758">
-  <data key="d0">prod</data>
-  <data key="d1">MethodCall</data>
-</node>
-<node id="Kwarg_759">
-  <data key="d0">placement=...</data>
-  <data key="d1">Kwarg</data>
-  <data key="d3">placement</data>
-</node>
-<node id="Constructor_760">
-  <data key="d0">Tile</data>
-  <data key="d1">Constructor</data>
-</node>
-<node id="ConstExpr_761">
-  <data key="d0">1</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">1</data>
-</node>
-<node id="ConstExpr_762">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
-</node>
-<node id="Operation_763">
-  <data key="d0">fill_weight_layer2_in_col0</data>
-  <data key="d1">Operation</data>
-</node>
-<node id="MethodCall_764">
-  <data key="d0">fill</data>
-  <data key="d1">MethodCall</data>
-  <data key="d6">rt</data>
 </node>
 <node id="Call_765">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
 <node id="MethodCall_766">
-  <data key="d0">prod</data>
+  <data key="d0">sequence</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="Kwarg_767">
-  <data key="d0">placement=...</data>
-  <data key="d1">Kwarg</data>
-  <data key="d3">placement</data>
+<node id="Binding_767">
+  <data key="d0">input_activation_in</data>
+  <data key="d1">Binding</data>
+  <data key="d5">type_int16_256x256</data>
 </node>
-<node id="Constructor_768">
-  <data key="d0">Tile</data>
-  <data key="d1">Constructor</data>
+<node id="Binding_768">
+  <data key="d0">weight_layer0_in</data>
+  <data key="d1">Binding</data>
+  <data key="d5">type_int16_256</data>
 </node>
-<node id="ConstExpr_769">
-  <data key="d0">2</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">2</data>
+<node id="Binding_769">
+  <data key="d0">weight_layer1_in</data>
+  <data key="d1">Binding</data>
+  <data key="d5">type_int16_256</data>
 </node>
-<node id="ConstExpr_770">
-  <data key="d0">0</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">0</data>
+<node id="Binding_770">
+  <data key="d0">weight_layer2_in</data>
+  <data key="d1">Binding</data>
+  <data key="d5">type_int16_256</data>
 </node>
-<node id="Operation_771">
-  <data key="d0">fill_weight_layer3_in_col0</data>
+<node id="Binding_771">
+  <data key="d0">weight_layer3_in</data>
+  <data key="d1">Binding</data>
+  <data key="d5">type_int16_256</data>
+</node>
+<node id="Binding_772">
+  <data key="d0">output_activation_out</data>
+  <data key="d1">Binding</data>
+  <data key="d5">type_int16_256</data>
+</node>
+<node id="Operation_773">
+  <data key="d0">start</data>
   <data key="d1">Operation</data>
 </node>
-<node id="MethodCall_772">
+<node id="MethodCall_774">
+  <data key="d0">start</data>
+  <data key="d1">MethodCall</data>
+  <data key="d6">rt</data>
+</node>
+<node id="Operation_775">
+  <data key="d0">fill_input_activation_in_col0</data>
+  <data key="d1">Operation</data>
+</node>
+<node id="MethodCall_776">
   <data key="d0">fill</data>
   <data key="d1">MethodCall</data>
   <data key="d6">rt</data>
 </node>
-<node id="Call_773">
+<node id="Call_777">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="MethodCall_774">
+<node id="MethodCall_778">
   <data key="d0">prod</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="Kwarg_775">
+<node id="Kwarg_779">
   <data key="d0">placement=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">placement</data>
 </node>
-<node id="Constructor_776">
+<node id="Constructor_780">
   <data key="d0">Tile</data>
   <data key="d1">Constructor</data>
 </node>
-<node id="ConstExpr_777">
-  <data key="d0">3</data>
-  <data key="d1">ConstExpr</data>
-  <data key="d4">3</data>
-</node>
-<node id="ConstExpr_778">
+<node id="ConstExpr_781">
   <data key="d0">0</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">0</data>
 </node>
-<node id="Operation_779">
+<node id="ConstExpr_782">
+  <data key="d0">0</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">0</data>
+</node>
+<node id="Operation_783">
+  <data key="d0">fill_weight_layer0_in_col0</data>
+  <data key="d1">Operation</data>
+</node>
+<node id="MethodCall_784">
+  <data key="d0">fill</data>
+  <data key="d1">MethodCall</data>
+  <data key="d6">rt</data>
+</node>
+<node id="Call_785">
+  <data key="d0">call</data>
+  <data key="d1">Call</data>
+</node>
+<node id="MethodCall_786">
+  <data key="d0">prod</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="Kwarg_787">
+  <data key="d0">placement=...</data>
+  <data key="d1">Kwarg</data>
+  <data key="d3">placement</data>
+</node>
+<node id="Constructor_788">
+  <data key="d0">Tile</data>
+  <data key="d1">Constructor</data>
+</node>
+<node id="ConstExpr_789">
+  <data key="d0">0</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">0</data>
+</node>
+<node id="ConstExpr_790">
+  <data key="d0">0</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">0</data>
+</node>
+<node id="Operation_791">
+  <data key="d0">fill_weight_layer1_in_col0</data>
+  <data key="d1">Operation</data>
+</node>
+<node id="MethodCall_792">
+  <data key="d0">fill</data>
+  <data key="d1">MethodCall</data>
+  <data key="d6">rt</data>
+</node>
+<node id="Call_793">
+  <data key="d0">call</data>
+  <data key="d1">Call</data>
+</node>
+<node id="MethodCall_794">
+  <data key="d0">prod</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="Kwarg_795">
+  <data key="d0">placement=...</data>
+  <data key="d1">Kwarg</data>
+  <data key="d3">placement</data>
+</node>
+<node id="Constructor_796">
+  <data key="d0">Tile</data>
+  <data key="d1">Constructor</data>
+</node>
+<node id="ConstExpr_797">
+  <data key="d0">1</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">1</data>
+</node>
+<node id="ConstExpr_798">
+  <data key="d0">0</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">0</data>
+</node>
+<node id="Operation_799">
+  <data key="d0">fill_weight_layer2_in_col0</data>
+  <data key="d1">Operation</data>
+</node>
+<node id="MethodCall_800">
+  <data key="d0">fill</data>
+  <data key="d1">MethodCall</data>
+  <data key="d6">rt</data>
+</node>
+<node id="Call_801">
+  <data key="d0">call</data>
+  <data key="d1">Call</data>
+</node>
+<node id="MethodCall_802">
+  <data key="d0">prod</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="Kwarg_803">
+  <data key="d0">placement=...</data>
+  <data key="d1">Kwarg</data>
+  <data key="d3">placement</data>
+</node>
+<node id="Constructor_804">
+  <data key="d0">Tile</data>
+  <data key="d1">Constructor</data>
+</node>
+<node id="ConstExpr_805">
+  <data key="d0">2</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">2</data>
+</node>
+<node id="ConstExpr_806">
+  <data key="d0">0</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">0</data>
+</node>
+<node id="Operation_807">
+  <data key="d0">fill_weight_layer3_in_col0</data>
+  <data key="d1">Operation</data>
+</node>
+<node id="MethodCall_808">
+  <data key="d0">fill</data>
+  <data key="d1">MethodCall</data>
+  <data key="d6">rt</data>
+</node>
+<node id="Call_809">
+  <data key="d0">call</data>
+  <data key="d1">Call</data>
+</node>
+<node id="MethodCall_810">
+  <data key="d0">prod</data>
+  <data key="d1">MethodCall</data>
+</node>
+<node id="Kwarg_811">
+  <data key="d0">placement=...</data>
+  <data key="d1">Kwarg</data>
+  <data key="d3">placement</data>
+</node>
+<node id="Constructor_812">
+  <data key="d0">Tile</data>
+  <data key="d1">Constructor</data>
+</node>
+<node id="ConstExpr_813">
+  <data key="d0">3</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">3</data>
+</node>
+<node id="ConstExpr_814">
+  <data key="d0">0</data>
+  <data key="d1">ConstExpr</data>
+  <data key="d4">0</data>
+</node>
+<node id="Operation_815">
   <data key="d0">drain_output_activation_out_col0</data>
   <data key="d1">Operation</data>
 </node>
-<node id="MethodCall_780">
+<node id="MethodCall_816">
   <data key="d0">drain</data>
   <data key="d1">MethodCall</data>
   <data key="d6">rt</data>
 </node>
-<node id="Call_781">
+<node id="Call_817">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="MethodCall_782">
+<node id="MethodCall_818">
   <data key="d0">cons</data>
   <data key="d1">MethodCall</data>
 </node>
-<node id="Kwarg_783">
+<node id="Kwarg_819">
   <data key="d0">wait=True</data>
   <data key="d1">Kwarg</data>
   <data key="d3">wait</data>
   <data key="d4">True</data>
 </node>
-<node id="Kwarg_784">
+<node id="Kwarg_820">
   <data key="d0">placement=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">placement</data>
 </node>
-<node id="Constructor_785">
+<node id="Constructor_821">
   <data key="d0">Tile</data>
   <data key="d1">Constructor</data>
 </node>
-<node id="ConstExpr_786">
+<node id="ConstExpr_822">
   <data key="d0">3</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">3</data>
 </node>
-<node id="ConstExpr_787">
+<node id="ConstExpr_823">
   <data key="d0">0</data>
   <data key="d1">ConstExpr</data>
   <data key="d4">0</data>
 </node>
-<node id="Program_788">
+<node id="Program_824">
   <data key="d0">my_program</data>
   <data key="d1">Program</data>
 </node>
-<node id="Call_789">
+<node id="Call_825">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="ResolveProgram_790">
+<node id="ResolveProgram_826">
   <data key="d0">resolve_program</data>
   <data key="d1">ResolveProgram</data>
 </node>
-<node id="Call_791">
+<node id="Call_827">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="ConstructorExpr_792">
+<node id="ConstructorExpr_828">
   <data key="d0">SequentialPlacer()</data>
   <data key="d1">ConstructorExpr</data>
   <data key="d7">SequentialPlacer</data>
 </node>
-<node id="Function_793">
+<node id="Function_829">
   <data key="d0">gui_design_jit</data>
   <data key="d1">Function</data>
   <data key="d8">iron.jit</data>
 </node>
-<node id="Parameter_794">
+<node id="Parameter_830">
   <data key="d0">input_activation</data>
   <data key="d1">Parameter</data>
   <data key="d5">type_int16_256x256</data>
 </node>
-<node id="Parameter_795">
+<node id="Parameter_831">
   <data key="d0">weight_layer0</data>
   <data key="d1">Parameter</data>
   <data key="d5">type_int16_256</data>
 </node>
-<node id="Parameter_796">
+<node id="Parameter_832">
   <data key="d0">weight_layer1</data>
   <data key="d1">Parameter</data>
   <data key="d5">type_int16_256</data>
 </node>
-<node id="Parameter_797">
+<node id="Parameter_833">
   <data key="d0">weight_layer2</data>
   <data key="d1">Parameter</data>
   <data key="d5">type_int16_256</data>
 </node>
-<node id="Parameter_798">
+<node id="Parameter_834">
   <data key="d0">weight_layer3</data>
   <data key="d1">Parameter</data>
   <data key="d5">type_int16_256</data>
 </node>
-<node id="Parameter_799">
+<node id="Parameter_835">
   <data key="d0">output_activation</data>
   <data key="d1">Parameter</data>
   <data key="d5">type_int16_256</data>
 </node>
-<node id="FunctionBodyElement_800">
+<node id="FunctionBodyElement_836">
   <data key="d0">UseDataFlow</data>
   <data key="d1">FunctionBodyElement</data>
 </node>
-<node id="FunctionBodyElement_801">
+<node id="FunctionBodyElement_837">
   <data key="d0">Return</data>
   <data key="d1">FunctionBodyElement</data>
 </node>
-<node id="Function_802">
+<node id="Function_838">
   <data key="d0">main</data>
   <data key="d1">Function</data>
 </node>
-<node id="Expr_803">
+<node id="Expr_839">
   <data key="d0">source</data>
   <data key="d1">Expr</data>
 </node>
-<node id="Call_804">
+<node id="Call_840">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="FunctionCall_805">
+<node id="FunctionCall_841">
   <data key="d0">iron.zeros</data>
   <data key="d1">FunctionCall</data>
 </node>
-<node id="VarRef_806">
+<node id="VarRef_842">
   <data key="d0">256 * 256</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_807">
+<node id="VarRef_843">
   <data key="d0">np.int16</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="Kwarg_808">
+<node id="Kwarg_844">
   <data key="d0">dtype=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">dtype</data>
 </node>
-<node id="String_809">
+<node id="String_845">
   <data key="d0">npu</data>
   <data key="d1">String</data>
   <data key="d4">npu</data>
 </node>
-<node id="Kwarg_810">
+<node id="Kwarg_846">
   <data key="d0">device=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">device</data>
 </node>
-<node id="Assign_811">
+<node id="Assign_847">
   <data key="d0">input_activation=…</data>
   <data key="d1">Assign</data>
   <data key="d9">input_activation</data>
 </node>
-<node id="Variable_812">
+<node id="Variable_848">
   <data key="d0">input_activation</data>
   <data key="d1">Variable</data>
 </node>
-<node id="RawLine_813">
+<node id="RawLine_849">
   <data key="d0">input_activation.data[:] = np.arange(256 * 256, dtype=np.int16)</data>
   <data key="d1">RawLine</data>
   <data key="d10">input_activation.data[:] = np.arange(256 * 256, dtype=np.int16)</data>
 </node>
-<node id="RawLine_814">
+<node id="RawLine_850">
   <data key="d0">input_activation._sync_to_device()</data>
   <data key="d1">RawLine</data>
   <data key="d10">input_activation._sync_to_device()</data>
 </node>
-<node id="Expr_815">
+<node id="Expr_851">
   <data key="d0">source</data>
   <data key="d1">Expr</data>
 </node>
-<node id="Call_816">
+<node id="Call_852">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="FunctionCall_817">
+<node id="FunctionCall_853">
   <data key="d0">iron.arange</data>
   <data key="d1">FunctionCall</data>
 </node>
-<node id="VarRef_818">
+<node id="VarRef_854">
   <data key="d0">256</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_819">
+<node id="VarRef_855">
   <data key="d0">np.int16</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="Kwarg_820">
+<node id="Kwarg_856">
   <data key="d0">dtype=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">dtype</data>
 </node>
-<node id="String_821">
+<node id="String_857">
   <data key="d0">npu</data>
   <data key="d1">String</data>
   <data key="d4">npu</data>
 </node>
-<node id="Kwarg_822">
+<node id="Kwarg_858">
   <data key="d0">device=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">device</data>
 </node>
-<node id="Assign_823">
+<node id="Assign_859">
   <data key="d0">weight_layer0=…</data>
   <data key="d1">Assign</data>
   <data key="d9">weight_layer0</data>
 </node>
-<node id="Variable_824">
+<node id="Variable_860">
   <data key="d0">weight_layer0</data>
   <data key="d1">Variable</data>
 </node>
-<node id="Expr_825">
+<node id="Expr_861">
   <data key="d0">source</data>
   <data key="d1">Expr</data>
 </node>
-<node id="Call_826">
+<node id="Call_862">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="FunctionCall_827">
+<node id="FunctionCall_863">
   <data key="d0">iron.arange</data>
   <data key="d1">FunctionCall</data>
 </node>
-<node id="VarRef_828">
+<node id="VarRef_864">
   <data key="d0">256</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_829">
+<node id="VarRef_865">
   <data key="d0">np.int16</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="Kwarg_830">
+<node id="Kwarg_866">
   <data key="d0">dtype=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">dtype</data>
 </node>
-<node id="String_831">
+<node id="String_867">
   <data key="d0">npu</data>
   <data key="d1">String</data>
   <data key="d4">npu</data>
 </node>
-<node id="Kwarg_832">
+<node id="Kwarg_868">
   <data key="d0">device=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">device</data>
 </node>
-<node id="Assign_833">
+<node id="Assign_869">
   <data key="d0">weight_layer1=…</data>
   <data key="d1">Assign</data>
   <data key="d9">weight_layer1</data>
 </node>
-<node id="Variable_834">
+<node id="Variable_870">
   <data key="d0">weight_layer1</data>
   <data key="d1">Variable</data>
 </node>
-<node id="Expr_835">
+<node id="Expr_871">
   <data key="d0">source</data>
   <data key="d1">Expr</data>
 </node>
-<node id="Call_836">
+<node id="Call_872">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="FunctionCall_837">
+<node id="FunctionCall_873">
   <data key="d0">iron.arange</data>
   <data key="d1">FunctionCall</data>
 </node>
-<node id="VarRef_838">
+<node id="VarRef_874">
   <data key="d0">256</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_839">
+<node id="VarRef_875">
   <data key="d0">np.int16</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="Kwarg_840">
+<node id="Kwarg_876">
   <data key="d0">dtype=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">dtype</data>
 </node>
-<node id="String_841">
+<node id="String_877">
   <data key="d0">npu</data>
   <data key="d1">String</data>
   <data key="d4">npu</data>
 </node>
-<node id="Kwarg_842">
+<node id="Kwarg_878">
   <data key="d0">device=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">device</data>
 </node>
-<node id="Assign_843">
+<node id="Assign_879">
   <data key="d0">weight_layer2=…</data>
   <data key="d1">Assign</data>
   <data key="d9">weight_layer2</data>
 </node>
-<node id="Variable_844">
+<node id="Variable_880">
   <data key="d0">weight_layer2</data>
   <data key="d1">Variable</data>
 </node>
-<node id="Expr_845">
+<node id="Expr_881">
   <data key="d0">source</data>
   <data key="d1">Expr</data>
 </node>
-<node id="Call_846">
+<node id="Call_882">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="FunctionCall_847">
+<node id="FunctionCall_883">
   <data key="d0">iron.arange</data>
   <data key="d1">FunctionCall</data>
 </node>
-<node id="VarRef_848">
+<node id="VarRef_884">
   <data key="d0">256</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_849">
+<node id="VarRef_885">
   <data key="d0">np.int16</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="Kwarg_850">
+<node id="Kwarg_886">
   <data key="d0">dtype=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">dtype</data>
 </node>
-<node id="String_851">
+<node id="String_887">
   <data key="d0">npu</data>
   <data key="d1">String</data>
   <data key="d4">npu</data>
 </node>
-<node id="Kwarg_852">
+<node id="Kwarg_888">
   <data key="d0">device=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">device</data>
 </node>
-<node id="Assign_853">
+<node id="Assign_889">
   <data key="d0">weight_layer3=…</data>
   <data key="d1">Assign</data>
   <data key="d9">weight_layer3</data>
 </node>
-<node id="Variable_854">
+<node id="Variable_890">
   <data key="d0">weight_layer3</data>
   <data key="d1">Variable</data>
 </node>
-<node id="Expr_855">
+<node id="Expr_891">
   <data key="d0">source</data>
   <data key="d1">Expr</data>
 </node>
-<node id="Call_856">
+<node id="Call_892">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="FunctionCall_857">
+<node id="FunctionCall_893">
   <data key="d0">iron.zeros</data>
   <data key="d1">FunctionCall</data>
 </node>
-<node id="VarRef_858">
+<node id="VarRef_894">
   <data key="d0">256</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_859">
+<node id="VarRef_895">
   <data key="d0">np.int16</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="Kwarg_860">
+<node id="Kwarg_896">
   <data key="d0">dtype=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">dtype</data>
 </node>
-<node id="String_861">
+<node id="String_897">
   <data key="d0">npu</data>
   <data key="d1">String</data>
   <data key="d4">npu</data>
 </node>
-<node id="Kwarg_862">
+<node id="Kwarg_898">
   <data key="d0">device=...</data>
   <data key="d1">Kwarg</data>
   <data key="d3">device</data>
 </node>
-<node id="Assign_863">
+<node id="Assign_899">
   <data key="d0">output_activation=…</data>
   <data key="d1">Assign</data>
   <data key="d9">output_activation</data>
 </node>
-<node id="Variable_864">
+<node id="Variable_900">
   <data key="d0">output_activation</data>
   <data key="d1">Variable</data>
 </node>
-<node id="Call_865">
+<node id="Call_901">
   <data key="d0">call</data>
   <data key="d1">Call</data>
 </node>
-<node id="FunctionCall_866">
+<node id="FunctionCall_902">
   <data key="d0">gui_design_jit</data>
   <data key="d1">FunctionCall</data>
 </node>
-<node id="VarRef_867">
+<node id="VarRef_903">
   <data key="d0">input_activation</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_868">
+<node id="VarRef_904">
   <data key="d0">weight_layer0</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_869">
+<node id="VarRef_905">
   <data key="d0">weight_layer1</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_870">
+<node id="VarRef_906">
   <data key="d0">weight_layer2</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_871">
+<node id="VarRef_907">
   <data key="d0">weight_layer3</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="VarRef_872">
+<node id="VarRef_908">
   <data key="d0">output_activation</data>
   <data key="d1">VarRef</data>
 </node>
-<node id="EntryPoint_873">
+<node id="EntryPoint_909">
   <data key="d0">EntryPoint</data>
   <data key="d1">EntryPoint</data>
 </node>
-<node id="ConditionExpr_874">
+<node id="ConditionExpr_910">
   <data key="d0">__name__ == '__main__'</data>
   <data key="d1">ConditionExpr</data>
   <data key="d11">__name__ == '__main__'</data>
 </node>
-<node id="If_875">
+<node id="If_911">
   <data key="d0">if</data>
   <data key="d1">If</data>
   <data key="d11">__name__ == '__main__'</data>
@@ -3710,13 +3818,13 @@
 <edge source="Module_1" target="Section_30">
   <data key="d12">contains</data>
 </edge>
-<edge source="Module_1" target="Function_793">
+<edge source="Module_1" target="Function_829">
   <data key="d12">contains</data>
 </edge>
-<edge source="Module_1" target="Function_802">
+<edge source="Module_1" target="Function_838">
   <data key="d12">contains</data>
 </edge>
-<edge source="Module_1" target="EntryPoint_873">
+<edge source="Module_1" target="EntryPoint_909">
   <data key="d12">contains</data>
 </edge>
 <edge source="Section_2" target="Import_3">
@@ -3887,61 +3995,61 @@
 <edge source="Section_30" target="Worker_477">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_493">
+<edge source="Section_30" target="Worker_496">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_509">
+<edge source="Section_30" target="Worker_515">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_525">
+<edge source="Section_30" target="Worker_534">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_544">
+<edge source="Section_30" target="Worker_553">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_560">
+<edge source="Section_30" target="Worker_572">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_576">
+<edge source="Section_30" target="Worker_591">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_592">
+<edge source="Section_30" target="Worker_610">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_611">
+<edge source="Section_30" target="Worker_629">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_627">
+<edge source="Section_30" target="Worker_648">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_643">
+<edge source="Section_30" target="Worker_667">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_659">
+<edge source="Section_30" target="Worker_686">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_678">
+<edge source="Section_30" target="Worker_705">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_694">
+<edge source="Section_30" target="Worker_724">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Worker_710">
+<edge source="Section_30" target="Worker_743">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Runtime_726">
+<edge source="Section_30" target="Runtime_762">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="List_727">
+<edge source="Section_30" target="List_763">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="SequenceBlock_728">
+<edge source="Section_30" target="SequenceBlock_764">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="Program_788">
+<edge source="Section_30" target="Program_824">
   <data key="d12">contains</data>
 </edge>
-<edge source="Section_30" target="ResolveProgram_790">
+<edge source="Section_30" target="ResolveProgram_826">
   <data key="d12">contains</data>
 </edge>
 <edge source="ExternalFunction_31" target="Kwarg_32">
@@ -4460,13 +4568,13 @@
 <edge source="ObjectFifo_194" target="MethodCall_461">
   <data key="d12">calls</data>
 </edge>
-<edge source="ObjectFifo_194" target="MethodCall_528">
+<edge source="ObjectFifo_194" target="MethodCall_537">
   <data key="d12">calls</data>
 </edge>
-<edge source="ObjectFifo_194" target="MethodCall_595">
+<edge source="ObjectFifo_194" target="MethodCall_613">
   <data key="d12">calls</data>
 </edge>
-<edge source="ObjectFifo_194" target="MethodCall_662">
+<edge source="ObjectFifo_194" target="MethodCall_689">
   <data key="d12">calls</data>
 </edge>
 <edge source="MethodChain_195" target="ObjectFifo_167">
@@ -5225,6 +5333,18 @@
 <edge source="ObjectFifo_428" target="MethodChain_429">
   <data key="d12">source_expr</data>
 </edge>
+<edge source="ObjectFifo_428" target="MethodCall_480">
+  <data key="d12">calls</data>
+</edge>
+<edge source="ObjectFifo_428" target="MethodCall_556">
+  <data key="d12">calls</data>
+</edge>
+<edge source="ObjectFifo_428" target="MethodCall_632">
+  <data key="d12">calls</data>
+</edge>
+<edge source="ObjectFifo_428" target="MethodCall_708">
+  <data key="d12">calls</data>
+</edge>
 <edge source="MethodChain_429" target="ObjectFifo_170">
   <data key="d12">base</data>
 </edge>
@@ -5261,6 +5381,18 @@
 <edge source="ObjectFifo_438" target="MethodChain_439">
   <data key="d12">source_expr</data>
 </edge>
+<edge source="ObjectFifo_438" target="MethodCall_499">
+  <data key="d12">calls</data>
+</edge>
+<edge source="ObjectFifo_438" target="MethodCall_575">
+  <data key="d12">calls</data>
+</edge>
+<edge source="ObjectFifo_438" target="MethodCall_651">
+  <data key="d12">calls</data>
+</edge>
+<edge source="ObjectFifo_438" target="MethodCall_727">
+  <data key="d12">calls</data>
+</edge>
 <edge source="MethodChain_439" target="ObjectFifo_188">
   <data key="d12">base</data>
 </edge>
@@ -5296,6 +5428,18 @@
 </edge>
 <edge source="ObjectFifo_448" target="MethodChain_449">
   <data key="d12">source_expr</data>
+</edge>
+<edge source="ObjectFifo_448" target="MethodCall_518">
+  <data key="d12">calls</data>
+</edge>
+<edge source="ObjectFifo_448" target="MethodCall_594">
+  <data key="d12">calls</data>
+</edge>
+<edge source="ObjectFifo_448" target="MethodCall_670">
+  <data key="d12">calls</data>
+</edge>
+<edge source="ObjectFifo_448" target="MethodCall_746">
+  <data key="d12">calls</data>
 </edge>
 <edge source="MethodChain_449" target="ObjectFifo_191">
   <data key="d12">base</data>
@@ -5423,674 +5567,671 @@
 <edge source="Worker_477" target="MethodChain_478">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_477" target="MethodChain_483">
+<edge source="Worker_477" target="MethodChain_481">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_477" target="ConstructorCall_488">
+<edge source="Worker_477" target="MethodChain_486">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_477" target="ConstructorCall_491">
   <data key="d12">placed_by</data>
 </edge>
-<edge source="MethodChain_478" target="IndexExpr_480">
+<edge source="MethodChain_478" target="ObjectFifo_428">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_478" target="MethodCall_482">
+<edge source="MethodChain_478" target="MethodCall_480">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_480" target="ObjectFifo_260">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_480" target="ConstExpr_481">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_480" target="MethodCall_482">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_479" target="IndexExpr_480">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="MethodChain_483" target="IndexExpr_485">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_483" target="MethodCall_487">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_485" target="ObjectFifo_344">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_485" target="ConstExpr_486">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_485" target="MethodCall_487">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_484" target="IndexExpr_485">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_488" target="Expr_489">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_488" target="Expr_491">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Expr_489" target="ConstExpr_490">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Expr_491" target="ConstExpr_492">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Worker_493" target="CoreFunction_75">
-  <data key="d12">core_fn</data>
-</edge>
-<edge source="Worker_493" target="ExternalFunction_31">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_493" target="ExternalFunction_42">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_493" target="ExternalFunction_53">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_493" target="MethodChain_494">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_493" target="MethodChain_499">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_493" target="ConstructorCall_504">
-  <data key="d12">placed_by</data>
-</edge>
-<edge source="MethodChain_494" target="IndexExpr_496">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_494" target="MethodCall_498">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_496" target="ObjectFifo_288">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_496" target="ConstExpr_497">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_496" target="MethodCall_498">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_495" target="IndexExpr_496">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="MethodChain_499" target="IndexExpr_501">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_499" target="MethodCall_503">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_501" target="ObjectFifo_372">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_501" target="ConstExpr_502">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_501" target="MethodCall_503">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_500" target="IndexExpr_501">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_504" target="Expr_505">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_504" target="Expr_507">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Expr_505" target="ConstExpr_506">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Expr_507" target="ConstExpr_508">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Worker_509" target="CoreFunction_121">
-  <data key="d12">core_fn</data>
-</edge>
-<edge source="Worker_509" target="ExternalFunction_31">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_509" target="ExternalFunction_53">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_509" target="ExternalFunction_64">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_509" target="MethodChain_510">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_509" target="MethodChain_515">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_509" target="ConstructorCall_520">
-  <data key="d12">placed_by</data>
-</edge>
-<edge source="MethodChain_510" target="IndexExpr_512">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_510" target="MethodCall_514">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_512" target="ObjectFifo_316">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_512" target="ConstExpr_513">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_512" target="MethodCall_514">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_511" target="IndexExpr_512">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="MethodChain_515" target="IndexExpr_517">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_515" target="MethodCall_519">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_517" target="ObjectFifo_400">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_517" target="ConstExpr_518">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_517" target="MethodCall_519">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_516" target="IndexExpr_517">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_520" target="Expr_521">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_520" target="Expr_523">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Expr_521" target="ConstExpr_522">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Expr_523" target="ConstExpr_524">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Worker_525" target="CoreFunction_75">
-  <data key="d12">core_fn</data>
-</edge>
-<edge source="Worker_525" target="ExternalFunction_31">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_525" target="ExternalFunction_42">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_525" target="ExternalFunction_53">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_525" target="MethodChain_526">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_525" target="MethodChain_529">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_525" target="MethodChain_534">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_525" target="ConstructorCall_539">
-  <data key="d12">placed_by</data>
-</edge>
-<edge source="MethodChain_526" target="ObjectFifo_194">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_526" target="MethodCall_528">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="temp_527" target="ObjectFifo_194">
+<edge source="temp_479" target="ObjectFifo_428">
   <data key="d12">uses</data>
 </edge>
-<edge source="MethodChain_529" target="IndexExpr_531">
+<edge source="MethodChain_481" target="IndexExpr_483">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_529" target="MethodCall_533">
+<edge source="MethodChain_481" target="MethodCall_485">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_531" target="ObjectFifo_232">
+<edge source="IndexExpr_483" target="ObjectFifo_260">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_531" target="ConstExpr_532">
+<edge source="IndexExpr_483" target="ConstExpr_484">
   <data key="d12">index</data>
 </edge>
-<edge source="IndexExpr_531" target="MethodCall_533">
+<edge source="IndexExpr_483" target="MethodCall_485">
   <data key="d12">calls</data>
 </edge>
-<edge source="temp_530" target="IndexExpr_531">
+<edge source="temp_482" target="IndexExpr_483">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="MethodChain_534" target="IndexExpr_536">
+<edge source="MethodChain_486" target="IndexExpr_488">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_534" target="MethodCall_538">
+<edge source="MethodChain_486" target="MethodCall_490">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_536" target="ObjectFifo_204">
+<edge source="IndexExpr_488" target="ObjectFifo_344">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_536" target="ConstExpr_537">
+<edge source="IndexExpr_488" target="ConstExpr_489">
   <data key="d12">index</data>
 </edge>
-<edge source="IndexExpr_536" target="MethodCall_538">
+<edge source="IndexExpr_488" target="MethodCall_490">
   <data key="d12">calls</data>
 </edge>
-<edge source="temp_535" target="IndexExpr_536">
+<edge source="temp_487" target="IndexExpr_488">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_539" target="Expr_540">
+<edge source="ConstructorCall_491" target="Expr_492">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_539" target="Expr_542">
+<edge source="ConstructorCall_491" target="Expr_494">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Expr_540" target="ConstExpr_541">
+<edge source="Expr_492" target="ConstExpr_493">
   <data key="d12">contains</data>
 </edge>
-<edge source="Expr_542" target="ConstExpr_543">
+<edge source="Expr_494" target="ConstExpr_495">
   <data key="d12">contains</data>
 </edge>
-<edge source="Worker_544" target="CoreFunction_75">
+<edge source="Worker_496" target="CoreFunction_75">
   <data key="d12">core_fn</data>
 </edge>
-<edge source="Worker_544" target="ExternalFunction_31">
+<edge source="Worker_496" target="ExternalFunction_31">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_544" target="ExternalFunction_42">
+<edge source="Worker_496" target="ExternalFunction_42">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_544" target="ExternalFunction_53">
+<edge source="Worker_496" target="ExternalFunction_53">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_544" target="MethodChain_545">
+<edge source="Worker_496" target="MethodChain_497">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_544" target="MethodChain_550">
+<edge source="Worker_496" target="MethodChain_500">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_544" target="ConstructorCall_555">
+<edge source="Worker_496" target="MethodChain_505">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_496" target="ConstructorCall_510">
   <data key="d12">placed_by</data>
 </edge>
-<edge source="MethodChain_545" target="IndexExpr_547">
+<edge source="MethodChain_497" target="ObjectFifo_438">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_545" target="MethodCall_549">
+<edge source="MethodChain_497" target="MethodCall_499">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_547" target="ObjectFifo_260">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_547" target="ConstExpr_548">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_547" target="MethodCall_549">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_546" target="IndexExpr_547">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="MethodChain_550" target="IndexExpr_552">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_550" target="MethodCall_554">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_552" target="ObjectFifo_344">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_552" target="ConstExpr_553">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_552" target="MethodCall_554">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_551" target="IndexExpr_552">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_555" target="Expr_556">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_555" target="Expr_558">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Expr_556" target="ConstExpr_557">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Expr_558" target="ConstExpr_559">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Worker_560" target="CoreFunction_75">
-  <data key="d12">core_fn</data>
-</edge>
-<edge source="Worker_560" target="ExternalFunction_31">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_560" target="ExternalFunction_42">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_560" target="ExternalFunction_53">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_560" target="MethodChain_561">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_560" target="MethodChain_566">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_560" target="ConstructorCall_571">
-  <data key="d12">placed_by</data>
-</edge>
-<edge source="MethodChain_561" target="IndexExpr_563">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_561" target="MethodCall_565">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_563" target="ObjectFifo_288">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_563" target="ConstExpr_564">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_563" target="MethodCall_565">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_562" target="IndexExpr_563">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="MethodChain_566" target="IndexExpr_568">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_566" target="MethodCall_570">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_568" target="ObjectFifo_372">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_568" target="ConstExpr_569">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_568" target="MethodCall_570">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_567" target="IndexExpr_568">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_571" target="Expr_572">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_571" target="Expr_574">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Expr_572" target="ConstExpr_573">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Expr_574" target="ConstExpr_575">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Worker_576" target="CoreFunction_121">
-  <data key="d12">core_fn</data>
-</edge>
-<edge source="Worker_576" target="ExternalFunction_31">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_576" target="ExternalFunction_53">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_576" target="ExternalFunction_64">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_576" target="MethodChain_577">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_576" target="MethodChain_582">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_576" target="ConstructorCall_587">
-  <data key="d12">placed_by</data>
-</edge>
-<edge source="MethodChain_577" target="IndexExpr_579">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_577" target="MethodCall_581">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_579" target="ObjectFifo_316">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_579" target="ConstExpr_580">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_579" target="MethodCall_581">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_578" target="IndexExpr_579">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="MethodChain_582" target="IndexExpr_584">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_582" target="MethodCall_586">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_584" target="ObjectFifo_400">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_584" target="ConstExpr_585">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_584" target="MethodCall_586">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_583" target="IndexExpr_584">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_587" target="Expr_588">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_587" target="Expr_590">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Expr_588" target="ConstExpr_589">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Expr_590" target="ConstExpr_591">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Worker_592" target="CoreFunction_75">
-  <data key="d12">core_fn</data>
-</edge>
-<edge source="Worker_592" target="ExternalFunction_31">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_592" target="ExternalFunction_42">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_592" target="ExternalFunction_53">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_592" target="MethodChain_593">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_592" target="MethodChain_596">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_592" target="MethodChain_601">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_592" target="ConstructorCall_606">
-  <data key="d12">placed_by</data>
-</edge>
-<edge source="MethodChain_593" target="ObjectFifo_194">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_593" target="MethodCall_595">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="temp_594" target="ObjectFifo_194">
+<edge source="temp_498" target="ObjectFifo_438">
   <data key="d12">uses</data>
 </edge>
-<edge source="MethodChain_596" target="IndexExpr_598">
+<edge source="MethodChain_500" target="IndexExpr_502">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_596" target="MethodCall_600">
+<edge source="MethodChain_500" target="MethodCall_504">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_598" target="ObjectFifo_232">
+<edge source="IndexExpr_502" target="ObjectFifo_288">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_598" target="ConstExpr_599">
+<edge source="IndexExpr_502" target="ConstExpr_503">
   <data key="d12">index</data>
 </edge>
-<edge source="IndexExpr_598" target="MethodCall_600">
+<edge source="IndexExpr_502" target="MethodCall_504">
   <data key="d12">calls</data>
 </edge>
-<edge source="temp_597" target="IndexExpr_598">
+<edge source="temp_501" target="IndexExpr_502">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="MethodChain_601" target="IndexExpr_603">
+<edge source="MethodChain_505" target="IndexExpr_507">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_601" target="MethodCall_605">
+<edge source="MethodChain_505" target="MethodCall_509">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_603" target="ObjectFifo_204">
+<edge source="IndexExpr_507" target="ObjectFifo_372">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_603" target="ConstExpr_604">
+<edge source="IndexExpr_507" target="ConstExpr_508">
   <data key="d12">index</data>
 </edge>
-<edge source="IndexExpr_603" target="MethodCall_605">
+<edge source="IndexExpr_507" target="MethodCall_509">
   <data key="d12">calls</data>
 </edge>
-<edge source="temp_602" target="IndexExpr_603">
+<edge source="temp_506" target="IndexExpr_507">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_606" target="Expr_607">
+<edge source="ConstructorCall_510" target="Expr_511">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_606" target="Expr_609">
+<edge source="ConstructorCall_510" target="Expr_513">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Expr_607" target="ConstExpr_608">
+<edge source="Expr_511" target="ConstExpr_512">
   <data key="d12">contains</data>
 </edge>
-<edge source="Expr_609" target="ConstExpr_610">
+<edge source="Expr_513" target="ConstExpr_514">
   <data key="d12">contains</data>
 </edge>
-<edge source="Worker_611" target="CoreFunction_75">
+<edge source="Worker_515" target="CoreFunction_121">
   <data key="d12">core_fn</data>
 </edge>
-<edge source="Worker_611" target="ExternalFunction_31">
+<edge source="Worker_515" target="ExternalFunction_31">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_611" target="ExternalFunction_42">
+<edge source="Worker_515" target="ExternalFunction_53">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_611" target="ExternalFunction_53">
+<edge source="Worker_515" target="ExternalFunction_64">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_611" target="MethodChain_612">
+<edge source="Worker_515" target="MethodChain_516">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_611" target="MethodChain_617">
+<edge source="Worker_515" target="MethodChain_519">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_611" target="ConstructorCall_622">
+<edge source="Worker_515" target="MethodChain_524">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_515" target="ConstructorCall_529">
   <data key="d12">placed_by</data>
 </edge>
-<edge source="MethodChain_612" target="IndexExpr_614">
+<edge source="MethodChain_516" target="ObjectFifo_448">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_612" target="MethodCall_616">
+<edge source="MethodChain_516" target="MethodCall_518">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_614" target="ObjectFifo_260">
+<edge source="temp_517" target="ObjectFifo_448">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_519" target="IndexExpr_521">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_614" target="ConstExpr_615">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_614" target="MethodCall_616">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_613" target="IndexExpr_614">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="MethodChain_617" target="IndexExpr_619">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_617" target="MethodCall_621">
+<edge source="MethodChain_519" target="MethodCall_523">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_619" target="ObjectFifo_344">
+<edge source="IndexExpr_521" target="ObjectFifo_316">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_619" target="ConstExpr_620">
+<edge source="IndexExpr_521" target="ConstExpr_522">
   <data key="d12">index</data>
 </edge>
-<edge source="IndexExpr_619" target="MethodCall_621">
+<edge source="IndexExpr_521" target="MethodCall_523">
   <data key="d12">calls</data>
 </edge>
-<edge source="temp_618" target="IndexExpr_619">
+<edge source="temp_520" target="IndexExpr_521">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_622" target="Expr_623">
+<edge source="MethodChain_524" target="IndexExpr_526">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_524" target="MethodCall_528">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_526" target="ObjectFifo_400">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_526" target="ConstExpr_527">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_526" target="MethodCall_528">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_525" target="IndexExpr_526">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_622" target="Expr_625">
+<edge source="ConstructorCall_529" target="Expr_530">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Expr_623" target="ConstExpr_624">
+<edge source="ConstructorCall_529" target="Expr_532">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Expr_530" target="ConstExpr_531">
   <data key="d12">contains</data>
+</edge>
+<edge source="Expr_532" target="ConstExpr_533">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Worker_534" target="CoreFunction_75">
+  <data key="d12">core_fn</data>
+</edge>
+<edge source="Worker_534" target="ExternalFunction_31">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_534" target="ExternalFunction_42">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_534" target="ExternalFunction_53">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_534" target="MethodChain_535">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_534" target="MethodChain_538">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_534" target="MethodChain_543">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_534" target="ConstructorCall_548">
+  <data key="d12">placed_by</data>
+</edge>
+<edge source="MethodChain_535" target="ObjectFifo_194">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_535" target="MethodCall_537">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="temp_536" target="ObjectFifo_194">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_538" target="IndexExpr_540">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_538" target="MethodCall_542">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_540" target="ObjectFifo_232">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_540" target="ConstExpr_541">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_540" target="MethodCall_542">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_539" target="IndexExpr_540">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="MethodChain_543" target="IndexExpr_545">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_543" target="MethodCall_547">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_545" target="ObjectFifo_204">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_545" target="ConstExpr_546">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_545" target="MethodCall_547">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_544" target="IndexExpr_545">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_548" target="Expr_549">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_548" target="Expr_551">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Expr_549" target="ConstExpr_550">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Expr_551" target="ConstExpr_552">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Worker_553" target="CoreFunction_75">
+  <data key="d12">core_fn</data>
+</edge>
+<edge source="Worker_553" target="ExternalFunction_31">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_553" target="ExternalFunction_42">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_553" target="ExternalFunction_53">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_553" target="MethodChain_554">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_553" target="MethodChain_557">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_553" target="MethodChain_562">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_553" target="ConstructorCall_567">
+  <data key="d12">placed_by</data>
+</edge>
+<edge source="MethodChain_554" target="ObjectFifo_428">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_554" target="MethodCall_556">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="temp_555" target="ObjectFifo_428">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_557" target="IndexExpr_559">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_557" target="MethodCall_561">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_559" target="ObjectFifo_260">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_559" target="ConstExpr_560">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_559" target="MethodCall_561">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_558" target="IndexExpr_559">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="MethodChain_562" target="IndexExpr_564">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_562" target="MethodCall_566">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_564" target="ObjectFifo_344">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_564" target="ConstExpr_565">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_564" target="MethodCall_566">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_563" target="IndexExpr_564">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_567" target="Expr_568">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_567" target="Expr_570">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Expr_568" target="ConstExpr_569">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Expr_570" target="ConstExpr_571">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Worker_572" target="CoreFunction_75">
+  <data key="d12">core_fn</data>
+</edge>
+<edge source="Worker_572" target="ExternalFunction_31">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_572" target="ExternalFunction_42">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_572" target="ExternalFunction_53">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_572" target="MethodChain_573">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_572" target="MethodChain_576">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_572" target="MethodChain_581">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_572" target="ConstructorCall_586">
+  <data key="d12">placed_by</data>
+</edge>
+<edge source="MethodChain_573" target="ObjectFifo_438">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_573" target="MethodCall_575">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="temp_574" target="ObjectFifo_438">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_576" target="IndexExpr_578">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_576" target="MethodCall_580">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_578" target="ObjectFifo_288">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_578" target="ConstExpr_579">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_578" target="MethodCall_580">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_577" target="IndexExpr_578">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="MethodChain_581" target="IndexExpr_583">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_581" target="MethodCall_585">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_583" target="ObjectFifo_372">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_583" target="ConstExpr_584">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_583" target="MethodCall_585">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_582" target="IndexExpr_583">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_586" target="Expr_587">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_586" target="Expr_589">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Expr_587" target="ConstExpr_588">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Expr_589" target="ConstExpr_590">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Worker_591" target="CoreFunction_121">
+  <data key="d12">core_fn</data>
+</edge>
+<edge source="Worker_591" target="ExternalFunction_31">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_591" target="ExternalFunction_53">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_591" target="ExternalFunction_64">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_591" target="MethodChain_592">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_591" target="MethodChain_595">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_591" target="MethodChain_600">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_591" target="ConstructorCall_605">
+  <data key="d12">placed_by</data>
+</edge>
+<edge source="MethodChain_592" target="ObjectFifo_448">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_592" target="MethodCall_594">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="temp_593" target="ObjectFifo_448">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_595" target="IndexExpr_597">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_595" target="MethodCall_599">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_597" target="ObjectFifo_316">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_597" target="ConstExpr_598">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_597" target="MethodCall_599">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_596" target="IndexExpr_597">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="MethodChain_600" target="IndexExpr_602">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_600" target="MethodCall_604">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_602" target="ObjectFifo_400">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_602" target="ConstExpr_603">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_602" target="MethodCall_604">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_601" target="IndexExpr_602">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_605" target="Expr_606">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_605" target="Expr_608">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Expr_606" target="ConstExpr_607">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Expr_608" target="ConstExpr_609">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Worker_610" target="CoreFunction_75">
+  <data key="d12">core_fn</data>
+</edge>
+<edge source="Worker_610" target="ExternalFunction_31">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_610" target="ExternalFunction_42">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_610" target="ExternalFunction_53">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_610" target="MethodChain_611">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_610" target="MethodChain_614">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_610" target="MethodChain_619">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_610" target="ConstructorCall_624">
+  <data key="d12">placed_by</data>
+</edge>
+<edge source="MethodChain_611" target="ObjectFifo_194">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_611" target="MethodCall_613">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="temp_612" target="ObjectFifo_194">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_614" target="IndexExpr_616">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_614" target="MethodCall_618">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_616" target="ObjectFifo_232">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_616" target="ConstExpr_617">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_616" target="MethodCall_618">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_615" target="IndexExpr_616">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="MethodChain_619" target="IndexExpr_621">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_619" target="MethodCall_623">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_621" target="ObjectFifo_204">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_621" target="ConstExpr_622">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_621" target="MethodCall_623">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_620" target="IndexExpr_621">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_624" target="Expr_625">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_624" target="Expr_627">
+  <data key="d12">has_arg</data>
 </edge>
 <edge source="Expr_625" target="ConstExpr_626">
   <data key="d12">contains</data>
 </edge>
-<edge source="Worker_627" target="CoreFunction_75">
+<edge source="Expr_627" target="ConstExpr_628">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Worker_629" target="CoreFunction_75">
   <data key="d12">core_fn</data>
 </edge>
-<edge source="Worker_627" target="ExternalFunction_31">
+<edge source="Worker_629" target="ExternalFunction_31">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_627" target="ExternalFunction_42">
+<edge source="Worker_629" target="ExternalFunction_42">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_627" target="ExternalFunction_53">
+<edge source="Worker_629" target="ExternalFunction_53">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_627" target="MethodChain_628">
+<edge source="Worker_629" target="MethodChain_630">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_627" target="MethodChain_633">
+<edge source="Worker_629" target="MethodChain_633">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_627" target="ConstructorCall_638">
+<edge source="Worker_629" target="MethodChain_638">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_629" target="ConstructorCall_643">
   <data key="d12">placed_by</data>
 </edge>
-<edge source="MethodChain_628" target="IndexExpr_630">
+<edge source="MethodChain_630" target="ObjectFifo_428">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_628" target="MethodCall_632">
+<edge source="MethodChain_630" target="MethodCall_632">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_630" target="ObjectFifo_288">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_630" target="ConstExpr_631">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_630" target="MethodCall_632">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_629" target="IndexExpr_630">
-  <data key="d12">has_arg</data>
+<edge source="temp_631" target="ObjectFifo_428">
+  <data key="d12">uses</data>
 </edge>
 <edge source="MethodChain_633" target="IndexExpr_635">
   <data key="d12">base</data>
@@ -6098,7 +6239,7 @@
 <edge source="MethodChain_633" target="MethodCall_637">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_635" target="ObjectFifo_372">
+<edge source="IndexExpr_635" target="ObjectFifo_260">
   <data key="d12">base</data>
 </edge>
 <edge source="IndexExpr_635" target="ConstExpr_636">
@@ -6110,257 +6251,248 @@
 <edge source="temp_634" target="IndexExpr_635">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_638" target="Expr_639">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="ConstructorCall_638" target="Expr_641">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Expr_639" target="ConstExpr_640">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Expr_641" target="ConstExpr_642">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Worker_643" target="CoreFunction_121">
-  <data key="d12">core_fn</data>
-</edge>
-<edge source="Worker_643" target="ExternalFunction_31">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_643" target="ExternalFunction_53">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_643" target="ExternalFunction_64">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_643" target="MethodChain_644">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_643" target="MethodChain_649">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Worker_643" target="ConstructorCall_654">
-  <data key="d12">placed_by</data>
-</edge>
-<edge source="MethodChain_644" target="IndexExpr_646">
+<edge source="MethodChain_638" target="IndexExpr_640">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_644" target="MethodCall_648">
+<edge source="MethodChain_638" target="MethodCall_642">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_646" target="ObjectFifo_316">
+<edge source="IndexExpr_640" target="ObjectFifo_344">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_646" target="ConstExpr_647">
+<edge source="IndexExpr_640" target="ConstExpr_641">
   <data key="d12">index</data>
 </edge>
-<edge source="IndexExpr_646" target="MethodCall_648">
+<edge source="IndexExpr_640" target="MethodCall_642">
   <data key="d12">calls</data>
 </edge>
-<edge source="temp_645" target="IndexExpr_646">
+<edge source="temp_639" target="IndexExpr_640">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="MethodChain_649" target="IndexExpr_651">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_649" target="MethodCall_653">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_651" target="ObjectFifo_400">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_651" target="ConstExpr_652">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_651" target="MethodCall_653">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_650" target="IndexExpr_651">
+<edge source="ConstructorCall_643" target="Expr_644">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_654" target="Expr_655">
+<edge source="ConstructorCall_643" target="Expr_646">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_654" target="Expr_657">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Expr_655" target="ConstExpr_656">
+<edge source="Expr_644" target="ConstExpr_645">
   <data key="d12">contains</data>
 </edge>
-<edge source="Expr_657" target="ConstExpr_658">
+<edge source="Expr_646" target="ConstExpr_647">
   <data key="d12">contains</data>
 </edge>
-<edge source="Worker_659" target="CoreFunction_75">
+<edge source="Worker_648" target="CoreFunction_75">
   <data key="d12">core_fn</data>
 </edge>
-<edge source="Worker_659" target="ExternalFunction_31">
+<edge source="Worker_648" target="ExternalFunction_31">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_659" target="ExternalFunction_42">
+<edge source="Worker_648" target="ExternalFunction_42">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_659" target="ExternalFunction_53">
+<edge source="Worker_648" target="ExternalFunction_53">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_659" target="MethodChain_660">
+<edge source="Worker_648" target="MethodChain_649">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_659" target="MethodChain_663">
+<edge source="Worker_648" target="MethodChain_652">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_659" target="MethodChain_668">
+<edge source="Worker_648" target="MethodChain_657">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_659" target="ConstructorCall_673">
+<edge source="Worker_648" target="ConstructorCall_662">
   <data key="d12">placed_by</data>
 </edge>
-<edge source="MethodChain_660" target="ObjectFifo_194">
+<edge source="MethodChain_649" target="ObjectFifo_438">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_660" target="MethodCall_662">
+<edge source="MethodChain_649" target="MethodCall_651">
   <data key="d12">has_call</data>
 </edge>
-<edge source="temp_661" target="ObjectFifo_194">
+<edge source="temp_650" target="ObjectFifo_438">
   <data key="d12">uses</data>
 </edge>
-<edge source="MethodChain_663" target="IndexExpr_665">
+<edge source="MethodChain_652" target="IndexExpr_654">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_663" target="MethodCall_667">
+<edge source="MethodChain_652" target="MethodCall_656">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_665" target="ObjectFifo_232">
+<edge source="IndexExpr_654" target="ObjectFifo_288">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_665" target="ConstExpr_666">
+<edge source="IndexExpr_654" target="ConstExpr_655">
   <data key="d12">index</data>
 </edge>
-<edge source="IndexExpr_665" target="MethodCall_667">
+<edge source="IndexExpr_654" target="MethodCall_656">
   <data key="d12">calls</data>
 </edge>
-<edge source="temp_664" target="IndexExpr_665">
+<edge source="temp_653" target="IndexExpr_654">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="MethodChain_668" target="IndexExpr_670">
+<edge source="MethodChain_657" target="IndexExpr_659">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_668" target="MethodCall_672">
+<edge source="MethodChain_657" target="MethodCall_661">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_670" target="ObjectFifo_204">
+<edge source="IndexExpr_659" target="ObjectFifo_372">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_670" target="ConstExpr_671">
+<edge source="IndexExpr_659" target="ConstExpr_660">
   <data key="d12">index</data>
 </edge>
-<edge source="IndexExpr_670" target="MethodCall_672">
+<edge source="IndexExpr_659" target="MethodCall_661">
   <data key="d12">calls</data>
 </edge>
-<edge source="temp_669" target="IndexExpr_670">
+<edge source="temp_658" target="IndexExpr_659">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_673" target="Expr_674">
+<edge source="ConstructorCall_662" target="Expr_663">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_673" target="Expr_676">
+<edge source="ConstructorCall_662" target="Expr_665">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Expr_674" target="ConstExpr_675">
+<edge source="Expr_663" target="ConstExpr_664">
   <data key="d12">contains</data>
 </edge>
-<edge source="Expr_676" target="ConstExpr_677">
+<edge source="Expr_665" target="ConstExpr_666">
   <data key="d12">contains</data>
 </edge>
-<edge source="Worker_678" target="CoreFunction_75">
+<edge source="Worker_667" target="CoreFunction_121">
   <data key="d12">core_fn</data>
 </edge>
-<edge source="Worker_678" target="ExternalFunction_31">
+<edge source="Worker_667" target="ExternalFunction_31">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_678" target="ExternalFunction_42">
+<edge source="Worker_667" target="ExternalFunction_53">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_678" target="ExternalFunction_53">
+<edge source="Worker_667" target="ExternalFunction_64">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_678" target="MethodChain_679">
+<edge source="Worker_667" target="MethodChain_668">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_678" target="MethodChain_684">
+<edge source="Worker_667" target="MethodChain_671">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_678" target="ConstructorCall_689">
+<edge source="Worker_667" target="MethodChain_676">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_667" target="ConstructorCall_681">
   <data key="d12">placed_by</data>
 </edge>
-<edge source="MethodChain_679" target="IndexExpr_681">
+<edge source="MethodChain_668" target="ObjectFifo_448">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_679" target="MethodCall_683">
+<edge source="MethodChain_668" target="MethodCall_670">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_681" target="ObjectFifo_260">
+<edge source="temp_669" target="ObjectFifo_448">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_671" target="IndexExpr_673">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_681" target="ConstExpr_682">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_681" target="MethodCall_683">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_680" target="IndexExpr_681">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="MethodChain_684" target="IndexExpr_686">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_684" target="MethodCall_688">
+<edge source="MethodChain_671" target="MethodCall_675">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_686" target="ObjectFifo_344">
+<edge source="IndexExpr_673" target="ObjectFifo_316">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_686" target="ConstExpr_687">
+<edge source="IndexExpr_673" target="ConstExpr_674">
   <data key="d12">index</data>
 </edge>
-<edge source="IndexExpr_686" target="MethodCall_688">
+<edge source="IndexExpr_673" target="MethodCall_675">
   <data key="d12">calls</data>
 </edge>
-<edge source="temp_685" target="IndexExpr_686">
+<edge source="temp_672" target="IndexExpr_673">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_689" target="Expr_690">
+<edge source="MethodChain_676" target="IndexExpr_678">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_676" target="MethodCall_680">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_678" target="ObjectFifo_400">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_678" target="ConstExpr_679">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_678" target="MethodCall_680">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_677" target="IndexExpr_678">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_689" target="Expr_692">
+<edge source="ConstructorCall_681" target="Expr_682">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Expr_690" target="ConstExpr_691">
+<edge source="ConstructorCall_681" target="Expr_684">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Expr_682" target="ConstExpr_683">
   <data key="d12">contains</data>
 </edge>
-<edge source="Expr_692" target="ConstExpr_693">
+<edge source="Expr_684" target="ConstExpr_685">
   <data key="d12">contains</data>
 </edge>
-<edge source="Worker_694" target="CoreFunction_75">
+<edge source="Worker_686" target="CoreFunction_75">
   <data key="d12">core_fn</data>
 </edge>
-<edge source="Worker_694" target="ExternalFunction_31">
+<edge source="Worker_686" target="ExternalFunction_31">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_694" target="ExternalFunction_42">
+<edge source="Worker_686" target="ExternalFunction_42">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_694" target="ExternalFunction_53">
+<edge source="Worker_686" target="ExternalFunction_53">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_694" target="MethodChain_695">
+<edge source="Worker_686" target="MethodChain_687">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_694" target="MethodChain_700">
+<edge source="Worker_686" target="MethodChain_690">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_694" target="ConstructorCall_705">
+<edge source="Worker_686" target="MethodChain_695">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_686" target="ConstructorCall_700">
   <data key="d12">placed_by</data>
+</edge>
+<edge source="MethodChain_687" target="ObjectFifo_194">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_687" target="MethodCall_689">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="temp_688" target="ObjectFifo_194">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_690" target="IndexExpr_692">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_690" target="MethodCall_694">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_692" target="ObjectFifo_232">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_692" target="ConstExpr_693">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_692" target="MethodCall_694">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_691" target="IndexExpr_692">
+  <data key="d12">has_arg</data>
 </edge>
 <edge source="MethodChain_695" target="IndexExpr_697">
   <data key="d12">base</data>
@@ -6368,7 +6500,7 @@
 <edge source="MethodChain_695" target="MethodCall_699">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_697" target="ObjectFifo_288">
+<edge source="IndexExpr_697" target="ObjectFifo_204">
   <data key="d12">base</data>
 </edge>
 <edge source="IndexExpr_697" target="ConstExpr_698">
@@ -6380,637 +6512,793 @@
 <edge source="temp_696" target="IndexExpr_697">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="MethodChain_700" target="IndexExpr_702">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_700" target="MethodCall_704">
-  <data key="d12">has_call</data>
-</edge>
-<edge source="IndexExpr_702" target="ObjectFifo_372">
-  <data key="d12">base</data>
-</edge>
-<edge source="IndexExpr_702" target="ConstExpr_703">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_702" target="MethodCall_704">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_701" target="IndexExpr_702">
+<edge source="ConstructorCall_700" target="Expr_701">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_705" target="Expr_706">
+<edge source="ConstructorCall_700" target="Expr_703">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_705" target="Expr_708">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Expr_706" target="ConstExpr_707">
+<edge source="Expr_701" target="ConstExpr_702">
   <data key="d12">contains</data>
 </edge>
-<edge source="Expr_708" target="ConstExpr_709">
+<edge source="Expr_703" target="ConstExpr_704">
   <data key="d12">contains</data>
 </edge>
-<edge source="Worker_710" target="CoreFunction_121">
+<edge source="Worker_705" target="CoreFunction_75">
   <data key="d12">core_fn</data>
 </edge>
-<edge source="Worker_710" target="ExternalFunction_31">
+<edge source="Worker_705" target="ExternalFunction_31">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_710" target="ExternalFunction_53">
+<edge source="Worker_705" target="ExternalFunction_42">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_710" target="ExternalFunction_64">
+<edge source="Worker_705" target="ExternalFunction_53">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_710" target="MethodChain_711">
+<edge source="Worker_705" target="MethodChain_706">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_710" target="MethodChain_716">
+<edge source="Worker_705" target="MethodChain_709">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Worker_710" target="ConstructorCall_721">
+<edge source="Worker_705" target="MethodChain_714">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_705" target="ConstructorCall_719">
   <data key="d12">placed_by</data>
 </edge>
-<edge source="MethodChain_711" target="IndexExpr_713">
+<edge source="MethodChain_706" target="ObjectFifo_428">
   <data key="d12">base</data>
 </edge>
-<edge source="MethodChain_711" target="MethodCall_715">
+<edge source="MethodChain_706" target="MethodCall_708">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_713" target="ObjectFifo_316">
+<edge source="temp_707" target="ObjectFifo_428">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_709" target="IndexExpr_711">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_713" target="ConstExpr_714">
-  <data key="d12">index</data>
-</edge>
-<edge source="IndexExpr_713" target="MethodCall_715">
-  <data key="d12">calls</data>
-</edge>
-<edge source="temp_712" target="IndexExpr_713">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="MethodChain_716" target="IndexExpr_718">
-  <data key="d12">base</data>
-</edge>
-<edge source="MethodChain_716" target="MethodCall_720">
+<edge source="MethodChain_709" target="MethodCall_713">
   <data key="d12">has_call</data>
 </edge>
-<edge source="IndexExpr_718" target="ObjectFifo_400">
+<edge source="IndexExpr_711" target="ObjectFifo_260">
   <data key="d12">base</data>
 </edge>
-<edge source="IndexExpr_718" target="ConstExpr_719">
+<edge source="IndexExpr_711" target="ConstExpr_712">
   <data key="d12">index</data>
 </edge>
-<edge source="IndexExpr_718" target="MethodCall_720">
+<edge source="IndexExpr_711" target="MethodCall_713">
   <data key="d12">calls</data>
 </edge>
-<edge source="temp_717" target="IndexExpr_718">
+<edge source="temp_710" target="IndexExpr_711">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_721" target="Expr_722">
+<edge source="MethodChain_714" target="IndexExpr_716">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_714" target="MethodCall_718">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_716" target="ObjectFifo_344">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_716" target="ConstExpr_717">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_716" target="MethodCall_718">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_715" target="IndexExpr_716">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="ConstructorCall_721" target="Expr_724">
+<edge source="ConstructorCall_719" target="Expr_720">
   <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_719" target="Expr_722">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Expr_720" target="ConstExpr_721">
+  <data key="d12">contains</data>
 </edge>
 <edge source="Expr_722" target="ConstExpr_723">
   <data key="d12">contains</data>
 </edge>
-<edge source="Expr_724" target="ConstExpr_725">
+<edge source="Worker_724" target="CoreFunction_75">
+  <data key="d12">core_fn</data>
+</edge>
+<edge source="Worker_724" target="ExternalFunction_31">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_724" target="ExternalFunction_42">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_724" target="ExternalFunction_53">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_724" target="MethodChain_725">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_724" target="MethodChain_728">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_724" target="MethodChain_733">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_724" target="ConstructorCall_738">
+  <data key="d12">placed_by</data>
+</edge>
+<edge source="MethodChain_725" target="ObjectFifo_438">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_725" target="MethodCall_727">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="temp_726" target="ObjectFifo_438">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_728" target="IndexExpr_730">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_728" target="MethodCall_732">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_730" target="ObjectFifo_288">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_730" target="ConstExpr_731">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_730" target="MethodCall_732">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_729" target="IndexExpr_730">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="MethodChain_733" target="IndexExpr_735">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_733" target="MethodCall_737">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_735" target="ObjectFifo_372">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_735" target="ConstExpr_736">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_735" target="MethodCall_737">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_734" target="IndexExpr_735">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_738" target="Expr_739">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_738" target="Expr_741">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Expr_739" target="ConstExpr_740">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_458">
+<edge source="Expr_741" target="ConstExpr_742">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_477">
+<edge source="Worker_743" target="CoreFunction_121">
+  <data key="d12">core_fn</data>
+</edge>
+<edge source="Worker_743" target="ExternalFunction_31">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_743" target="ExternalFunction_53">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_743" target="ExternalFunction_64">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_743" target="MethodChain_744">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_743" target="MethodChain_747">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_743" target="MethodChain_752">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Worker_743" target="ConstructorCall_757">
+  <data key="d12">placed_by</data>
+</edge>
+<edge source="MethodChain_744" target="ObjectFifo_448">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_744" target="MethodCall_746">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="temp_745" target="ObjectFifo_448">
+  <data key="d12">uses</data>
+</edge>
+<edge source="MethodChain_747" target="IndexExpr_749">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_747" target="MethodCall_751">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_749" target="ObjectFifo_316">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_749" target="ConstExpr_750">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_749" target="MethodCall_751">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_748" target="IndexExpr_749">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="MethodChain_752" target="IndexExpr_754">
+  <data key="d12">base</data>
+</edge>
+<edge source="MethodChain_752" target="MethodCall_756">
+  <data key="d12">has_call</data>
+</edge>
+<edge source="IndexExpr_754" target="ObjectFifo_400">
+  <data key="d12">base</data>
+</edge>
+<edge source="IndexExpr_754" target="ConstExpr_755">
+  <data key="d12">index</data>
+</edge>
+<edge source="IndexExpr_754" target="MethodCall_756">
+  <data key="d12">calls</data>
+</edge>
+<edge source="temp_753" target="IndexExpr_754">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_757" target="Expr_758">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="ConstructorCall_757" target="Expr_760">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Expr_758" target="ConstExpr_759">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_493">
+<edge source="Expr_760" target="ConstExpr_761">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_509">
+<edge source="List_763" target="Worker_458">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_525">
+<edge source="List_763" target="Worker_477">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_544">
+<edge source="List_763" target="Worker_496">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_560">
+<edge source="List_763" target="Worker_515">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_576">
+<edge source="List_763" target="Worker_534">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_592">
+<edge source="List_763" target="Worker_553">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_611">
+<edge source="List_763" target="Worker_572">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_627">
+<edge source="List_763" target="Worker_591">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_643">
+<edge source="List_763" target="Worker_610">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_659">
+<edge source="List_763" target="Worker_629">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_678">
+<edge source="List_763" target="Worker_648">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_694">
+<edge source="List_763" target="Worker_667">
   <data key="d12">contains</data>
 </edge>
-<edge source="List_727" target="Worker_710">
+<edge source="List_763" target="Worker_686">
   <data key="d12">contains</data>
 </edge>
-<edge source="SequenceBlock_728" target="Call_729">
+<edge source="List_763" target="Worker_705">
+  <data key="d12">contains</data>
+</edge>
+<edge source="List_763" target="Worker_724">
+  <data key="d12">contains</data>
+</edge>
+<edge source="List_763" target="Worker_743">
+  <data key="d12">contains</data>
+</edge>
+<edge source="SequenceBlock_764" target="Call_765">
   <data key="d12">context</data>
 </edge>
-<edge source="SequenceBlock_728" target="Binding_731">
+<edge source="SequenceBlock_764" target="Binding_767">
   <data key="d12">binds</data>
 </edge>
-<edge source="SequenceBlock_728" target="Binding_732">
+<edge source="SequenceBlock_764" target="Binding_768">
   <data key="d12">binds</data>
 </edge>
-<edge source="SequenceBlock_728" target="Binding_733">
+<edge source="SequenceBlock_764" target="Binding_769">
   <data key="d12">binds</data>
 </edge>
-<edge source="SequenceBlock_728" target="Binding_734">
+<edge source="SequenceBlock_764" target="Binding_770">
   <data key="d12">binds</data>
 </edge>
-<edge source="SequenceBlock_728" target="Binding_735">
+<edge source="SequenceBlock_764" target="Binding_771">
   <data key="d12">binds</data>
 </edge>
-<edge source="SequenceBlock_728" target="Binding_736">
+<edge source="SequenceBlock_764" target="Binding_772">
   <data key="d12">binds</data>
 </edge>
-<edge source="SequenceBlock_728" target="Operation_737">
+<edge source="SequenceBlock_764" target="Operation_773">
   <data key="d12">contains</data>
 </edge>
-<edge source="SequenceBlock_728" target="Operation_739">
+<edge source="SequenceBlock_764" target="Operation_775">
   <data key="d12">contains</data>
 </edge>
-<edge source="SequenceBlock_728" target="Operation_747">
+<edge source="SequenceBlock_764" target="Operation_783">
   <data key="d12">contains</data>
 </edge>
-<edge source="SequenceBlock_728" target="Operation_755">
+<edge source="SequenceBlock_764" target="Operation_791">
   <data key="d12">contains</data>
 </edge>
-<edge source="SequenceBlock_728" target="Operation_763">
+<edge source="SequenceBlock_764" target="Operation_799">
   <data key="d12">contains</data>
 </edge>
-<edge source="SequenceBlock_728" target="Operation_771">
+<edge source="SequenceBlock_764" target="Operation_807">
   <data key="d12">contains</data>
 </edge>
-<edge source="SequenceBlock_728" target="Operation_779">
+<edge source="SequenceBlock_764" target="Operation_815">
   <data key="d12">contains</data>
-</edge>
-<edge source="Call_729" target="MethodCall_730">
-  <data key="d12">calls</data>
-</edge>
-<edge source="MethodCall_730" target="Runtime_726">
-  <data key="d12">object</data>
-</edge>
-<edge source="Operation_737" target="MethodCall_738">
-  <data key="d12">target</data>
-</edge>
-<edge source="Operation_737" target="List_727">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_739" target="MethodCall_740">
-  <data key="d12">target</data>
-</edge>
-<edge source="Operation_739" target="Call_741">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_739" target="Binding_731">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_739" target="Kwarg_743">
-  <data key="d12">has_kwarg</data>
-</edge>
-<edge source="Call_741" target="MethodCall_742">
-  <data key="d12">calls</data>
-</edge>
-<edge source="MethodCall_742" target="ObjectFifo_167">
-  <data key="d12">object</data>
-</edge>
-<edge source="Kwarg_743" target="Constructor_744">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Constructor_744" target="ConstExpr_745">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Constructor_744" target="ConstExpr_746">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_747" target="MethodCall_748">
-  <data key="d12">target</data>
-</edge>
-<edge source="Operation_747" target="Call_749">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_747" target="Binding_732">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_747" target="Kwarg_751">
-  <data key="d12">has_kwarg</data>
-</edge>
-<edge source="Call_749" target="MethodCall_750">
-  <data key="d12">calls</data>
-</edge>
-<edge source="MethodCall_750" target="ObjectFifo_173">
-  <data key="d12">object</data>
-</edge>
-<edge source="Kwarg_751" target="Constructor_752">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Constructor_752" target="ConstExpr_753">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Constructor_752" target="ConstExpr_754">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_755" target="MethodCall_756">
-  <data key="d12">target</data>
-</edge>
-<edge source="Operation_755" target="Call_757">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_755" target="Binding_733">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_755" target="Kwarg_759">
-  <data key="d12">has_kwarg</data>
-</edge>
-<edge source="Call_757" target="MethodCall_758">
-  <data key="d12">calls</data>
-</edge>
-<edge source="MethodCall_758" target="ObjectFifo_176">
-  <data key="d12">object</data>
-</edge>
-<edge source="Kwarg_759" target="Constructor_760">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Constructor_760" target="ConstExpr_761">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Constructor_760" target="ConstExpr_762">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_763" target="MethodCall_764">
-  <data key="d12">target</data>
-</edge>
-<edge source="Operation_763" target="Call_765">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_763" target="Binding_734">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_763" target="Kwarg_767">
-  <data key="d12">has_kwarg</data>
 </edge>
 <edge source="Call_765" target="MethodCall_766">
   <data key="d12">calls</data>
 </edge>
-<edge source="MethodCall_766" target="ObjectFifo_179">
+<edge source="MethodCall_766" target="Runtime_762">
   <data key="d12">object</data>
 </edge>
-<edge source="Kwarg_767" target="Constructor_768">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Constructor_768" target="ConstExpr_769">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Constructor_768" target="ConstExpr_770">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_771" target="MethodCall_772">
+<edge source="Operation_773" target="MethodCall_774">
   <data key="d12">target</data>
 </edge>
-<edge source="Operation_771" target="Call_773">
+<edge source="Operation_773" target="List_763">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Operation_771" target="Binding_735">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_771" target="Kwarg_775">
-  <data key="d12">has_kwarg</data>
-</edge>
-<edge source="Call_773" target="MethodCall_774">
-  <data key="d12">calls</data>
-</edge>
-<edge source="MethodCall_774" target="ObjectFifo_182">
-  <data key="d12">object</data>
-</edge>
-<edge source="Kwarg_775" target="Constructor_776">
-  <data key="d12">contains</data>
-</edge>
-<edge source="Constructor_776" target="ConstExpr_777">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Constructor_776" target="ConstExpr_778">
-  <data key="d12">has_arg</data>
-</edge>
-<edge source="Operation_779" target="MethodCall_780">
+<edge source="Operation_775" target="MethodCall_776">
   <data key="d12">target</data>
 </edge>
-<edge source="Operation_779" target="Call_781">
+<edge source="Operation_775" target="Call_777">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Operation_779" target="Binding_736">
+<edge source="Operation_775" target="Binding_767">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Operation_779" target="Kwarg_783">
+<edge source="Operation_775" target="Kwarg_779">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Operation_779" target="Kwarg_784">
-  <data key="d12">has_kwarg</data>
-</edge>
-<edge source="Call_781" target="MethodCall_782">
+<edge source="Call_777" target="MethodCall_778">
   <data key="d12">calls</data>
 </edge>
-<edge source="MethodCall_782" target="ObjectFifo_185">
+<edge source="MethodCall_778" target="ObjectFifo_167">
   <data key="d12">object</data>
 </edge>
-<edge source="Kwarg_784" target="Constructor_785">
+<edge source="Kwarg_779" target="Constructor_780">
   <data key="d12">contains</data>
 </edge>
-<edge source="Constructor_785" target="ConstExpr_786">
+<edge source="Constructor_780" target="ConstExpr_781">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Constructor_785" target="ConstExpr_787">
+<edge source="Constructor_780" target="ConstExpr_782">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Program_788" target="Call_789">
+<edge source="Operation_783" target="MethodCall_784">
+  <data key="d12">target</data>
+</edge>
+<edge source="Operation_783" target="Call_785">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_783" target="Binding_768">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_783" target="Kwarg_787">
+  <data key="d12">has_kwarg</data>
+</edge>
+<edge source="Call_785" target="MethodCall_786">
+  <data key="d12">calls</data>
+</edge>
+<edge source="MethodCall_786" target="ObjectFifo_173">
+  <data key="d12">object</data>
+</edge>
+<edge source="Kwarg_787" target="Constructor_788">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Constructor_788" target="ConstExpr_789">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Constructor_788" target="ConstExpr_790">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_791" target="MethodCall_792">
+  <data key="d12">target</data>
+</edge>
+<edge source="Operation_791" target="Call_793">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_791" target="Binding_769">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_791" target="Kwarg_795">
+  <data key="d12">has_kwarg</data>
+</edge>
+<edge source="Call_793" target="MethodCall_794">
+  <data key="d12">calls</data>
+</edge>
+<edge source="MethodCall_794" target="ObjectFifo_176">
+  <data key="d12">object</data>
+</edge>
+<edge source="Kwarg_795" target="Constructor_796">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Constructor_796" target="ConstExpr_797">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Constructor_796" target="ConstExpr_798">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_799" target="MethodCall_800">
+  <data key="d12">target</data>
+</edge>
+<edge source="Operation_799" target="Call_801">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_799" target="Binding_770">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_799" target="Kwarg_803">
+  <data key="d12">has_kwarg</data>
+</edge>
+<edge source="Call_801" target="MethodCall_802">
+  <data key="d12">calls</data>
+</edge>
+<edge source="MethodCall_802" target="ObjectFifo_179">
+  <data key="d12">object</data>
+</edge>
+<edge source="Kwarg_803" target="Constructor_804">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Constructor_804" target="ConstExpr_805">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Constructor_804" target="ConstExpr_806">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_807" target="MethodCall_808">
+  <data key="d12">target</data>
+</edge>
+<edge source="Operation_807" target="Call_809">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_807" target="Binding_771">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_807" target="Kwarg_811">
+  <data key="d12">has_kwarg</data>
+</edge>
+<edge source="Call_809" target="MethodCall_810">
+  <data key="d12">calls</data>
+</edge>
+<edge source="MethodCall_810" target="ObjectFifo_182">
+  <data key="d12">object</data>
+</edge>
+<edge source="Kwarg_811" target="Constructor_812">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Constructor_812" target="ConstExpr_813">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Constructor_812" target="ConstExpr_814">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_815" target="MethodCall_816">
+  <data key="d12">target</data>
+</edge>
+<edge source="Operation_815" target="Call_817">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_815" target="Binding_772">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Operation_815" target="Kwarg_819">
+  <data key="d12">has_kwarg</data>
+</edge>
+<edge source="Operation_815" target="Kwarg_820">
+  <data key="d12">has_kwarg</data>
+</edge>
+<edge source="Call_817" target="MethodCall_818">
+  <data key="d12">calls</data>
+</edge>
+<edge source="MethodCall_818" target="ObjectFifo_185">
+  <data key="d12">object</data>
+</edge>
+<edge source="Kwarg_820" target="Constructor_821">
+  <data key="d12">contains</data>
+</edge>
+<edge source="Constructor_821" target="ConstExpr_822">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Constructor_821" target="ConstExpr_823">
+  <data key="d12">has_arg</data>
+</edge>
+<edge source="Program_824" target="Call_825">
   <data key="d12">constructed_by</data>
 </edge>
-<edge source="ResolveProgram_790" target="Call_791">
+<edge source="ResolveProgram_826" target="Call_827">
   <data key="d12">target</data>
 </edge>
-<edge source="Call_791" target="ConstructorExpr_792">
+<edge source="Call_827" target="ConstructorExpr_828">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Function_793" target="Parameter_794">
+<edge source="Function_829" target="Parameter_830">
   <data key="d12">has_param</data>
 </edge>
-<edge source="Function_793" target="Parameter_795">
+<edge source="Function_829" target="Parameter_831">
   <data key="d12">has_param</data>
 </edge>
-<edge source="Function_793" target="Parameter_796">
+<edge source="Function_829" target="Parameter_832">
   <data key="d12">has_param</data>
 </edge>
-<edge source="Function_793" target="Parameter_797">
+<edge source="Function_829" target="Parameter_833">
   <data key="d12">has_param</data>
 </edge>
-<edge source="Function_793" target="Parameter_798">
+<edge source="Function_829" target="Parameter_834">
   <data key="d12">has_param</data>
 </edge>
-<edge source="Function_793" target="Parameter_799">
+<edge source="Function_829" target="Parameter_835">
   <data key="d12">has_param</data>
 </edge>
-<edge source="Function_793" target="FunctionBodyElement_800">
+<edge source="Function_829" target="FunctionBodyElement_836">
   <data key="d12">contains</data>
 </edge>
-<edge source="Function_793" target="FunctionBodyElement_801">
+<edge source="Function_829" target="FunctionBodyElement_837">
   <data key="d12">contains</data>
 </edge>
-<edge source="Function_802" target="Assign_811">
+<edge source="Function_838" target="Assign_847">
   <data key="d12">contains</data>
 </edge>
-<edge source="Function_802" target="RawLine_813">
+<edge source="Function_838" target="RawLine_849">
   <data key="d12">contains</data>
 </edge>
-<edge source="Function_802" target="RawLine_814">
+<edge source="Function_838" target="RawLine_850">
   <data key="d12">contains</data>
 </edge>
-<edge source="Function_802" target="Assign_823">
+<edge source="Function_838" target="Assign_859">
   <data key="d12">contains</data>
 </edge>
-<edge source="Function_802" target="Assign_833">
+<edge source="Function_838" target="Assign_869">
   <data key="d12">contains</data>
 </edge>
-<edge source="Function_802" target="Assign_843">
+<edge source="Function_838" target="Assign_879">
   <data key="d12">contains</data>
 </edge>
-<edge source="Function_802" target="Assign_853">
+<edge source="Function_838" target="Assign_889">
   <data key="d12">contains</data>
 </edge>
-<edge source="Function_802" target="Assign_863">
+<edge source="Function_838" target="Assign_899">
   <data key="d12">contains</data>
 </edge>
-<edge source="Function_802" target="Call_865">
+<edge source="Function_838" target="Call_901">
   <data key="d12">contains</data>
 </edge>
-<edge source="Expr_803" target="Call_804">
+<edge source="Expr_839" target="Call_840">
   <data key="d12">contains</data>
 </edge>
-<edge source="Call_804" target="FunctionCall_805">
+<edge source="Call_840" target="FunctionCall_841">
   <data key="d12">calls</data>
 </edge>
-<edge source="Call_804" target="VarRef_806">
+<edge source="Call_840" target="VarRef_842">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_804" target="Kwarg_808">
+<edge source="Call_840" target="Kwarg_844">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Call_804" target="Kwarg_810">
+<edge source="Call_840" target="Kwarg_846">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Kwarg_808" target="VarRef_807">
+<edge source="Kwarg_844" target="VarRef_843">
   <data key="d12">contains</data>
 </edge>
-<edge source="Kwarg_810" target="String_809">
+<edge source="Kwarg_846" target="String_845">
   <data key="d12">contains</data>
 </edge>
-<edge source="Assign_811" target="Expr_803">
+<edge source="Assign_847" target="Expr_839">
   <data key="d12">source</data>
 </edge>
-<edge source="Assign_811" target="Variable_812">
+<edge source="Assign_847" target="Variable_848">
   <data key="d12">assigns</data>
 </edge>
-<edge source="Variable_812" target="Variable_812">
+<edge source="Variable_848" target="Variable_848">
   <data key="d12">defines</data>
 </edge>
-<edge source="Expr_815" target="Call_816">
+<edge source="Expr_851" target="Call_852">
   <data key="d12">contains</data>
 </edge>
-<edge source="Call_816" target="FunctionCall_817">
+<edge source="Call_852" target="FunctionCall_853">
   <data key="d12">calls</data>
 </edge>
-<edge source="Call_816" target="VarRef_818">
+<edge source="Call_852" target="VarRef_854">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_816" target="Kwarg_820">
+<edge source="Call_852" target="Kwarg_856">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Call_816" target="Kwarg_822">
+<edge source="Call_852" target="Kwarg_858">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Kwarg_820" target="VarRef_819">
+<edge source="Kwarg_856" target="VarRef_855">
   <data key="d12">contains</data>
 </edge>
-<edge source="Kwarg_822" target="String_821">
+<edge source="Kwarg_858" target="String_857">
   <data key="d12">contains</data>
 </edge>
-<edge source="Assign_823" target="Expr_815">
+<edge source="Assign_859" target="Expr_851">
   <data key="d12">source</data>
 </edge>
-<edge source="Assign_823" target="Variable_824">
+<edge source="Assign_859" target="Variable_860">
   <data key="d12">assigns</data>
 </edge>
-<edge source="Variable_824" target="Variable_824">
+<edge source="Variable_860" target="Variable_860">
   <data key="d12">defines</data>
 </edge>
-<edge source="Expr_825" target="Call_826">
+<edge source="Expr_861" target="Call_862">
   <data key="d12">contains</data>
 </edge>
-<edge source="Call_826" target="FunctionCall_827">
+<edge source="Call_862" target="FunctionCall_863">
   <data key="d12">calls</data>
 </edge>
-<edge source="Call_826" target="VarRef_828">
+<edge source="Call_862" target="VarRef_864">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_826" target="Kwarg_830">
+<edge source="Call_862" target="Kwarg_866">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Call_826" target="Kwarg_832">
+<edge source="Call_862" target="Kwarg_868">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Kwarg_830" target="VarRef_829">
+<edge source="Kwarg_866" target="VarRef_865">
   <data key="d12">contains</data>
 </edge>
-<edge source="Kwarg_832" target="String_831">
+<edge source="Kwarg_868" target="String_867">
   <data key="d12">contains</data>
 </edge>
-<edge source="Assign_833" target="Expr_825">
+<edge source="Assign_869" target="Expr_861">
   <data key="d12">source</data>
 </edge>
-<edge source="Assign_833" target="Variable_834">
+<edge source="Assign_869" target="Variable_870">
   <data key="d12">assigns</data>
 </edge>
-<edge source="Variable_834" target="Variable_834">
+<edge source="Variable_870" target="Variable_870">
   <data key="d12">defines</data>
 </edge>
-<edge source="Expr_835" target="Call_836">
+<edge source="Expr_871" target="Call_872">
   <data key="d12">contains</data>
 </edge>
-<edge source="Call_836" target="FunctionCall_837">
+<edge source="Call_872" target="FunctionCall_873">
   <data key="d12">calls</data>
 </edge>
-<edge source="Call_836" target="VarRef_838">
+<edge source="Call_872" target="VarRef_874">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_836" target="Kwarg_840">
+<edge source="Call_872" target="Kwarg_876">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Call_836" target="Kwarg_842">
+<edge source="Call_872" target="Kwarg_878">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Kwarg_840" target="VarRef_839">
+<edge source="Kwarg_876" target="VarRef_875">
   <data key="d12">contains</data>
 </edge>
-<edge source="Kwarg_842" target="String_841">
+<edge source="Kwarg_878" target="String_877">
   <data key="d12">contains</data>
 </edge>
-<edge source="Assign_843" target="Expr_835">
+<edge source="Assign_879" target="Expr_871">
   <data key="d12">source</data>
 </edge>
-<edge source="Assign_843" target="Variable_844">
+<edge source="Assign_879" target="Variable_880">
   <data key="d12">assigns</data>
 </edge>
-<edge source="Variable_844" target="Variable_844">
+<edge source="Variable_880" target="Variable_880">
   <data key="d12">defines</data>
 </edge>
-<edge source="Expr_845" target="Call_846">
+<edge source="Expr_881" target="Call_882">
   <data key="d12">contains</data>
 </edge>
-<edge source="Call_846" target="FunctionCall_847">
+<edge source="Call_882" target="FunctionCall_883">
   <data key="d12">calls</data>
 </edge>
-<edge source="Call_846" target="VarRef_848">
+<edge source="Call_882" target="VarRef_884">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_846" target="Kwarg_850">
+<edge source="Call_882" target="Kwarg_886">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Call_846" target="Kwarg_852">
+<edge source="Call_882" target="Kwarg_888">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Kwarg_850" target="VarRef_849">
+<edge source="Kwarg_886" target="VarRef_885">
   <data key="d12">contains</data>
 </edge>
-<edge source="Kwarg_852" target="String_851">
+<edge source="Kwarg_888" target="String_887">
   <data key="d12">contains</data>
 </edge>
-<edge source="Assign_853" target="Expr_845">
+<edge source="Assign_889" target="Expr_881">
   <data key="d12">source</data>
 </edge>
-<edge source="Assign_853" target="Variable_854">
+<edge source="Assign_889" target="Variable_890">
   <data key="d12">assigns</data>
 </edge>
-<edge source="Variable_854" target="Variable_854">
+<edge source="Variable_890" target="Variable_890">
   <data key="d12">defines</data>
 </edge>
-<edge source="Expr_855" target="Call_856">
+<edge source="Expr_891" target="Call_892">
   <data key="d12">contains</data>
 </edge>
-<edge source="Call_856" target="FunctionCall_857">
+<edge source="Call_892" target="FunctionCall_893">
   <data key="d12">calls</data>
 </edge>
-<edge source="Call_856" target="VarRef_858">
+<edge source="Call_892" target="VarRef_894">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_856" target="Kwarg_860">
+<edge source="Call_892" target="Kwarg_896">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Call_856" target="Kwarg_862">
+<edge source="Call_892" target="Kwarg_898">
   <data key="d12">has_kwarg</data>
 </edge>
-<edge source="Kwarg_860" target="VarRef_859">
+<edge source="Kwarg_896" target="VarRef_895">
   <data key="d12">contains</data>
 </edge>
-<edge source="Kwarg_862" target="String_861">
+<edge source="Kwarg_898" target="String_897">
   <data key="d12">contains</data>
 </edge>
-<edge source="Assign_863" target="Expr_855">
+<edge source="Assign_899" target="Expr_891">
   <data key="d12">source</data>
 </edge>
-<edge source="Assign_863" target="Variable_864">
+<edge source="Assign_899" target="Variable_900">
   <data key="d12">assigns</data>
 </edge>
-<edge source="Variable_864" target="Variable_864">
+<edge source="Variable_900" target="Variable_900">
   <data key="d12">defines</data>
 </edge>
-<edge source="Call_865" target="FunctionCall_866">
+<edge source="Call_901" target="FunctionCall_902">
   <data key="d12">calls</data>
 </edge>
-<edge source="Call_865" target="VarRef_867">
+<edge source="Call_901" target="VarRef_903">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_865" target="VarRef_868">
+<edge source="Call_901" target="VarRef_904">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_865" target="VarRef_869">
+<edge source="Call_901" target="VarRef_905">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_865" target="VarRef_870">
+<edge source="Call_901" target="VarRef_906">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_865" target="VarRef_871">
+<edge source="Call_901" target="VarRef_907">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="Call_865" target="VarRef_872">
+<edge source="Call_901" target="VarRef_908">
   <data key="d12">has_arg</data>
 </edge>
-<edge source="EntryPoint_873" target="If_875">
+<edge source="EntryPoint_909" target="If_911">
   <data key="d12">contains</data>
 </edge>
-<edge source="If_875" target="ConditionExpr_874">
+<edge source="If_911" target="ConditionExpr_910">
   <data key="d12">condition</data>
 </edge>
 </graph></graphml>

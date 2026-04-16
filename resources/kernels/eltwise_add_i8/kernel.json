@@ -13,5 +13,9 @@
     "eltwise",
     "int8",
     "vector"
-  ]
+  ],
+  "iron_signature": {
+    "archive": "eltwise_add_i8.a",
+    "arg_types": ["type_int8_256", "type_int8_256", "type_int8_256"]
+  }
 }

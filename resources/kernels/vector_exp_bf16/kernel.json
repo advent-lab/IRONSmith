@@ -9,5 +9,9 @@
   "files": [
     "bf16_exp.cc"
   ],
-  "tags": ["exp", "bf16", "unary", "vector", "aie2"]
+  "tags": ["exp", "bf16", "unary", "vector", "aie2"],
+  "iron_signature": {
+    "archive": "bf16_exp.a",
+    "arg_types": ["type_bf16_1024", "type_bf16_1024"]
+  }
 }

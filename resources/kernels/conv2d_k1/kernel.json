@@ -10,5 +10,9 @@
     "conv2dk1.cc",
     "conv2dk1.h"
   ],
-  "tags": ["conv2d", "cnn", "i8", "ui8", "aie2"]
+  "tags": ["conv2d", "cnn", "i8", "ui8", "aie2"],
+  "iron_signature": {
+    "archive": "conv2dk1.a",
+    "arg_types": ["type_int8_N", "type_int8_K", "type_uint8_M"]
+  }
 }

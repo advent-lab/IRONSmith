@@ -9,5 +9,9 @@
   "files": [
     "relu_i16.cc"
   ],
-  "tags": ["relu", "activation", "i16", "unary", "aie2"]
+  "tags": ["relu", "activation", "i16", "unary", "aie2"],
+  "iron_signature": {
+    "archive": "mm.a",
+    "arg_types": ["type_int16_64"]
+  }
 }

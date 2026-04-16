@@ -11,6 +11,8 @@ Example:
 """
 
 from __future__ import annotations
+import json
+from pathlib import Path
 from typing import Dict, Type, Optional, List
 import networkx as nx
 
@@ -63,62 +65,110 @@ class CodeGenExtension:
 # Extension: ExternalFunction
 # ----------------------------------------------------------------------
 class ExternalFunctionCodeGen(CodeGenExtension):
-    """Generates ExternalFunction declarations"""
-    
+    """Generates kernel declarations.
+
+    Emits ``Kernel(...)`` when the design places multiple kernels on a tile
+    (multi-kernel mode), or ``ExternalFunction(...)`` when every tile uses at
+    most one kernel (single-kernel mode).  Argument types are read from the
+    ``iron_signature`` block of the kernel's ``kernel.json`` file; the graph
+    kwarg values are used as a fallback.
+    """
+
     kind = "ExternalFunction"
-    
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _get_source_file(self, node_id: str) -> Optional[str]:
+        """Return the source_file kwarg value for this ExternalFunction node."""
+        for kw_id in self._get_children(node_id, 'has_kwarg'):
+            if self._get_node_attr(kw_id, 'name') == 'source_file':
+                return self._get_node_attr(kw_id, 'value')
+        return None
+
+    def _load_iron_signature(self, node_id: str) -> Optional[dict]:
+        """Load iron_signature from the kernel's kernel.json, or None."""
+        source_file = self._get_source_file(node_id)
+        if not source_file:
+            return None
+        kj_path = Path(source_file).parent / 'kernel.json'
+        if not kj_path.is_file():
+            return None
+        try:
+            with open(kj_path) as f:
+                return json.load(f).get('iron_signature')
+        except Exception:
+            return None
+
+    def _graph_arg_types(self, node_id: str) -> List[str]:
+        """Extract arg_types list from the graph node kwargs (fallback)."""
+        for kw_id in self._get_children(node_id, 'has_kwarg'):
+            if self._get_node_attr(kw_id, 'name') == 'arg_types':
+                value_nodes = self._get_children(kw_id, 'contains')
+                for v_id in value_nodes:
+                    if self._get_node_attr(v_id, 'kind') == 'List':
+                        return [
+                            self._get_node_attr(item_id, 'label')
+                            for item_id in self._get_children(v_id, 'contains')
+                        ]
+        return []
+
+    def _func_name(self, node_id: str) -> str:
+        """The function symbol name (label minus the variable-name prefix)."""
+        # The label is the *variable* name (e.g., kernel_matmul_i16_i16).
+        # The actual C symbol is stored in the 'name' kwarg; fall back to
+        # stripping a leading "kernel_" prefix from the label.
+        for kw_id in self._get_children(node_id, 'has_kwarg'):
+            if self._get_node_attr(kw_id, 'name') == 'name':
+                val = self._get_node_attr(kw_id, 'value')
+                if val:
+                    return val
+        label = self._get_node_attr(node_id, 'label') or ''
+        return label.removeprefix('kernel_')
+
+    # ------------------------------------------------------------------
+    # Main generate
+    # ------------------------------------------------------------------
+
     def generate(self, node_id: str) -> str:
-        name = self._get_node_attr(node_id, 'label')
-        
-        # Get kwargs
-        kwarg_nodes = self._get_children(node_id, 'has_kwarg')
-        kwargs = []
-        
-        for kw_id in kwarg_nodes:
-            kw_name = self._get_node_attr(kw_id, 'name')
-            kw_value = self._get_node_attr(kw_id, 'value')
-            
-            # Handle special cases
-            if kw_name == 'arg_types':
-                # This is a list of type references
+        var_name = self._get_node_attr(node_id, 'label')  # e.g. kernel_matmul_i16_i16
+        func_name = self._func_name(node_id)              # e.g. matmul_i16_i16
+
+        iron_sig = self._load_iron_signature(node_id)
+        arg_types = (iron_sig.get('arg_types', []) if iron_sig
+                     else self._graph_arg_types(node_id))
+        arg_types_str = f"[{', '.join(arg_types)}]" if arg_types else "[]"
+
+        # ---- Multi-kernel mode → Kernel API ----
+        if getattr(self.generator, '_use_kernel_api', False) and iron_sig:
+            archive = iron_sig.get('archive', '')
+            archive_var = Path(archive).stem + '_archive' if archive else '"<unknown_archive>"'
+            return f'{var_name} = Kernel("{func_name}", {archive_var}, {arg_types_str})'
+
+        # ---- Single-kernel mode → ExternalFunction ----
+        source_file = self._get_source_file(node_id) or ''
+        kwargs: List[str] = []
+        kwargs.append(f'name="{func_name}"')
+        if source_file:
+            kwargs.append(f'source_file="{source_file}"')
+        kwargs.append(f'arg_types={arg_types_str}')
+
+        # include_dirs from graph kwarg
+        for kw_id in self._get_children(node_id, 'has_kwarg'):
+            if self._get_node_attr(kw_id, 'name') == 'include_dirs':
                 value_nodes = self._get_children(kw_id, 'contains')
-                if value_nodes:
-                    # Reconstruct list
-                    types = []
-                    for v_id in value_nodes:
-                        v_kind = self._get_node_attr(v_id, 'kind')
-                        if v_kind == 'List':
-                            list_items = self._get_children(v_id, 'contains')
-                            for item_id in list_items:
-                                item_label = self._get_node_attr(item_id, 'label')
-                                types.append(item_label)
-                    if types:
-                        kwargs.append(f"arg_types=[{', '.join(types)}]")
-            elif kw_name == 'include_dirs':
-                # This is a list of strings
-                value_nodes = self._get_children(kw_id, 'contains')
-                if value_nodes:
-                    dirs = []
-                    for v_id in value_nodes:
-                        v_kind = self._get_node_attr(v_id, 'kind')
-                        if v_kind == 'List':
-                            list_items = self._get_children(v_id, 'contains')
-                            for item_id in list_items:
-                                item_label = self._get_node_attr(item_id, 'label')
-                                # Remove quotes if present
-                                item_label = item_label.strip('"\'')
-                                dirs.append(f'"{item_label}"')
-                    if dirs:
-                        kwargs.append(f"include_dirs=[{', '.join(dirs)}]")
-            else:
-                # Regular kwarg
-                if kw_value:
-                    kwargs.append(f'{kw_name}="{kw_value}"')
-        
-        kwargs_str = ", ".join(kwargs) if kwargs else ""
-        if kwargs_str:
-            return f"{name} = ExternalFunction(\n        {kwargs_str}\n    )"
-        return f"{name} = ExternalFunction()"
+                for v_id in value_nodes:
+                    if self._get_node_attr(v_id, 'kind') == 'List':
+                        dirs = [
+                            f'"{self._get_node_attr(item_id, "label").strip(chr(34) + chr(39))}"'
+                            for item_id in self._get_children(v_id, 'contains')
+                        ]
+                        if dirs:
+                            kwargs.append(f"include_dirs=[{', '.join(dirs)}]")
+
+        kwargs_str = ", ".join(kwargs)
+        return f"{var_name} = ExternalFunction(\n        {kwargs_str}\n    )"
 
 
 # ----------------------------------------------------------------------

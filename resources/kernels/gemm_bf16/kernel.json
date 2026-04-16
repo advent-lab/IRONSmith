@@ -13,5 +13,9 @@
     "gemm",
     "bf16",
     "matmul"
-  ]
+  ],
+  "iron_signature": {
+    "archive": "gemm_bf16.a",
+    "arg_types": ["type_bf16_256", "type_bf16_64", "type_bf16_64"]
+  }
 }
