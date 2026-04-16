@@ -735,6 +735,14 @@ void AiePropertiesPanel::buildUi()
     fifoTypeCombo->addItem(QStringLiteral("i8"));
     fifoTypeCombo->addItem(QStringLiteral("i16"));
     fifoTypeCombo->addItem(QStringLiteral("i32"));
+    fifoTypeCombo->addItem(QStringLiteral("i64"));
+    fifoTypeCombo->addItem(QStringLiteral("ui8"));
+    fifoTypeCombo->addItem(QStringLiteral("ui16"));
+    fifoTypeCombo->addItem(QStringLiteral("ui32"));
+    fifoTypeCombo->addItem(QStringLiteral("bf16"));
+    fifoTypeCombo->addItem(QStringLiteral("f16"));
+    fifoTypeCombo->addItem(QStringLiteral("f32"));
+    fifoTypeCombo->addItem(QStringLiteral("f64"));
     auto* fifoDimensionsEdit = new QLineEdit(fifoGroup);
     fifoDimensionsEdit->setObjectName(QStringLiteral("AiePropertiesField"));
 
@@ -2026,9 +2034,16 @@ void AiePropertiesPanel::refreshSelection()
         if (m_fifoDepthSpin)
             m_fifoDepthSpin->setValue(fifo.depth);
 
-        // Symbol combo
+        // Symbol combo — repopulate from metadata on every selection so newly
+        // added TypeAbstraction entries appear without restarting the app.
         const QString currentSymbol = fifo.type.symbolRef.value_or(QString{});
         if (m_fifoSymbolCombo) {
+            m_fifoSymbolCombo->clear();
+            m_fifoSymbolCombo->addItem(QStringLiteral("None"));
+            const QJsonObject metadata = m_canvasDocuments
+                ? m_canvasDocuments->activeMetadata() : QJsonObject{};
+            for (const FifoTypeOption& opt : fifoTypeOptionsFromMetadata(metadata))
+                m_fifoSymbolCombo->addItem(opt.name, opt.id);
             const int symIdx = currentSymbol.isEmpty() ? 0 : m_fifoSymbolCombo->findText(currentSymbol);
             m_fifoSymbolCombo->setCurrentIndex(symIdx >= 0 ? symIdx : 0);
         }

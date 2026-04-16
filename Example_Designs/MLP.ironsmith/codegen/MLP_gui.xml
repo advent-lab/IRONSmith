@@ -1,16 +1,34 @@
 <?xml version="1.0" ?>
 <Module name="gui_design">
     <Symbols>
+        <TypeAbstraction name="output_type">
+            <ndarray>
+                <shape>256</shape>
+                <dtype>float16</dtype>
+            </ndarray>
+        </TypeAbstraction>
         <TypeAbstraction name="type_int16_256">
             <ndarray>
                 <shape>256</shape>
                 <dtype>int16</dtype>
             </ndarray>
         </TypeAbstraction>
+        <TypeAbstraction name="type_bfloat16_256">
+            <ndarray>
+                <shape>256</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
         <TypeAbstraction name="type_int16_64">
             <ndarray>
                 <shape>64</shape>
                 <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="type_bfloat16_64">
+            <ndarray>
+                <shape>64</shape>
+                <dtype>bfloat16</dtype>
             </ndarray>
         </TypeAbstraction>
         <TypeAbstraction name="type_int16_256x256">
@@ -63,7 +81,7 @@
             <arg_types>
                 <type>type_int16_64</type>
                 <type>type_int16_256</type>
-                <type>type_int16_64</type>
+                <type>type_bfloat16_64</type>
             </arg_types>
             <include_dirs>
                 <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16</dir>
@@ -136,7 +154,7 @@
             <depth>2</depth>
         </ObjectFifo>
         <ObjectFifo name="output_activation_fifo">
-            <type>type_int16_256</type>
+            <type>type_bfloat16_256</type>
             <depth>2</depth>
         </ObjectFifo>
         <ObjectFifo name="inter_activation_fifo2">
@@ -200,7 +218,7 @@
         <ObjectFifoJoin name="activation_tile_join_col3">
             <dest>output_activation_fifo</dest>
             <num_inputs>4</num_inputs>
-            <input_type>type_int16_64</input_type>
+            <input_type>type_bfloat16_64</input_type>
             <placement>Tile(3, 1)</placement>
             <offsets>0, 64, 128, 192</offsets>
         </ObjectFifoJoin>
@@ -400,8 +418,8 @@
             <placement>Tile(3, 5)</placement>
         </Worker>
         <Runtime name="runtime">
-            <Sequence inputs="type_int16_256x256, type_int16_256, type_int16_256, type_int16_256, type_int16_256, type_int16_256" as="input_activation_in, weight_layer0_in, weight_layer1_in, weight_layer2_in, weight_layer3_in, output_activation_out">
-                <Start>worker_aie0_3, worker_aie1_4, worker_aie3_2, worker_aie0_5, worker_aie2_3, worker_aie0_2, worker_aie3_4, worker_aie1_2, worker_aie1_5, worker_aie3_3, worker_aie2_5, worker_aie1_3, worker_aie0_4, worker_aie3_5, worker_aie2_2, worker_aie2_4</Start>
+            <Sequence inputs="type_int16_256x256, type_int16_256, type_int16_256, type_int16_256, type_int16_256, type_bfloat16_256" as="input_activation_in, weight_layer0_in, weight_layer1_in, weight_layer2_in, weight_layer3_in, output_activation_out">
+                <Start>worker_aie0_5, worker_aie0_4, worker_aie2_4, worker_aie0_2, worker_aie1_5, worker_aie0_3, worker_aie2_3, worker_aie2_2, worker_aie2_5, worker_aie3_4, worker_aie3_2, worker_aie1_3, worker_aie1_2, worker_aie3_3, worker_aie1_4, worker_aie3_5</Start>
                 <Fill target="input_activation_fifo" source="input_activation_in" data_ref="input_activation" use_tap="false">
                     <placement>Tile(0, 0)</placement>
                 </Fill>
@@ -436,7 +454,7 @@
             <param name="weight_layer1" type="type_int16_256"/>
             <param name="weight_layer2" type="type_int16_256"/>
             <param name="weight_layer3" type="type_int16_256"/>
-            <param name="output_activation" type="type_int16_256"/>
+            <param name="output_activation" type="type_bfloat16_256"/>
         </parameters>
         <body>
             <UseDataFlow/>
@@ -463,7 +481,7 @@
                 <init>iron.arange(256, dtype=np.int16, device="npu")</init>
             </Tensor>
             <Tensor name="output_activation">
-                <init>iron.zeros(256, dtype=np.int16, device="npu")</init>
+                <init>iron.zeros(256, dtype=bfloat16, device="npu")</init>
             </Tensor>
             <Call function="jit_function" args="input_activation, weight_layer0, weight_layer1, weight_layer2, weight_layer3, output_activation"/>
         </body>

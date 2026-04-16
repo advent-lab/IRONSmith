@@ -20,8 +20,11 @@ from aie.helpers.taplib import TensorAccessPattern
 @iron.jit(is_placed=False)
 def gui_design_jit(input_activation, weight_layer0, weight_layer1, weight_layer2, weight_layer3, output_activation):
     # Tensor Types
+    output_type = np.ndarray[(256,), np.dtype[np.float16]]
     type_int16_256 = np.ndarray[(256,), np.dtype[np.int16]]
+    type_bfloat16_256 = np.ndarray[(256,), np.dtype[bfloat16]]
     type_int16_64 = np.ndarray[(64,), np.dtype[np.int16]]
+    type_bfloat16_64 = np.ndarray[(64,), np.dtype[bfloat16]]
     type_int16_256x256 = np.ndarray[(256, 256), np.dtype[np.int16]]
 
     # Data Movement
@@ -32,7 +35,7 @@ def gui_design_jit(input_activation, weight_layer0, weight_layer1, weight_layer2
     weights_col1_fifo = ObjectFifo(obj_type=type_int16_256, depth=2, name="weights_col1_fifo")
     weights_col2_fifo = ObjectFifo(obj_type=type_int16_256, depth=2, name="weights_col2_fifo")
     weights_col3_fifo = ObjectFifo(obj_type=type_int16_256, depth=2, name="weights_col3_fifo")
-    output_activation_fifo = ObjectFifo(obj_type=type_int16_256, depth=2, name="output_activation_fifo")
+    output_activation_fifo = ObjectFifo(obj_type=type_bfloat16_256, depth=2, name="output_activation_fifo")
     inter_activation_fifo2 = ObjectFifo(obj_type=type_int16_256, depth=2, name="inter_activation_fifo2")
     inter_activation_fifo3 = ObjectFifo(obj_type=type_int16_256, depth=2, name="inter_activation_fifo3")
     # Splits
@@ -44,7 +47,7 @@ def gui_design_jit(input_activation, weight_layer0, weight_layer1, weight_layer2
     activation_tile_join_col0 = inter_activation_fifo1.prod().join(names=["activation_tile_join_col0_in1", "activation_tile_join_col0_in2", "activation_tile_join_col0_in3", "activation_tile_join_col0_in4"], obj_types=[type_int16_64, type_int16_64, type_int16_64, type_int16_64], offsets=[0, 64, 128, 192], placement=Tile(0, 1))
     activation_tile_join_col1 = inter_activation_fifo2.prod().join(names=["activation_tile_join_col1_in1", "activation_tile_join_col1_in2", "activation_tile_join_col1_in3", "activation_tile_join_col1_in4"], obj_types=[type_int16_64, type_int16_64, type_int16_64, type_int16_64], offsets=[0, 64, 128, 192], placement=Tile(1, 1))
     activation_tile_join_col2 = inter_activation_fifo3.prod().join(names=["activation_tile_join_col2_in1", "activation_tile_join_col2_in2", "activation_tile_join_col2_in3", "activation_tile_join_col2_in4"], obj_types=[type_int16_64, type_int16_64, type_int16_64, type_int16_64], offsets=[0, 64, 128, 192], placement=Tile(2, 1))
-    activation_tile_join_col3 = output_activation_fifo.prod().join(names=["activation_tile_join_col3_in1", "activation_tile_join_col3_in2", "activation_tile_join_col3_in3", "activation_tile_join_col3_in4"], obj_types=[type_int16_64, type_int16_64, type_int16_64, type_int16_64], offsets=[0, 64, 128, 192], placement=Tile(3, 1))
+    activation_tile_join_col3 = output_activation_fifo.prod().join(names=["activation_tile_join_col3_in1", "activation_tile_join_col3_in2", "activation_tile_join_col3_in3", "activation_tile_join_col3_in4"], obj_types=[type_bfloat16_64, type_bfloat16_64, type_bfloat16_64, type_bfloat16_64], offsets=[0, 64, 128, 192], placement=Tile(3, 1))
     # Broadcasts
     input_activation_col0_fifo = input_activation_fifo.cons().forward(placement=Tile(0, 1))
 
@@ -106,7 +109,7 @@ def gui_design_jit(input_activation, weight_layer0, weight_layer1, weight_layer2
 
     # Runtime
     rt = Runtime()
-    with rt.sequence(type_int16_256x256, type_int16_256, type_int16_256, type_int16_256, type_int16_256, type_int16_256) as (input_activation_in, weight_layer0_in, weight_layer1_in, weight_layer2_in, weight_layer3_in, output_activation_out):
+    with rt.sequence(type_int16_256x256, type_int16_256, type_int16_256, type_int16_256, type_int16_256, type_bfloat16_256) as (input_activation_in, weight_layer0_in, weight_layer1_in, weight_layer2_in, weight_layer3_in, output_activation_out):
         # Start Workers
         rt.start(*Workers)
         # Fills
@@ -133,7 +136,7 @@ def main():
     weight_layer1 = iron.arange(256, dtype=np.int16, device="npu")
     weight_layer2 = iron.arange(256, dtype=np.int16, device="npu")
     weight_layer3 = iron.arange(256, dtype=np.int16, device="npu")
-    output_activation = iron.zeros(256, dtype=np.int16, device="npu")
+    output_activation = iron.zeros(256, dtype=bfloat16, device="npu")
     gui_design_jit(input_activation, weight_layer0, weight_layer1, weight_layer2, weight_layer3, output_activation)
 
 

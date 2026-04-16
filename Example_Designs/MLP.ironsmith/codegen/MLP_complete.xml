@@ -21,6 +21,18 @@
     <Import name="aie.helpers.taplib">
       <Submodule name="TensorAccessPattern"/>
     </Import>
+    <TypeAbstraction name="output_type">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>256</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>float16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
     <TypeAbstraction name="type_int16_256">
       <ndarray>
         <shape>
@@ -33,6 +45,18 @@
         </dtype>
       </ndarray>
     </TypeAbstraction>
+    <TypeAbstraction name="type_bfloat16_256">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>256</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>bfloat16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
     <TypeAbstraction name="type_int16_64">
       <ndarray>
         <shape>
@@ -42,6 +66,18 @@
         </shape>
         <dtype>
           <numpy_dtype>int16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="type_bfloat16_64">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>64</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>bfloat16</numpy_dtype>
         </dtype>
       </ndarray>
     </TypeAbstraction>
@@ -124,7 +160,7 @@
           <list>
             <type_ref>type_int16_64</type_ref>
             <type_ref>type_int16_256</type_ref>
-            <type_ref>type_int16_64</type_ref>
+            <type_ref>type_bfloat16_64</type_ref>
           </list>
         </kwarg>
         <kwarg name="include_dirs">
@@ -400,7 +436,7 @@
     </ObjectFifo>
     <ObjectFifo name="output_activation_fifo">
       <obj_type>
-        <type_ref>type_int16_256</type_ref>
+        <type_ref>type_bfloat16_256</type_ref>
       </obj_type>
       <attributes>
         <kwarg name="depth" value="2"/>
@@ -813,10 +849,10 @@
             <method name="join">
               <kwarg name="obj_types">
                 <list>
-                  <type_ref>type_int16_64</type_ref>
-                  <type_ref>type_int16_64</type_ref>
-                  <type_ref>type_int16_64</type_ref>
-                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_bfloat16_64</type_ref>
+                  <type_ref>type_bfloat16_64</type_ref>
+                  <type_ref>type_bfloat16_64</type_ref>
+                  <type_ref>type_bfloat16_64</type_ref>
                 </list>
               </kwarg>
               <kwarg name="names">
@@ -2047,7 +2083,7 @@
             <arg type_ref="type_int16_256"/>
             <arg type_ref="type_int16_256"/>
             <arg type_ref="type_int16_256"/>
-            <arg type_ref="type_int16_256"/>
+            <arg type_ref="type_bfloat16_256"/>
           </method>
         </call>
       </context>
@@ -2057,7 +2093,7 @@
         <bind name="weight_layer1_in" type_ref="type_int16_256"/>
         <bind name="weight_layer2_in" type_ref="type_int16_256"/>
         <bind name="weight_layer3_in" type_ref="type_int16_256"/>
-        <bind name="output_activation_out" type_ref="type_int16_256"/>
+        <bind name="output_activation_out" type_ref="type_bfloat16_256"/>
       </bindings>
       <body>
         <Operation name="start">
@@ -2259,15 +2295,18 @@
       <param name="weight_layer1" type_ref="type_int16_256"/>
       <param name="weight_layer2" type_ref="type_int16_256"/>
       <param name="weight_layer3" type_ref="type_int16_256"/>
-      <param name="output_activation" type_ref="type_int16_256"/>
+      <param name="output_activation" type_ref="type_bfloat16_256"/>
     </parameters>
     <attributes>
       <kwarg name="is_placed" value="False"/>
     </attributes>
     <body>
       <UseDataFlow>
+        <UseType name="output_type"/>
         <UseType name="type_int16_256"/>
+        <UseType name="type_bfloat16_256"/>
         <UseType name="type_int16_64"/>
+        <UseType name="type_bfloat16_64"/>
         <UseType name="type_int16_256x256"/>
       </UseDataFlow>
       <Return>
@@ -2378,7 +2417,7 @@
                 <var>256</var>
               </arg>
               <kwarg name="dtype">
-                <var>np.int16</var>
+                <var>bfloat16</var>
               </kwarg>
               <kwarg name="device">
                 <string>npu</string>

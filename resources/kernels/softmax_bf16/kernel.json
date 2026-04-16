@@ -12,6 +12,6 @@
   "tags": ["softmax", "activation", "bf16", "unary", "aie2"],
   "iron_signature": {
     "archive": "softmax.a",
-    "arg_types": ["type_bf16_256", "type_bf16_256"]
+    "arg_types": ["type_bfloat16_256", "type_bfloat16_256"]
   }
 }
