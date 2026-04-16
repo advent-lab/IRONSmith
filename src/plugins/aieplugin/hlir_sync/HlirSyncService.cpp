@@ -718,6 +718,7 @@ void HlirSyncService::syncSplitsAndJoins()
             }
 
             // Mark broadcast arm wires with Forward + empty hubName so they show no annotation.
+            // Also propagate the pivot FIFO's resolved type so the type map is correct.
             for (const auto& port : hubBlock->ports()) {
                 if (port.role != Canvas::PortRole::Producer)
                     continue;
@@ -727,8 +728,10 @@ void HlirSyncService::syncSplitsAndJoins()
                 Canvas::CanvasWire::ObjectFifoConfig cfg =
                     armWire->hasObjectFifo() ? armWire->objectFifo().value()
                                              : Canvas::CanvasWire::ObjectFifoConfig{};
-                cfg.operation = Canvas::CanvasWire::ObjectFifoOperation::Forward;
-                cfg.hubName   = QString();
+                cfg.operation          = Canvas::CanvasWire::ObjectFifoOperation::Forward;
+                cfg.hubName            = QString();
+                cfg.type.valueType     = srcFifo->valueType;
+                cfg.type.dimensions    = srcFifo->dimensions;
                 armWire->setObjectFifo(cfg);
             }
 
@@ -828,6 +831,18 @@ void HlirSyncService::syncSplitsAndJoins()
             offsets.reserve(numOut);
             for (int i = 0; i < numOut; ++i)
                 offsets.push_back(stride * i);
+
+            // Propagate resolved arm type (valueType + per-arm element count) to every arm wire
+            // so that buildFifoTypeMap() sees the correct type during verification.
+            for (const auto& port : hubBlock->ports()) {
+                if (port.role != Canvas::PortRole::Producer) continue;
+                auto* armWire = portToArmWire.value(port.id, nullptr);
+                if (!armWire || !armWire->hasObjectFifo()) continue;
+                Canvas::CanvasWire::ObjectFifoConfig cfg = armWire->objectFifo().value();
+                cfg.type.valueType  = srcFifo->valueType;
+                cfg.type.dimensions = QString::number(stride);
+                armWire->setObjectFifo(cfg);
+            }
 
             auto result = m_bridge->addFifoSplit(
                 splitName.toStdString(),
@@ -943,6 +958,18 @@ void HlirSyncService::syncSplitsAndJoins()
             for (int i = 0; i < numIn; ++i)
                 offsets.push_back(stride * i);
 
+            // Propagate resolved arm type (valueType + per-arm element count) to every arm wire
+            // so that buildFifoTypeMap() sees the correct type during verification.
+            for (const auto& port : hubBlock->ports()) {
+                if (port.role != Canvas::PortRole::Consumer) continue;
+                auto* armWire = portToArmWire.value(port.id, nullptr);
+                if (!armWire || !armWire->hasObjectFifo()) continue;
+                Canvas::CanvasWire::ObjectFifoConfig cfg = armWire->objectFifo().value();
+                cfg.type.valueType  = dstFifo->valueType;
+                cfg.type.dimensions = QString::number(stride);
+                armWire->setObjectFifo(cfg);
+            }
+
             auto result = m_bridge->addFifoJoin(
                 joinName.toStdString(),
                 dstFifo->fifoId,
@@ -968,7 +995,13 @@ QList<VerificationIssue> HlirSyncService::runVerification() const
     // Run all registered design checks against the current canvas document.
     if (!m_document)
         return {};
-    return DesignVerifier().verify({m_document});
+    const QVector<KernelAsset>* kernelAssets =
+        m_kernelRegistry ? &m_kernelRegistry->kernels() : nullptr;
+    const QJsonObject metadata =
+        (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+            ? m_canvasDocuments->activeMetadata()
+            : QJsonObject{};
+    return DesignVerifier().verify({m_document, kernelAssets, metadata});
 }
 
 void HlirSyncService::verifyDesign()
@@ -982,7 +1015,13 @@ void HlirSyncService::verifyDesign()
     emit runStarted();
     QCoreApplication::processEvents();
 
-    const auto results = DesignVerifier().verifyDetailed({m_document});
+    const QVector<KernelAsset>* kernelAssets =
+        m_kernelRegistry ? &m_kernelRegistry->kernels() : nullptr;
+    const QJsonObject metadata =
+        (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+            ? m_canvasDocuments->activeMetadata()
+            : QJsonObject{};
+    const auto results = DesignVerifier().verifyDetailed({m_document, kernelAssets, metadata});
 
     QList<VerificationIssue> allErrors;
     for (const auto& result : results) {
@@ -1042,7 +1081,14 @@ void HlirSyncService::generateCode()
     };
 
     // Step 1: Verify the design before generating code
-    const auto verifyResults = DesignVerifier().verifyDetailed({m_document});
+    const QJsonObject genMetadata =
+        (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+            ? m_canvasDocuments->activeMetadata()
+            : QJsonObject{};
+    const QVector<KernelAsset>* genKernelAssets =
+        m_kernelRegistry ? &m_kernelRegistry->kernels() : nullptr;
+    const auto verifyResults =
+        DesignVerifier().verifyDetailed({m_document, genKernelAssets, genMetadata});
     bool verifyPassed = true;
     QList<VerificationIssue> verifyErrors;
     for (const auto& result : verifyResults) {

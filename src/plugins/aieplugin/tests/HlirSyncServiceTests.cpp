@@ -206,8 +206,8 @@ TEST(HlirSyncServiceTests, VerifyEmitsOneStepLoggedPerCheck)
     QSignalSpy spy(&service, &HlirSyncService::stepLogged);
     service.verifyDesign();
 
-    // DesignVerifier registers 7 checks.
-    EXPECT_EQ(spy.count(), 7);
+    // DesignVerifier registers 8 checks.
+    EXPECT_EQ(spy.count(), 8);
     // All steps should pass for a valid design.
     for (int i = 0; i < spy.count(); ++i)
         EXPECT_TRUE(spy.at(i).at(0).toBool()) << "step " << i << " failed";

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include "aieplugin/hlir_sync/DesignVerifier.hpp"
+#include "aieplugin/hlir_sync/TileFifoInfo.hpp"
 
 #include "canvas/CanvasBlock.hpp"
 #include "canvas/CanvasDocument.hpp"
@@ -11,8 +12,13 @@
 #include "canvas/utils/CanvasLinkHubStyle.hpp"
 
 #include <QtCore/QHash>
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
 #include <QtCore/QList>
 #include <QtCore/QSet>
+
+#include <functional>
 
 #include <algorithm>
 #include <optional>
@@ -913,6 +919,564 @@ public:
 };
 
 // ---------------------------------------------------------------------------
+// Check 8 — KernelArityCheck
+//
+// For each compute tile with assigned kernels, validates that the kernel
+// body does not pass more arguments than the kernel's iron_signature declares,
+// and that argument types (when resolvable) match the declared types.
+//
+// Two code paths are checked:
+//   a) BodyStmts tiles: explicit body JSON — each KernelCall's args list is
+//      validated against the target kernel's iron_signature.arg_types.
+//   b) Multi-kernel default tiles (no body stmts, >1 kernel): the auto-
+//      generated body passes every connected FIFO buffer to every kernel;
+//      this is flagged when any kernel expects fewer args than connected FIFOs.
+// ---------------------------------------------------------------------------
+
+class KernelArityCheck : public IVerificationCheck
+{
+public:
+    QString name()        const override { return QStringLiteral("KernelArityCheck"); }
+    QString displayName() const override { return QStringLiteral("Checking kernel argument counts"); }
+
+    QList<VerificationIssue> run(const VerificationContext& ctx) const override
+    {
+        QList<VerificationIssue> issues;
+        if (!ctx.document || !ctx.kernels)
+            return issues;
+
+        using Mode = Canvas::CanvasBlock::CoreFunctionConfig::Mode;
+
+        for (const auto& item : ctx.document->items()) {
+            auto* block = dynamic_cast<Canvas::CanvasBlock*>(item.get());
+            if (!block) continue;
+
+            const auto spec = parseTileSpec(block->specId());
+            if (!spec || spec->kind != NodeKind::COMPUTE) continue;
+
+            const QStringList& assigned = block->assignedKernels();
+            if (assigned.isEmpty()) continue;
+
+            const QString tileId = tileName(*spec);
+
+            const bool isBodyStmts = block->hasCoreFunctionConfig()
+                && block->coreFunctionConfig()->mode == Mode::BodyStmts
+                && !block->coreFunctionConfig()->bodyStmtsJson.isEmpty();
+            const bool isSharedRef = block->hasCoreFunctionConfig()
+                && block->coreFunctionConfig()->mode == Mode::SharedRef;
+
+            if (isBodyStmts) {
+                checkBodyStmts(*block, *ctx.kernels, *ctx.document, tileId, issues);
+            } else if (isSharedRef) {
+                checkSharedRef(*block, *ctx.kernels, *ctx.document,
+                               ctx.activeMetadata, tileId, issues);
+            } else if (assigned.size() > 1) {
+                // Multi-kernel default: auto-generated body calls every kernel
+                // with all connected FIFO buffers as arguments.
+                checkMultiKernelDefault(*block, *ctx.kernels, *ctx.document, tileId, issues);
+            }
+        }
+        return issues;
+    }
+
+private:
+    // ---- KernelCall record parsed from a body stmts JSON array ----
+    struct KernelCallInfo {
+        QString     kernelParamName;
+        QStringList args;           // local variable names passed as arguments
+    };
+
+    // Walk body JSON array recursively and collect all KernelCall statements.
+    static QList<KernelCallInfo> kernelCallsFromBody(const QJsonArray& bodyArr)
+    {
+        QList<KernelCallInfo> result;
+        std::function<void(const QJsonArray&)> walk = [&](const QJsonArray& stmts) {
+            for (const QJsonValue& v : stmts) {
+                if (!v.isObject()) continue;
+                const QJsonObject stmt = v.toObject();
+                const QString type = stmt.value(QStringLiteral("type")).toString();
+                if (type == QStringLiteral("KernelCall")) {
+                    KernelCallInfo info;
+                    info.kernelParamName = stmt.value(QStringLiteral("kernel_param")).toString();
+                    for (const QJsonValue& a : stmt.value(QStringLiteral("args")).toArray())
+                        info.args.append(a.toString());
+                    result.append(std::move(info));
+                } else if (stmt.contains(QStringLiteral("body"))) {
+                    walk(stmt.value(QStringLiteral("body")).toArray());
+                }
+            }
+        };
+        walk(bodyArr);
+        return result;
+    }
+
+    // Build map: local_var → fifo_param from Acquire statements (recursively).
+    static QHash<QString,QString> buildLocalVarToFifoParam(const QJsonArray& bodyArr)
+    {
+        QHash<QString,QString> result;
+        std::function<void(const QJsonArray&)> walk = [&](const QJsonArray& stmts) {
+            for (const QJsonValue& v : stmts) {
+                if (!v.isObject()) continue;
+                const QJsonObject stmt = v.toObject();
+                const QString type = stmt.value(QStringLiteral("type")).toString();
+                if (type == QStringLiteral("Acquire")) {
+                    const QString localVar  = stmt.value(QStringLiteral("local_var")).toString();
+                    const QString fifoParam = stmt.value(QStringLiteral("fifo_param")).toString();
+                    if (!localVar.isEmpty() && !fifoParam.isEmpty())
+                        result.insert(localVar, fifoParam);
+                } else if (stmt.contains(QStringLiteral("body"))) {
+                    walk(stmt.value(QStringLiteral("body")).toArray());
+                }
+            }
+        };
+        walk(bodyArr);
+        return result;
+    }
+
+    // Build map: fifo_name → ObjectFifoTypeAbstraction from all canvas wires.
+    // For split/join/broadcast hub arm wires the canonical lookup key used by
+    // coreBodyArgs is "hubName[armIndex]".  We walk hub blocks to insert these
+    // bracket-notation entries alongside the regular cfg.name entries.
+    static QHash<QString, Canvas::CanvasWire::ObjectFifoTypeAbstraction>
+    buildFifoTypeMap(const Canvas::CanvasDocument& doc)
+    {
+        QHash<QString, Canvas::CanvasWire::ObjectFifoTypeAbstraction> result;
+
+        // Pass 1: index every named wire by its cfg.name.
+        for (const auto& item : doc.items()) {
+            auto* wire = dynamic_cast<Canvas::CanvasWire*>(item.get());
+            if (!wire || !wire->hasObjectFifo()) continue;
+            const auto& cfg = wire->objectFifo().value();
+            if (!cfg.name.isEmpty())
+                result.insert(cfg.name, cfg.type);
+        }
+
+        // Pass 2: for each split/join/broadcast hub block, also insert arm wire types
+        // under the key that coreBodyArgs uses for lookup:
+        //   broadcast  → "hubName"        (all arms share the same forwarded FIFO)
+        //   split/join → "hubName[armIndex]"
+        for (const auto& hubItem : doc.items()) {
+            auto* hubBlock = dynamic_cast<Canvas::CanvasBlock*>(hubItem.get());
+            if (!hubBlock || !hubBlock->isLinkHub() || !hubBlock->specId().isEmpty())
+                continue;
+
+            // Find the pivot wire (hub at endpoint B) to get the hub name and kind.
+            QString hubName;
+            bool isBroadcast = false;
+            for (const auto& wItem : doc.items()) {
+                const auto* w = dynamic_cast<const Canvas::CanvasWire*>(wItem.get());
+                if (!w || !w->hasObjectFifo()) continue;
+                const auto& epB = w->b();
+                if (!epB.attached.has_value() || epB.attached->itemId != hubBlock->id())
+                    continue;
+                const auto& cfg = w->objectFifo().value();
+                hubName = cfg.hubName.trimmed().isEmpty()
+                    ? cfg.name.trimmed() : cfg.hubName.trimmed();
+                // Pivot operation Forward → broadcast hub.
+                isBroadcast = (cfg.operation ==
+                    Canvas::CanvasWire::ObjectFifoOperation::Forward);
+                break;
+            }
+            if (hubName.isEmpty()) continue;
+
+            // Build a map from portId → arm wire (hub at endpoint A).
+            QHash<Canvas::PortId, Canvas::CanvasWire*> portToArmWire;
+            for (const auto& wItem : doc.items()) {
+                auto* w = dynamic_cast<Canvas::CanvasWire*>(wItem.get());
+                if (!w || !w->hasObjectFifo()) continue;
+                const auto& epA = w->a();
+                if (!epA.attached.has_value() || epA.attached->itemId != hubBlock->id())
+                    continue;
+                portToArmWire.insert(epA.attached->portId, w);
+            }
+            if (portToArmWire.isEmpty()) continue;
+
+            if (isBroadcast) {
+                // All broadcast arms carry the same type — insert under the plain hubName.
+                for (auto* armWire : std::as_const(portToArmWire))
+                    result.insert(hubName, armWire->objectFifo().value().type);
+            } else {
+                // Split/join: walk ports in declared order to assign 0-based arm indices,
+                // matching the order armIndexFor() uses in buildWorkers().
+                int consumerIdx = 0;
+                int producerIdx = 0;
+                for (const auto& port : hubBlock->ports()) {
+                    auto* armWire = portToArmWire.value(port.id, nullptr);
+                    if (!armWire) {
+                        if (port.role == Canvas::PortRole::Consumer) ++consumerIdx;
+                        else if (port.role == Canvas::PortRole::Producer) ++producerIdx;
+                        continue;
+                    }
+                    const int idx = (port.role == Canvas::PortRole::Consumer)
+                        ? consumerIdx++ : producerIdx++;
+                    result.insert(
+                        QStringLiteral("%1[%2]").arg(hubName).arg(idx),
+                        armWire->objectFifo().value().type);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // Short-form value type (e.g. "i16") → full Python/numpy dtype name (e.g. "int16").
+    static QString dtypeFullName(const QString& vt)
+    {
+        static const QHash<QString,QString> kMap = {
+            {QStringLiteral("i8"),   QStringLiteral("int8")},
+            {QStringLiteral("i16"),  QStringLiteral("int16")},
+            {QStringLiteral("i32"),  QStringLiteral("int32")},
+            {QStringLiteral("i64"),  QStringLiteral("int64")},
+            {QStringLiteral("ui8"),  QStringLiteral("uint8")},
+            {QStringLiteral("ui16"), QStringLiteral("uint16")},
+            {QStringLiteral("ui32"), QStringLiteral("uint32")},
+            {QStringLiteral("bf16"), QStringLiteral("bfloat16")},
+            {QStringLiteral("f16"),  QStringLiteral("float16")},
+            {QStringLiteral("f32"),  QStringLiteral("float32")},
+            {QStringLiteral("f64"),  QStringLiteral("float64")},
+        };
+        return kMap.value(vt.toLower(), vt);
+    }
+
+    // Try to parse an iron_signature type name of the form "type_{dtype}_{dims}".
+    // Returns true and sets outDtype/outDims on success.
+    // Examples: "type_int16_256" → ("int16","256")
+    //           "type_bfloat16_64" → ("bfloat16","64")
+    static bool parseIronTypeName(const QString& name, QString& outDtype, QString& outDims)
+    {
+        if (!name.startsWith(QStringLiteral("type_")))
+            return false;
+        const QString rest = name.sliced(5); // strip leading "type_"
+        const int lastUnderscore = rest.lastIndexOf(u'_');
+        if (lastUnderscore <= 0)
+            return false;
+        outDims  = rest.sliced(lastUnderscore + 1);
+        outDtype = rest.left(lastUnderscore);
+        bool ok = false;
+        outDims.toInt(&ok);
+        return ok && !outDtype.isEmpty();
+    }
+
+    // Resolve the FIFO type for a given wire name directly from the type map.
+    // HlirSyncService propagates the correct valueType and dimensions to branch arm
+    // wires during sync, so a direct lookup is sufficient.
+    static Canvas::CanvasWire::ObjectFifoTypeAbstraction
+    resolveFifoType(const QString& fifoName,
+                    const QHash<QString, Canvas::CanvasWire::ObjectFifoTypeAbstraction>& typeMap)
+    {
+        return typeMap.value(fifoName);
+    }
+
+    // ---- BodyStmts check ----
+    void checkBodyStmts(const Canvas::CanvasBlock& block,
+                        const QVector<KernelAsset>& kernels,
+                        const Canvas::CanvasDocument& doc,
+                        const QString& tileId,
+                        QList<VerificationIssue>& issues) const
+    {
+        QJsonParseError parseErr;
+        const QJsonDocument jdoc = QJsonDocument::fromJson(
+            block.coreFunctionConfig()->bodyStmtsJson.toUtf8(), &parseErr);
+        if (parseErr.error != QJsonParseError::NoError) return;
+
+        QJsonArray bodyArr;
+        if (jdoc.isObject())
+            bodyArr = jdoc.object().value(QStringLiteral("body")).toArray();
+        else if (jdoc.isArray())
+            bodyArr = jdoc.array();
+        if (bodyArr.isEmpty()) return;
+
+        // Build kernel_param_name → kernelId from coreBodyArgs().
+        QHash<QString,QString> paramToKernelId;
+        for (const auto& argSpec : block.coreBodyArgs()) {
+            using K = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
+            if (argSpec.kind == K::Kernel)
+                paramToKernelId.insert(argSpec.paramName, argSpec.ref);
+        }
+
+        // Fallback: infer from assignedKernels() order when coreBodyArgs is empty.
+        if (paramToKernelId.isEmpty() && !block.assignedKernels().isEmpty()) {
+            QStringList kernelParamsInOrder;
+            std::function<void(const QJsonArray&)> collect =
+                [&](const QJsonArray& stmts) {
+                    for (const QJsonValue& v : stmts) {
+                        if (!v.isObject()) continue;
+                        const QJsonObject stmt = v.toObject();
+                        const QString type = stmt.value(QStringLiteral("type")).toString();
+                        if (type == QStringLiteral("KernelCall")) {
+                            const QString kp = stmt.value(QStringLiteral("kernel_param")).toString();
+                            if (!kp.isEmpty() && !kernelParamsInOrder.contains(kp))
+                                kernelParamsInOrder.append(kp);
+                        } else if (stmt.contains(QStringLiteral("body")))
+                            collect(stmt.value(QStringLiteral("body")).toArray());
+                    }
+                };
+            collect(bodyArr);
+            const QStringList& assigned = block.assignedKernels();
+            for (int i = 0; i < kernelParamsInOrder.size() && i < assigned.size(); ++i)
+                paramToKernelId.insert(kernelParamsInOrder[i], assigned[i]);
+        }
+
+        // Build local_var → fifo_param_name from Acquire stmts.
+        const auto localVarToFifoParam = buildLocalVarToFifoParam(bodyArr);
+
+        // Build fifo_param_name → FIFO object name from coreBodyArgs().
+        QHash<QString,QString> fifoParamToName;
+        for (const auto& argSpec : block.coreBodyArgs()) {
+            using K = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
+            if (argSpec.kind == K::FifoConsumer || argSpec.kind == K::FifoProducer)
+                fifoParamToName.insert(argSpec.paramName, argSpec.ref);
+        }
+
+        // Build FIFO object name → wire type from canvas.
+        const auto fifoTypeMap = buildFifoTypeMap(doc);
+
+        for (const auto& callInfo : kernelCallsFromBody(bodyArr)) {
+            const QString kernelId = paramToKernelId.value(callInfo.kernelParamName);
+            if (kernelId.isEmpty()) continue;
+
+            const KernelAsset* ka = findKernelById(kernels, kernelId);
+            if (!ka) continue;
+
+            const QJsonObject ironSig =
+                ka->metadata.value(QStringLiteral("iron_signature")).toObject();
+            if (ironSig.isEmpty()) continue;
+
+            const QJsonArray expectedArgTypes =
+                ironSig.value(QStringLiteral("arg_types")).toArray();
+            const int expectedCount = expectedArgTypes.size();
+            if (expectedCount == 0) continue;
+
+            const int actualCount = callInfo.args.size();
+
+            // --- Arg count check ---
+            if (actualCount > expectedCount) {
+                issues.append({VerificationIssue::Severity::Error,
+                    QStringLiteral("%1: kernel '%2' called via '%3' with %4 argument(s) "
+                                   "but kernel.json declares only %5.")
+                    .arg(tileId, kernelId, callInfo.kernelParamName)
+                    .arg(actualCount)
+                    .arg(expectedCount)});
+                continue; // Type check is moot when arg count is wrong.
+            }
+
+            // --- Best-effort type check (requires naming convention type_{dtype}_{dims}) ---
+            for (int i = 0; i < actualCount; ++i) {
+                const QString expectedTypeName = expectedArgTypes[i].toString();
+                QString expDtype, expDims;
+                if (!parseIronTypeName(expectedTypeName, expDtype, expDims))
+                    continue; // Non-standard name — cannot verify type for this arg.
+
+                const QString localVar  = callInfo.args[i];
+                const QString fifoParam = localVarToFifoParam.value(localVar);
+                if (fifoParam.isEmpty()) continue;
+                const QString fifoName  = fifoParamToName.value(fifoParam);
+                if (fifoName.isEmpty())  continue;
+
+                const auto fifoType = resolveFifoType(fifoName, fifoTypeMap);
+                if (fifoType.valueType.isEmpty() && fifoType.dimensions.isEmpty()) continue;
+
+                const QString actualDtype = dtypeFullName(fifoType.valueType);
+                const QString actualDims  = fifoType.dimensions.trimmed();
+
+                if (actualDtype != expDtype || actualDims != expDims) {
+                    issues.append({VerificationIssue::Severity::Error,
+                        QStringLiteral("%1: kernel '%2' argument %3 expects type '%4' "
+                                       "(%5[%6]) but FIFO '%7' provides %8[%9].")
+                        .arg(tileId, kernelId)
+                        .arg(i + 1)
+                        .arg(expectedTypeName, expDtype, expDims)
+                        .arg(fifoName, actualDtype, actualDims)});
+                }
+            }
+        }
+    }
+
+    // ---- SharedRef check ----
+    // The tile references a named shared function from the coreFunctionLibrary
+    // stored in document metadata.  Load that function's body JSON and validate
+    // all KernelCall statements against the tile's kernel iron_signatures.
+    void checkSharedRef(const Canvas::CanvasBlock& block,
+                        const QVector<KernelAsset>& kernels,
+                        const Canvas::CanvasDocument& doc,
+                        const QJsonObject& activeMetadata,
+                        const QString& tileId,
+                        QList<VerificationIssue>& issues) const
+    {
+        if (!block.hasCoreFunctionConfig()) return;
+        const QString& sharedName = block.coreFunctionConfig()->sharedFunctionName;
+        if (sharedName.isEmpty()) return;
+
+        // Build the shared function library: name → bodyStmtsJson.
+        QHash<QString, QString> sharedFnLibrary;
+        const QJsonArray lib =
+            activeMetadata.value(QStringLiteral("coreFunctionLibrary")).toArray();
+        for (const QJsonValue& v : lib) {
+            const QJsonObject entry = v.toObject();
+            const QString name = entry.value(QStringLiteral("name")).toString().trimmed();
+            const QString body = entry.value(QStringLiteral("bodyStmtsJson")).toString();
+            if (!name.isEmpty() && !body.isEmpty())
+                sharedFnLibrary.insert(name, body);
+        }
+
+        const QString bodyJson = sharedFnLibrary.value(sharedName);
+        if (bodyJson.isEmpty()) return; // shared function not found — nothing to check
+
+        // Parse the shared function body JSON.
+        QJsonParseError parseErr;
+        const QJsonDocument jdoc = QJsonDocument::fromJson(bodyJson.toUtf8(), &parseErr);
+        if (parseErr.error != QJsonParseError::NoError) return;
+
+        QJsonArray bodyArr;
+        if (jdoc.isObject())
+            bodyArr = jdoc.object().value(QStringLiteral("body")).toArray();
+        else if (jdoc.isArray())
+            bodyArr = jdoc.array();
+        if (bodyArr.isEmpty()) return;
+
+        // Build kernel_param_name → kernelId from the tile's coreBodyArgs().
+        QHash<QString, QString> paramToKernelId;
+        for (const auto& argSpec : block.coreBodyArgs()) {
+            using K = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
+            if (argSpec.kind == K::Kernel)
+                paramToKernelId.insert(argSpec.paramName, argSpec.ref);
+        }
+
+        // Fallback: infer from assignedKernels() order.
+        if (paramToKernelId.isEmpty() && !block.assignedKernels().isEmpty()) {
+            QStringList kernelParamsInOrder;
+            std::function<void(const QJsonArray&)> collect = [&](const QJsonArray& stmts) {
+                for (const QJsonValue& v : stmts) {
+                    if (!v.isObject()) continue;
+                    const QJsonObject stmt = v.toObject();
+                    const QString type = stmt.value(QStringLiteral("type")).toString();
+                    if (type == QStringLiteral("KernelCall")) {
+                        const QString kp = stmt.value(QStringLiteral("kernel_param")).toString();
+                        if (!kp.isEmpty() && !kernelParamsInOrder.contains(kp))
+                            kernelParamsInOrder.append(kp);
+                    } else if (stmt.contains(QStringLiteral("body")))
+                        collect(stmt.value(QStringLiteral("body")).toArray());
+                }
+            };
+            collect(bodyArr);
+            const QStringList& assigned = block.assignedKernels();
+            for (int i = 0; i < kernelParamsInOrder.size() && i < assigned.size(); ++i)
+                paramToKernelId.insert(kernelParamsInOrder[i], assigned[i]);
+        }
+
+        // Build fifo_param_name → FIFO object name from coreBodyArgs().
+        QHash<QString, QString> fifoParamToName;
+        for (const auto& argSpec : block.coreBodyArgs()) {
+            using K = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
+            if (argSpec.kind == K::FifoConsumer || argSpec.kind == K::FifoProducer)
+                fifoParamToName.insert(argSpec.paramName, argSpec.ref);
+        }
+
+        // Build local_var → fifo_param from Acquire stmts.
+        const auto localVarToFifoParam = buildLocalVarToFifoParam(bodyArr);
+
+        // Build FIFO object name → wire type from canvas.
+        const auto fifoTypeMap = buildFifoTypeMap(doc);
+
+        // Validate each KernelCall in the shared function body.
+        for (const auto& callInfo : kernelCallsFromBody(bodyArr)) {
+            const QString kernelId = paramToKernelId.value(callInfo.kernelParamName);
+            if (kernelId.isEmpty()) continue;
+
+            const KernelAsset* ka = findKernelById(kernels, kernelId);
+            if (!ka) continue;
+
+            const QJsonObject ironSig =
+                ka->metadata.value(QStringLiteral("iron_signature")).toObject();
+            if (ironSig.isEmpty()) continue;
+
+            const QJsonArray expectedArgTypes =
+                ironSig.value(QStringLiteral("arg_types")).toArray();
+            const int expectedCount = expectedArgTypes.size();
+            if (expectedCount == 0) continue;
+
+            const int actualCount = callInfo.args.size();
+
+            if (actualCount > expectedCount) {
+                issues.append({VerificationIssue::Severity::Error,
+                    QStringLiteral("%1 (shared fn '%2'): kernel '%3' called via '%4' with %5 "
+                                   "argument(s) but kernel.json declares only %6.")
+                    .arg(tileId, sharedName, kernelId, callInfo.kernelParamName)
+                    .arg(actualCount)
+                    .arg(expectedCount)});
+                continue;
+            }
+
+            // Best-effort type check.
+            for (int i = 0; i < actualCount; ++i) {
+                const QString expectedTypeName = expectedArgTypes[i].toString();
+                QString expDtype, expDims;
+                if (!parseIronTypeName(expectedTypeName, expDtype, expDims))
+                    continue;
+
+                const QString localVar  = callInfo.args[i];
+                const QString fifoParam = localVarToFifoParam.value(localVar);
+                if (fifoParam.isEmpty()) continue;
+                const QString fifoName  = fifoParamToName.value(fifoParam);
+                if (fifoName.isEmpty()) continue;
+
+                const auto fifoType = resolveFifoType(fifoName, fifoTypeMap);
+                if (fifoType.valueType.isEmpty() && fifoType.dimensions.isEmpty()) continue;
+
+                const QString actualDtype = dtypeFullName(fifoType.valueType);
+                const QString actualDims  = fifoType.dimensions.trimmed();
+
+                if (actualDtype != expDtype || actualDims != expDims) {
+                    issues.append({VerificationIssue::Severity::Error,
+                        QStringLiteral("%1 (shared fn '%2'): kernel '%3' argument %4 expects "
+                                       "type '%5' (%6[%7]) but FIFO '%8' provides %9[%10].")
+                        .arg(tileId, sharedName, kernelId)
+                        .arg(i + 1)
+                        .arg(expectedTypeName, expDtype, expDims)
+                        .arg(fifoName, actualDtype, actualDims)});
+                }
+            }
+        }
+    }
+
+    // ---- Multi-kernel default check ----
+    // The auto-generated body passes every connected FIFO buffer to every kernel.
+    // If any kernel expects fewer args than connected FIFOs, flag it.
+    void checkMultiKernelDefault(const Canvas::CanvasBlock& block,
+                                 const QVector<KernelAsset>& kernels,
+                                 const Canvas::CanvasDocument& doc,
+                                 const QString& tileId,
+                                 QList<VerificationIssue>& issues) const
+    {
+        const int totalFifoArgs =
+            static_cast<int>(connectedFifosForTile(&block, &doc).size());
+
+        for (const QString& kernelId : block.assignedKernels()) {
+            const KernelAsset* ka = findKernelById(kernels, kernelId);
+            if (!ka) continue;
+
+            const QJsonObject ironSig =
+                ka->metadata.value(QStringLiteral("iron_signature")).toObject();
+            if (ironSig.isEmpty()) continue;
+
+            const int expectedCount =
+                ironSig.value(QStringLiteral("arg_types")).toArray().size();
+            if (expectedCount == 0) continue;
+
+            if (totalFifoArgs > expectedCount) {
+                issues.append({VerificationIssue::Severity::Error,
+                    QStringLiteral("%1: kernel '%2' would receive %3 buffer argument(s) "
+                                   "(one per connected FIFO) but kernel.json declares only %4. "
+                                   "Add a custom core body to pass the correct arguments.")
+                    .arg(tileId, kernelId)
+                    .arg(totalFifoArgs)
+                    .arg(expectedCount)});
+            }
+        }
+    }
+};
+
+// ---------------------------------------------------------------------------
 // DesignVerifier
 // ---------------------------------------------------------------------------
 
@@ -926,6 +1490,7 @@ DesignVerifier::DesignVerifier()
     m_checks.push_back(std::make_unique<DmaChannelLimitCheck>());
     m_checks.push_back(std::make_unique<SplitJoinDivisibilityCheck>());
     m_checks.push_back(std::make_unique<ObjectFifoDimensionsCheck>());
+    m_checks.push_back(std::make_unique<KernelArityCheck>());
 }
 
 DesignVerifier::~DesignVerifier() = default;

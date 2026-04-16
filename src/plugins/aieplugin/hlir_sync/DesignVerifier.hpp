@@ -4,9 +4,12 @@
 #pragma once
 
 #include "aieplugin/AieGlobal.hpp"
+#include "aieplugin/kernels/KernelCatalog.hpp"
 
+#include <QtCore/QJsonObject>
 #include <QtCore/QList>
 #include <QtCore/QString>
+#include <QtCore/QVector>
 
 #include <memory>
 
@@ -26,6 +29,14 @@ struct VerificationIssue {
 /// Data passed to each verification check.
 struct VerificationContext {
     const Canvas::CanvasDocument* document = nullptr;
+
+    /// Optional kernel asset catalog used by KernelArityCheck.
+    /// Pass nullptr to skip kernel-level checks (e.g. in unit tests with no registry).
+    const QVector<KernelAsset>* kernels = nullptr;
+
+    /// Active document metadata (from ICanvasDocumentService::activeMetadata()).
+    /// Used by KernelArityCheck to resolve SharedRef tile bodies from coreFunctionLibrary.
+    QJsonObject activeMetadata;
 };
 
 /// Abstract interface for a single design rule check.

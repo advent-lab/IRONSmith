@@ -45,18 +45,6 @@
         </dtype>
       </ndarray>
     </TypeAbstraction>
-    <TypeAbstraction name="type_bfloat16_256">
-      <ndarray>
-        <shape>
-          <tuple>
-            <expr>256</expr>
-          </tuple>
-        </shape>
-        <dtype>
-          <numpy_dtype>bfloat16</numpy_dtype>
-        </dtype>
-      </ndarray>
-    </TypeAbstraction>
     <TypeAbstraction name="type_int16_64">
       <ndarray>
         <shape>
@@ -69,18 +57,6 @@
         </dtype>
       </ndarray>
     </TypeAbstraction>
-    <TypeAbstraction name="type_bfloat16_64">
-      <ndarray>
-        <shape>
-          <tuple>
-            <expr>64</expr>
-          </tuple>
-        </shape>
-        <dtype>
-          <numpy_dtype>bfloat16</numpy_dtype>
-        </dtype>
-      </ndarray>
-    </TypeAbstraction>
     <TypeAbstraction name="type_int16_256x256">
       <ndarray>
         <shape>
@@ -89,6 +65,18 @@
           </tuple>
           <tuple>
             <expr>256</expr>
+          </tuple>
+        </shape>
+        <dtype>
+          <numpy_dtype>int16</numpy_dtype>
+        </dtype>
+      </ndarray>
+    </TypeAbstraction>
+    <TypeAbstraction name="type_int16_1024">
+      <ndarray>
+        <shape>
+          <tuple>
+            <expr>1024</expr>
           </tuple>
         </shape>
         <dtype>
@@ -152,20 +140,20 @@
         </kwarg>
       </attributes>
     </ExternalFunction>
-    <ExternalFunction name="kernel_softmax_bf16">
+    <ExternalFunction name="kernel_softmax_i16">
       <attributes>
-        <kwarg name="name" value="softmax_bf16"/>
-        <kwarg name="source_file" value="C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16/softmax.cc"/>
+        <kwarg name="name" value="softmax_i16"/>
+        <kwarg name="source_file" value="C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_i16/softmax_i16.cc"/>
         <kwarg name="arg_types">
           <list>
             <type_ref>type_int16_64</type_ref>
             <type_ref>type_int16_256</type_ref>
-            <type_ref>type_bfloat16_64</type_ref>
+            <type_ref>type_int16_64</type_ref>
           </list>
         </kwarg>
         <kwarg name="include_dirs">
           <list>
-            <string>C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16</string>
+            <string>C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_i16</string>
           </list>
         </kwarg>
       </attributes>
@@ -208,6 +196,13 @@
           </call>
         </Acquire>
         <Call>
+          <function ref="Kernel3">
+            <arg>
+              <var ref="buf_out0"/>
+            </arg>
+          </function>
+        </Call>
+        <Call>
           <function ref="Kernel1">
             <arg>
               <var ref="buf_in0"/>
@@ -222,25 +217,6 @@
         </Call>
         <Call>
           <function ref="Kernel2">
-            <arg>
-              <var ref="buf_in0"/>
-            </arg>
-            <arg>
-              <var ref="buf_in1"/>
-            </arg>
-            <arg>
-              <var ref="buf_out0"/>
-            </arg>
-          </function>
-        </Call>
-        <Call>
-          <function ref="Kernel3">
-            <arg>
-              <var ref="buf_in0"/>
-            </arg>
-            <arg>
-              <var ref="buf_in1"/>
-            </arg>
             <arg>
               <var ref="buf_out0"/>
             </arg>
@@ -313,6 +289,13 @@
           </call>
         </Acquire>
         <Call>
+          <function ref="Kernel2">
+            <arg>
+              <var ref="buf_out0"/>
+            </arg>
+          </function>
+        </Call>
+        <Call>
           <function ref="Kernel1">
             <arg>
               <var ref="buf_in0"/>
@@ -326,26 +309,7 @@
           </function>
         </Call>
         <Call>
-          <function ref="Kernel2">
-            <arg>
-              <var ref="buf_in0"/>
-            </arg>
-            <arg>
-              <var ref="buf_in1"/>
-            </arg>
-            <arg>
-              <var ref="buf_out0"/>
-            </arg>
-          </function>
-        </Call>
-        <Call>
           <function ref="Kernel3">
-            <arg>
-              <var ref="buf_in0"/>
-            </arg>
-            <arg>
-              <var ref="buf_in1"/>
-            </arg>
             <arg>
               <var ref="buf_out0"/>
             </arg>
@@ -436,7 +400,7 @@
     </ObjectFifo>
     <ObjectFifo name="output_activation_fifo">
       <obj_type>
-        <type_ref>type_bfloat16_256</type_ref>
+        <type_ref>type_int16_256</type_ref>
       </obj_type>
       <attributes>
         <kwarg name="depth" value="2"/>
@@ -849,10 +813,10 @@
             <method name="join">
               <kwarg name="obj_types">
                 <list>
-                  <type_ref>type_bfloat16_64</type_ref>
-                  <type_ref>type_bfloat16_64</type_ref>
-                  <type_ref>type_bfloat16_64</type_ref>
-                  <type_ref>type_bfloat16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
+                  <type_ref>type_int16_64</type_ref>
                 </list>
               </kwarg>
               <kwarg name="names">
@@ -1175,7 +1139,7 @@
           <var ref="kernel_zero_i16"/>
         </arg>
         <arg>
-          <var ref="kernel_softmax_bf16"/>
+          <var ref="kernel_softmax_i16"/>
         </arg>
         <arg>
           <method_chain>
@@ -1447,7 +1411,7 @@
           <var ref="kernel_zero_i16"/>
         </arg>
         <arg>
-          <var ref="kernel_softmax_bf16"/>
+          <var ref="kernel_softmax_i16"/>
         </arg>
         <arg>
           <method_chain>
@@ -1719,7 +1683,7 @@
           <var ref="kernel_zero_i16"/>
         </arg>
         <arg>
-          <var ref="kernel_softmax_bf16"/>
+          <var ref="kernel_softmax_i16"/>
         </arg>
         <arg>
           <method_chain>
@@ -1991,7 +1955,7 @@
           <var ref="kernel_zero_i16"/>
         </arg>
         <arg>
-          <var ref="kernel_softmax_bf16"/>
+          <var ref="kernel_softmax_i16"/>
         </arg>
         <arg>
           <method_chain>
@@ -2079,21 +2043,21 @@
         <call>
           <method ref="rt" name="sequence">
             <arg type_ref="type_int16_256x256"/>
+            <arg type_ref="type_int16_1024"/>
+            <arg type_ref="type_int16_1024"/>
+            <arg type_ref="type_int16_1024"/>
+            <arg type_ref="type_int16_1024"/>
             <arg type_ref="type_int16_256"/>
-            <arg type_ref="type_int16_256"/>
-            <arg type_ref="type_int16_256"/>
-            <arg type_ref="type_int16_256"/>
-            <arg type_ref="type_bfloat16_256"/>
           </method>
         </call>
       </context>
       <bindings>
         <bind name="input_activation_in" type_ref="type_int16_256x256"/>
-        <bind name="weight_layer0_in" type_ref="type_int16_256"/>
-        <bind name="weight_layer1_in" type_ref="type_int16_256"/>
-        <bind name="weight_layer2_in" type_ref="type_int16_256"/>
-        <bind name="weight_layer3_in" type_ref="type_int16_256"/>
-        <bind name="output_activation_out" type_ref="type_bfloat16_256"/>
+        <bind name="weight_layer0_in" type_ref="type_int16_1024"/>
+        <bind name="weight_layer1_in" type_ref="type_int16_1024"/>
+        <bind name="weight_layer2_in" type_ref="type_int16_1024"/>
+        <bind name="weight_layer3_in" type_ref="type_int16_1024"/>
+        <bind name="output_activation_out" type_ref="type_int16_256"/>
       </bindings>
       <body>
         <Operation name="start">
@@ -2291,11 +2255,11 @@
   <Function name="gui_design_jit" decorator="iron.jit">
     <parameters>
       <param name="input_activation" type_ref="type_int16_256x256"/>
-      <param name="weight_layer0" type_ref="type_int16_256"/>
-      <param name="weight_layer1" type_ref="type_int16_256"/>
-      <param name="weight_layer2" type_ref="type_int16_256"/>
-      <param name="weight_layer3" type_ref="type_int16_256"/>
-      <param name="output_activation" type_ref="type_bfloat16_256"/>
+      <param name="weight_layer0" type_ref="type_int16_1024"/>
+      <param name="weight_layer1" type_ref="type_int16_1024"/>
+      <param name="weight_layer2" type_ref="type_int16_1024"/>
+      <param name="weight_layer3" type_ref="type_int16_1024"/>
+      <param name="output_activation" type_ref="type_int16_256"/>
     </parameters>
     <attributes>
       <kwarg name="is_placed" value="False"/>
@@ -2304,10 +2268,9 @@
       <UseDataFlow>
         <UseType name="output_type"/>
         <UseType name="type_int16_256"/>
-        <UseType name="type_bfloat16_256"/>
         <UseType name="type_int16_64"/>
-        <UseType name="type_bfloat16_64"/>
         <UseType name="type_int16_256x256"/>
+        <UseType name="type_int16_1024"/>
       </UseDataFlow>
       <Return>
         <var ref="program"/>
@@ -2342,7 +2305,7 @@
           <call>
             <function ref="iron.arange">
               <arg>
-                <var>256</var>
+                <var>1024</var>
               </arg>
               <kwarg name="dtype">
                 <var>np.int16</var>
@@ -2360,7 +2323,7 @@
           <call>
             <function ref="iron.arange">
               <arg>
-                <var>256</var>
+                <var>1024</var>
               </arg>
               <kwarg name="dtype">
                 <var>np.int16</var>
@@ -2378,7 +2341,7 @@
           <call>
             <function ref="iron.arange">
               <arg>
-                <var>256</var>
+                <var>1024</var>
               </arg>
               <kwarg name="dtype">
                 <var>np.int16</var>
@@ -2396,7 +2359,7 @@
           <call>
             <function ref="iron.arange">
               <arg>
-                <var>256</var>
+                <var>1024</var>
               </arg>
               <kwarg name="dtype">
                 <var>np.int16</var>
@@ -2417,7 +2380,7 @@
                 <var>256</var>
               </arg>
               <kwarg name="dtype">
-                <var>bfloat16</var>
+                <var>np.int16</var>
               </kwarg>
               <kwarg name="device">
                 <string>npu</string>

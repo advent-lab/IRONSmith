@@ -1,0 +1,17 @@
+{
+  "id": "softmax_i16",
+  "name": "Softmax (INT16)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void softmax_i16(int16_t* buf);",
+  "description": "INT16 in-place softmax over a 64-element tile. Computes exp(x_i) / sum(exp(x)) using integer arithmetic. Tile size controlled by DIM_N define (default 64).",
+  "entry": "softmax_i16.cc",
+  "files": [
+    "softmax_i16.cc"
+  ],
+  "tags": ["softmax", "activation", "i16", "unary", "aie2"],
+  "iron_signature": {
+    "archive": "mm.a",
+    "arg_types": ["type_int16_64"]
+  }
+}

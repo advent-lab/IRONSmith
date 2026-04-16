@@ -13,27 +13,21 @@
                 <dtype>int16</dtype>
             </ndarray>
         </TypeAbstraction>
-        <TypeAbstraction name="type_bfloat16_256">
-            <ndarray>
-                <shape>256</shape>
-                <dtype>bfloat16</dtype>
-            </ndarray>
-        </TypeAbstraction>
         <TypeAbstraction name="type_int16_64">
             <ndarray>
                 <shape>64</shape>
                 <dtype>int16</dtype>
             </ndarray>
         </TypeAbstraction>
-        <TypeAbstraction name="type_bfloat16_64">
-            <ndarray>
-                <shape>64</shape>
-                <dtype>bfloat16</dtype>
-            </ndarray>
-        </TypeAbstraction>
         <TypeAbstraction name="type_int16_256x256">
             <ndarray>
                 <shape>256, 256</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="type_int16_1024">
+            <ndarray>
+                <shape>1024</shape>
                 <dtype>int16</dtype>
             </ndarray>
         </TypeAbstraction>
@@ -75,16 +69,16 @@
                 <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/zero_i16</dir>
             </include_dirs>
         </ExternalFunction>
-        <ExternalFunction name="kernel_softmax_bf16">
-            <kernel>softmax_bf16</kernel>
-            <source>C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16/softmax.cc</source>
+        <ExternalFunction name="kernel_softmax_i16">
+            <kernel>softmax_i16</kernel>
+            <source>C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_i16/softmax_i16.cc</source>
             <arg_types>
                 <type>type_int16_64</type>
                 <type>type_int16_256</type>
-                <type>type_bfloat16_64</type>
+                <type>type_int16_64</type>
             </arg_types>
             <include_dirs>
-                <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16</dir>
+                <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_i16</dir>
             </include_dirs>
         </ExternalFunction>
         <CoreFunction name="core_shared_matmul_relu">
@@ -100,9 +94,9 @@
                 <Acquire source="in0" count="1" name="buf_in0"/>
                 <Acquire source="in1" count="1" name="buf_in1"/>
                 <Acquire source="out0" count="1" name="buf_out0"/>
+                <Call function="Kernel3" args="buf_out0"/>
                 <Call function="Kernel1" args="buf_in0, buf_in1, buf_out0"/>
-                <Call function="Kernel2" args="buf_in0, buf_in1, buf_out0"/>
-                <Call function="Kernel3" args="buf_in0, buf_in1, buf_out0"/>
+                <Call function="Kernel2" args="buf_out0"/>
                 <Release source="in0" count="1"/>
                 <Release source="in1" count="1"/>
                 <Release source="out0" count="1"/>
@@ -121,9 +115,9 @@
                 <Acquire source="in0" count="1" name="buf_in0"/>
                 <Acquire source="in1" count="1" name="buf_in1"/>
                 <Acquire source="out0" count="1" name="buf_out0"/>
+                <Call function="Kernel2" args="buf_out0"/>
                 <Call function="Kernel1" args="buf_in0, buf_in1, buf_out0"/>
-                <Call function="Kernel2" args="buf_in0, buf_in1, buf_out0"/>
-                <Call function="Kernel3" args="buf_in0, buf_in1, buf_out0"/>
+                <Call function="Kernel3" args="buf_out0"/>
                 <Release source="in0" count="1"/>
                 <Release source="in1" count="1"/>
                 <Release source="out0" count="1"/>
@@ -154,7 +148,7 @@
             <depth>2</depth>
         </ObjectFifo>
         <ObjectFifo name="output_activation_fifo">
-            <type>type_bfloat16_256</type>
+            <type>type_int16_256</type>
             <depth>2</depth>
         </ObjectFifo>
         <ObjectFifo name="inter_activation_fifo2">
@@ -218,7 +212,7 @@
         <ObjectFifoJoin name="activation_tile_join_col3">
             <dest>output_activation_fifo</dest>
             <num_inputs>4</num_inputs>
-            <input_type>type_bfloat16_64</input_type>
+            <input_type>type_int16_64</input_type>
             <placement>Tile(3, 1)</placement>
             <offsets>0, 64, 128, 192</offsets>
         </ObjectFifoJoin>
@@ -266,7 +260,7 @@
             <arguments>
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="kernel_softmax_bf16"/>
+                <arg ref="kernel_softmax_i16"/>
                 <arg ref="bcast4" mode="consumer"/>
                 <arg ref="weight_tile_split_col3" index="0" mode="consumer"/>
                 <arg ref="activation_tile_join_col3" index="0" mode="producer"/>
@@ -314,7 +308,7 @@
             <arguments>
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="kernel_softmax_bf16"/>
+                <arg ref="kernel_softmax_i16"/>
                 <arg ref="bcast4" mode="consumer"/>
                 <arg ref="weight_tile_split_col3" index="1" mode="consumer"/>
                 <arg ref="activation_tile_join_col3" index="1" mode="producer"/>
@@ -362,7 +356,7 @@
             <arguments>
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="kernel_softmax_bf16"/>
+                <arg ref="kernel_softmax_i16"/>
                 <arg ref="bcast4" mode="consumer"/>
                 <arg ref="weight_tile_split_col3" index="2" mode="consumer"/>
                 <arg ref="activation_tile_join_col3" index="2" mode="producer"/>
@@ -410,7 +404,7 @@
             <arguments>
                 <arg ref="kernel_matmul_i16_i16"/>
                 <arg ref="kernel_zero_i16"/>
-                <arg ref="kernel_softmax_bf16"/>
+                <arg ref="kernel_softmax_i16"/>
                 <arg ref="bcast4" mode="consumer"/>
                 <arg ref="weight_tile_split_col3" index="3" mode="consumer"/>
                 <arg ref="activation_tile_join_col3" index="3" mode="producer"/>
@@ -418,8 +412,8 @@
             <placement>Tile(3, 5)</placement>
         </Worker>
         <Runtime name="runtime">
-            <Sequence inputs="type_int16_256x256, type_int16_256, type_int16_256, type_int16_256, type_int16_256, type_bfloat16_256" as="input_activation_in, weight_layer0_in, weight_layer1_in, weight_layer2_in, weight_layer3_in, output_activation_out">
-                <Start>worker_aie0_5, worker_aie0_4, worker_aie2_4, worker_aie0_2, worker_aie1_5, worker_aie0_3, worker_aie2_3, worker_aie2_2, worker_aie2_5, worker_aie3_4, worker_aie3_2, worker_aie1_3, worker_aie1_2, worker_aie3_3, worker_aie1_4, worker_aie3_5</Start>
+            <Sequence inputs="type_int16_256x256, type_int16_1024, type_int16_1024, type_int16_1024, type_int16_1024, type_int16_256" as="input_activation_in, weight_layer0_in, weight_layer1_in, weight_layer2_in, weight_layer3_in, output_activation_out">
+                <Start>worker_aie0_5, worker_aie0_4, worker_aie1_2, worker_aie3_4, worker_aie2_2, worker_aie1_5, worker_aie3_2, worker_aie3_5, worker_aie1_4, worker_aie0_3, worker_aie2_5, worker_aie2_4, worker_aie1_3, worker_aie0_2, worker_aie3_3, worker_aie2_3</Start>
                 <Fill target="input_activation_fifo" source="input_activation_in" data_ref="input_activation" use_tap="false">
                     <placement>Tile(0, 0)</placement>
                 </Fill>
@@ -450,11 +444,11 @@
     <Function name="jit_function" decorator="iron.jit" entry="gui_design_jit">
         <parameters>
             <param name="input_activation" type="type_int16_256x256"/>
-            <param name="weight_layer0" type="type_int16_256"/>
-            <param name="weight_layer1" type="type_int16_256"/>
-            <param name="weight_layer2" type="type_int16_256"/>
-            <param name="weight_layer3" type="type_int16_256"/>
-            <param name="output_activation" type="type_bfloat16_256"/>
+            <param name="weight_layer0" type="type_int16_1024"/>
+            <param name="weight_layer1" type="type_int16_1024"/>
+            <param name="weight_layer2" type="type_int16_1024"/>
+            <param name="weight_layer3" type="type_int16_1024"/>
+            <param name="output_activation" type="type_int16_256"/>
         </parameters>
         <body>
             <UseDataFlow/>
@@ -469,19 +463,19 @@
             <RawLine>input_activation.data[:] = np.arange(256 * 256, dtype=np.int16)</RawLine>
             <RawLine>input_activation._sync_to_device()</RawLine>
             <Tensor name="weight_layer0">
-                <init>iron.arange(256, dtype=np.int16, device="npu")</init>
+                <init>iron.arange(1024, dtype=np.int16, device="npu")</init>
             </Tensor>
             <Tensor name="weight_layer1">
-                <init>iron.arange(256, dtype=np.int16, device="npu")</init>
+                <init>iron.arange(1024, dtype=np.int16, device="npu")</init>
             </Tensor>
             <Tensor name="weight_layer2">
-                <init>iron.arange(256, dtype=np.int16, device="npu")</init>
+                <init>iron.arange(1024, dtype=np.int16, device="npu")</init>
             </Tensor>
             <Tensor name="weight_layer3">
-                <init>iron.arange(256, dtype=np.int16, device="npu")</init>
+                <init>iron.arange(1024, dtype=np.int16, device="npu")</init>
             </Tensor>
             <Tensor name="output_activation">
-                <init>iron.zeros(256, dtype=bfloat16, device="npu")</init>
+                <init>iron.zeros(256, dtype=np.int16, device="npu")</init>
             </Tensor>
             <Call function="jit_function" args="input_activation, weight_layer0, weight_layer1, weight_layer2, weight_layer3, output_activation"/>
         </body>

@@ -321,8 +321,8 @@ TEST(DesignVerifierTests, VerifyDetailedReturnsOneResultPerCheck)
 {
     Canvas::CanvasDocument doc;
     const auto results = DesignVerifier().verifyDetailed({&doc});
-    // DesignVerifier registers 7 checks.
-    EXPECT_EQ(results.size(), 7);
+    // DesignVerifier registers 8 checks.
+    EXPECT_EQ(results.size(), 8);
     for (const auto& r : results)
         EXPECT_FALSE(r.displayName.isEmpty());
 }
