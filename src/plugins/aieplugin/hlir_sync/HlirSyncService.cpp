@@ -18,6 +18,7 @@
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
+#include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
@@ -25,6 +26,7 @@
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QRegularExpression>
 #include <QtCore/QSet>
+#include <QtCore/QTextStream>
 #include <QtCore/QThread>
 
 #include <filesystem>
@@ -1149,6 +1151,7 @@ void HlirSyncService::generateCode()
     emitStep(tr("Running code generator"), genResult.has_value());
 
     if (genResult) {
+        generateMakefile();
         emit codeGenFinished(true, tr("Code generated in %1").arg(m_outputDir));
     } else {
         QStringList errors;
@@ -1160,6 +1163,187 @@ void HlirSyncService::generateCode()
         }
         emit codeGenFinished(false, errors.join(u'\n'));
     }
+}
+
+void HlirSyncService::generateMakefile() const
+{
+    if (m_kernelMap.isEmpty() || !m_kernelRegistry || !m_document)
+        return;
+
+    // ── Build asset lookup ─────────────────────────────────────────────────────
+    QHash<QString, const KernelAsset*> assetById;
+    for (const QString& kernelId : m_kernelMap.keys()) {
+        const KernelAsset* ka = findKernelById(m_kernelRegistry->kernels(), kernelId);
+        if (ka)
+            assetById.insert(kernelId, ka);
+    }
+
+    // ── Collect unique per-tile kernel combinations ────────────────────────────
+    // Each unique ordered kernel list on a tile becomes its own archive.
+    // comboKey (IDs joined by "|") → ordered unique source files for that combo.
+    QMap<QString, QStringList> comboSources; // QMap keeps insertion order for determinism
+    QHash<QString, QString>    comboArchive; // comboKey → "<joined_ids>.a"
+
+    const auto& items = m_document->items();
+    for (const auto& item : items) {
+        auto* block = dynamic_cast<Canvas::CanvasBlock*>(item.get());
+        if (!block || block->specId().isEmpty())
+            continue;
+
+        const auto parsed = parseTileSpecId(block->specId());
+        if (!parsed || parsed->kind != hlir::TileKind::COMPUTE)
+            continue;
+
+        const QStringList& assigned = block->assignedKernels();
+        if (assigned.isEmpty())
+            continue;
+
+        bool allKnown = true;
+        for (const QString& kid : assigned)
+            if (!assetById.contains(kid)) { allKnown = false; break; }
+        if (!allKnown)
+            continue;
+
+        const QString comboKey = assigned.join(u'|');
+        if (comboSources.contains(comboKey))
+            continue;
+
+        comboArchive.insert(comboKey, assigned.join(u'_') + QStringLiteral(".a"));
+
+        QStringList sources;
+        for (const QString& kid : assigned) {
+            for (const QString& fname : assetById.value(kid)->files)
+                if (!sources.contains(fname))
+                    sources.append(fname);
+        }
+        comboSources.insert(comboKey, sources);
+    }
+
+    if (comboSources.isEmpty())
+        return;
+
+    // ── Copy kernel sources to codegen/kernels/ ────────────────────────────────
+    const QString kernelsDir = m_outputDir + QStringLiteral("/kernels");
+    QDir().mkpath(kernelsDir);
+
+    QSet<QString> copied;
+    for (const QString& kernelId : m_kernelMap.keys()) {
+        const KernelAsset* ka = assetById.value(kernelId);
+        if (!ka) continue;
+        for (const QString& fname : ka->files) {
+            if (copied.contains(fname)) continue;
+            copied.insert(fname);
+            const QString src = ka->directoryPath + QStringLiteral("/") + fname;
+            const QString dst = kernelsDir + QStringLiteral("/") + fname;
+            QFile::remove(dst);
+            QFile::copy(src, dst);
+        }
+    }
+
+    // ── Generate Makefile ──────────────────────────────────────────────────────
+    const QString designName = designNameFromOutputDir(m_outputDir);
+    QFile makefile(m_outputDir + QStringLiteral("/Makefile"));
+    if (!makefile.open(QIODevice::WriteOnly | QIODevice::Text))
+        return;
+
+    QTextStream out(&makefile);
+
+    out << QStringLiteral(
+        "#\n"
+        "# This file is licensed under the Apache License v2.0 with LLVM Exceptions.\n"
+        "# See https://llvm.org/LICENSE.txt for license information.\n"
+        "# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception\n"
+        "#\n"
+        "# (c) Copyright 2025 Advanced Micro Devices, Inc. or its affiliates\n"
+        "\n"
+        "# ── Toolchain discovery ────────────────────────────────────────────────────────\n"
+        "MLIR_AIE_DIR      ?= $(shell python3 -c \"from aie.utils.config import root_path; print(root_path())\")\n"
+        "PEANO_INSTALL_DIR ?= $(shell python3 -c \\\n"
+        "\t\"import site, os; \\\n"
+        "\t hits = [os.path.join(d,'llvm-aie') for d in site.getsitepackages() \\\n"
+        "\t         if os.path.isdir(os.path.join(d,'llvm-aie'))]; \\\n"
+        "\t print(hits[0] if hits else '')\")\n"
+        "\n"
+        "KERNEL_CC         := $(PEANO_INSTALL_DIR)/bin/clang++\n"
+        "\n"
+        "# ── Compiler flags ─────────────────────────────────────────────────────────────\n"
+        "KERNEL_CFLAGS     := -O2 -std=c++20 --target=aie2-none-unknown-elf \\\n"
+        "                     -Wno-parentheses -Wno-attributes -Wno-macro-redefined \\\n"
+        "                     -Wno-empty-body -DNDEBUG \\\n"
+        "                     -I $(MLIR_AIE_DIR)/include\n"
+        "\n"
+        "# Adjust defines to match your design tile dimensions.\n"
+        "KERNEL_DEFINES    :=\n"
+        "\n"
+        "# ── Build artifacts ────────────────────────────────────────────────────────────\n"
+        "BUILD_DIR         := build\n");
+
+    const auto toVarStem = [](const QString& name) -> QString {
+        return QFileInfo(name).completeBaseName().toUpper()
+                   .replace(QLatin1Char('-'), QLatin1Char('_'))
+                   .replace(QLatin1Char('.'), QLatin1Char('_'));
+    };
+
+    // Object variable per unique source file
+    QHash<QString, QString> fileToObjVar;
+    for (auto it = comboSources.cbegin(); it != comboSources.cend(); ++it) {
+        for (const QString& fname : it.value()) {
+            if (fileToObjVar.contains(fname)) continue;
+            const QString varName = toVarStem(fname) + QStringLiteral("_OBJ");
+            fileToObjVar.insert(fname, varName);
+            out << varName << QStringLiteral(" := $(BUILD_DIR)/")
+                << QFileInfo(fname).completeBaseName() << QStringLiteral(".o\n");
+        }
+    }
+
+    // Archive variable per unique combination
+    QHash<QString, QString> comboToVar;
+    for (auto it = comboSources.cbegin(); it != comboSources.cend(); ++it) {
+        const QString& comboKey = it.key();
+        const QString archive   = comboArchive.value(comboKey);
+        const QString varName   = toVarStem(archive) + QStringLiteral("_ARCHIVE");
+        comboToVar.insert(comboKey, varName);
+        out << varName << QStringLiteral(" := $(BUILD_DIR)/") << archive << QStringLiteral("\n");
+    }
+
+    // all target
+    QStringList allTargets;
+    for (auto it = comboSources.cbegin(); it != comboSources.cend(); ++it)
+        allTargets << QStringLiteral("$(") + comboToVar.value(it.key()) + QStringLiteral(")");
+    out << QStringLiteral("\n# ── Top-level targets ──────────────────────────────────────────────────────────\n");
+    out << QStringLiteral(".PHONY: all run_generated clean\n\n");
+    out << QStringLiteral("all: ") << allTargets.join(QStringLiteral(" ")) << QStringLiteral("\n\n");
+
+    // Archive rules — one per unique combination
+    for (auto it = comboSources.cbegin(); it != comboSources.cend(); ++it) {
+        const QString& comboKey = it.key();
+        QStringList objRefs;
+        for (const QString& fname : it.value())
+            objRefs << QStringLiteral("$(") + fileToObjVar.value(fname) + QStringLiteral(")");
+        out << QStringLiteral("$(") << comboToVar.value(comboKey) << QStringLiteral("): ")
+            << objRefs.join(QStringLiteral(" ")) << QStringLiteral("\n")
+            << QStringLiteral("\tar rcs $@ $^\n\n");
+    }
+
+    // Compile rules — one per unique source file
+    for (auto it = fileToObjVar.cbegin(); it != fileToObjVar.cend(); ++it) {
+        const QString& fname  = it.key();
+        const QString objName = QFileInfo(fname).completeBaseName() + QStringLiteral(".o");
+        out << QStringLiteral("$(") << it.value() << QStringLiteral("): kernels/") << fname
+            << QStringLiteral(" | $(BUILD_DIR)\n")
+            << QStringLiteral("\tcd $(BUILD_DIR) && \\\n")
+            << QStringLiteral("\t$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/")
+            << fname << QStringLiteral(" -o ") << objName << QStringLiteral("\n\n");
+    }
+
+    out << QStringLiteral("$(BUILD_DIR):\n\tmkdir -p $(BUILD_DIR)\n\n");
+
+    out << QStringLiteral("# ── Run ────────────────────────────────────────────────────────────────────────\n");
+    out << QStringLiteral("run_generated: all\n\tpython3 generated_")
+        << designName << QStringLiteral(".py\n\n");
+
+    out << QStringLiteral("# ── Clean ──────────────────────────────────────────────────────────────────────\n");
+    out << QStringLiteral("clean:\n\trm -rf $(BUILD_DIR)\n");
 }
 
 std::optional<HlirSyncService::ParsedTileSpec>

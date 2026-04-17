@@ -157,6 +157,10 @@ private:
     /// Build a Runtime: shim-producer wires → Fill, shim-consumer wires → Drain.
     void buildRuntime();
 
+    /// When the design uses the Kernel() API, write a Makefile and copy kernel
+    /// sources into codegen/kernels/ so the archive can be precompiled.
+    void generateMakefile() const;
+
     std::unique_ptr<hlir::HlirBridge> m_bridge;
 
     // Maps canvas ObjectId → HLIR ComponentId
