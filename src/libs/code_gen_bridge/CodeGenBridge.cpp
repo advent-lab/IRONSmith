@@ -8,10 +8,24 @@
 #ifndef _WIN32
 #include <sys/wait.h>
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace codegen {
 
 namespace {
+
+std::filesystem::path getExeDir()
+{
+#ifdef _WIN32
+    wchar_t buf[MAX_PATH];
+    GetModuleFileNameW(nullptr, buf, MAX_PATH);
+    return std::filesystem::path(buf).parent_path();
+#else
+    return std::filesystem::current_path();
+#endif
+}
 
 std::string shellQuote(const std::string& value)
 {
@@ -40,6 +54,14 @@ std::string shellQuote(const std::string& value)
 
 std::string pythonExecutable()
 {
+    // Prefer the Python bundled alongside the installed application.
+#ifdef _WIN32
+    auto bundled = getExeDir() / ".." / "python" / "python.exe";
+#else
+    auto bundled = getExeDir() / ".." / "python" / "bin" / "python3";
+#endif
+    if (std::filesystem::exists(bundled))
+        return bundled.string();
 #ifdef CODEGEN_PYTHON_EXECUTABLE
     return CODEGEN_PYTHON_EXECUTABLE;
 #else
@@ -96,11 +118,14 @@ CodeGenResult<CodeGenOutput> CodeGenBridge::runCodeGen(
 
     // Note: main.py generates output files in the same directory as the input XML
 
-    // Find main.py in the project
+    // Find main.py — prefer installed location, then fall back to build-tree path.
+    auto installedMainPy = getExeDir() / ".." / "resources" / "codegen" / "main.py";
 #ifdef CODEGEN_MAIN_PY
-    std::filesystem::path mainPyPath = CODEGEN_MAIN_PY;
+    std::filesystem::path mainPyPath = std::filesystem::exists(installedMainPy)
+        ? installedMainPy : std::filesystem::path(CODEGEN_MAIN_PY);
 #else
-    std::filesystem::path mainPyPath = "src/aiecad_compiler/main.py";
+    std::filesystem::path mainPyPath = std::filesystem::exists(installedMainPy)
+        ? installedMainPy : std::filesystem::path("src/aiecad_compiler/main.py");
 #endif
 
     if (!std::filesystem::exists(mainPyPath)) {
@@ -136,13 +161,14 @@ bool CodeGenBridge::isAvailable() const {
         return false;
     }
 
-    // Check if main.py exists
+    auto installedMainPy = getExeDir() / ".." / "resources" / "codegen" / "main.py";
+    if (std::filesystem::exists(installedMainPy))
+        return true;
 #ifdef CODEGEN_MAIN_PY
-    std::filesystem::path mainPyPath = CODEGEN_MAIN_PY;
+    return std::filesystem::exists(std::filesystem::path(CODEGEN_MAIN_PY));
 #else
-    std::filesystem::path mainPyPath = "src/aiecad_compiler/main.py";
+    return std::filesystem::exists(std::filesystem::path("src/aiecad_compiler/main.py"));
 #endif
-    return std::filesystem::exists(mainPyPath);
 }
 
 CodeGenResult<std::string> CodeGenBridge::getVersion() {

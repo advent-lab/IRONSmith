@@ -71,3 +71,15 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY  "${IRONSMITH_BUILD_LIBDIR}")
 add_subdirectory(libs)
 add_subdirectory(plugins)
 add_subdirectory(app)
+
+# Install kernel source files so the installed application can reference them.
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/resources/kernels"
+        DESTINATION "resources")
+
+# Install codegen Python scripts so CodeGenBridge finds main.py at runtime.
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/src/aiecad_compiler/"
+        DESTINATION "resources/codegen"
+        FILES_MATCHING
+            PATTERN "*.py"
+            PATTERN "__pycache__" EXCLUDE
+            PATTERN "*.pyc" EXCLUDE)

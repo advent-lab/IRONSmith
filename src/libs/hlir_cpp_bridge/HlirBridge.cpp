@@ -5,6 +5,10 @@
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <sstream>
+#include <filesystem>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 using json = nlohmann::json;
 
@@ -16,6 +20,17 @@ namespace hlir {
 // ============================================================================
 
 static int s_pyRefCount = 0;
+
+static std::filesystem::path getExeDir()
+{
+#ifdef _WIN32
+    wchar_t buf[MAX_PATH];
+    GetModuleFileNameW(nullptr, buf, MAX_PATH);
+    return std::filesystem::path(buf).parent_path();
+#else
+    return std::filesystem::current_path();
+#endif
+}
 
 static void pyAddRef()
 {
@@ -36,14 +51,24 @@ static void pyRelease()
 HlirBridge::HlirBridge(const std::string& programName)
     : m_programName(programName)
 {
-    // Set Python home to find the correct standard library using the modern
-    // PyConfig API (Py_SetPythonHome was deprecated in Python 3.11).
-    // Use PYTHONHOME env var if set, otherwise use the CMake-detected path.
+    auto exeDir = getExeDir();
+
+    // Python home resolution order:
+    //   1. PYTHONHOME env var (explicit override)
+    //   2. <exeDir>/../python — bundled Python in an installed distribution
+    //   3. PYTHON_HOME_DIR compile-time definition — developer build
+    std::string pythonHomeStorage;
     const char* pythonHome = std::getenv("PYTHONHOME");
     if (!pythonHome) {
+        auto bundled = exeDir / ".." / "python";
+        if (std::filesystem::exists(bundled)) {
+            pythonHomeStorage = std::filesystem::canonical(bundled).string();
+            pythonHome = pythonHomeStorage.c_str();
+        } else {
 #ifdef PYTHON_HOME_DIR
-        pythonHome = PYTHON_HOME_DIR;
+            pythonHome = PYTHON_HOME_DIR;
 #endif
+        }
     }
 
     PyConfig config;
@@ -55,20 +80,40 @@ HlirBridge::HlirBridge(const std::string& programName)
     Py_InitializeFromConfig(&config);
     PyConfig_Clear(&config);
 
-    // Add Python module paths using absolute paths baked in at build time.
+    // Helper: insert a directory at the front of sys.path, converting backslashes.
+    auto addSysPath = [](const std::string& dir) {
+        std::string cmd = "sys.path.insert(0, '" + dir + "')";
+        for (char& c : cmd) if (c == '\\') c = '/';
+        PyRun_SimpleString(cmd.c_str());
+    };
+
     PyRun_SimpleString("import sys");
+
+    // hlir_bridge_wrapper.py: prefer installed location, fall back to build-tree path.
+    auto installedBridgeDir = exeDir / ".." / "resources" / "hlir_bridge";
+    if (std::filesystem::exists(installedBridgeDir)) {
+        addSysPath(installedBridgeDir.string());
+    } else {
 #ifdef HLIR_BRIDGE_PYTHON_DIR
-    PyRun_SimpleString("sys.path.insert(0, '" HLIR_BRIDGE_PYTHON_DIR "')");
+        addSysPath(HLIR_BRIDGE_PYTHON_DIR);
 #else
-    PyRun_SimpleString("sys.path.insert(0, 'src/libs/hlir_cpp_bridge/python')");
-    PyRun_SimpleString("sys.path.insert(0, 'hlir_cpp_bridge/python')");
+        addSysPath("src/libs/hlir_cpp_bridge/python");
+        addSysPath("hlir_cpp_bridge/python");
 #endif
+    }
+
+    // aiecad_compiler: prefer installed location, fall back to build-tree path.
+    auto installedCodegenDir = exeDir / ".." / "resources" / "codegen";
+    if (std::filesystem::exists(installedCodegenDir)) {
+        addSysPath(installedCodegenDir.string());
+    } else {
 #ifdef HLIR_AIECAD_DIR
-    PyRun_SimpleString("sys.path.insert(0, '" HLIR_AIECAD_DIR "')");
+        addSysPath(HLIR_AIECAD_DIR);
 #else
-    PyRun_SimpleString("sys.path.insert(0, 'src/aiecad_compiler')");
-    PyRun_SimpleString("sys.path.insert(0, 'aiecad_compiler')");
+        addSysPath("src/aiecad_compiler");
+        addSysPath("aiecad_compiler");
 #endif
+    }
 
     // Import wrapper module
     PyObject* moduleName = PyUnicode_FromString("hlir_bridge_wrapper");

@@ -336,6 +336,10 @@ function(ironsmith_add_plugin target_name)
                 LIBRARY DESTINATION "${_plugin_dir}" OPTIONAL
                 ARCHIVE DESTINATION "${_plugin_dir}" OPTIONAL
         )
+        if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${target_name}.json.in")
+            install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${target_name}.json"
+                    DESTINATION "${_plugin_dir}")
+        endif()
     endif()
 endfunction(ironsmith_add_plugin)
 
@@ -502,11 +506,21 @@ function(ironsmith_add_library target_name)
                 ARCHIVE_OUTPUT_DIRECTORY "${_out_dir}"
         )
 
-        install(TARGETS ${target_name}
-                RUNTIME DESTINATION "${_DESTINATION}" OPTIONAL
-                LIBRARY DESTINATION "${_DESTINATION}" OPTIONAL
-                ARCHIVE DESTINATION "${_DESTINATION}" OPTIONAL
-        )
+        # On Windows the DLL (RUNTIME) must live alongside the executable so the
+        # loader finds it at startup. Import libs (ARCHIVE) stay in lib/ironsmith/.
+        if(WIN32)
+            install(TARGETS ${target_name}
+                    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" OPTIONAL
+                    LIBRARY DESTINATION "${_DESTINATION}" OPTIONAL
+                    ARCHIVE DESTINATION "${_DESTINATION}" OPTIONAL
+            )
+        else()
+            install(TARGETS ${target_name}
+                    RUNTIME DESTINATION "${_DESTINATION}" OPTIONAL
+                    LIBRARY DESTINATION "${_DESTINATION}" OPTIONAL
+                    ARCHIVE DESTINATION "${_DESTINATION}" OPTIONAL
+            )
+        endif()
     endif()
 
     set_property(GLOBAL APPEND PROPERTY IRONSMITH_LIBRARIES "${target_name}")

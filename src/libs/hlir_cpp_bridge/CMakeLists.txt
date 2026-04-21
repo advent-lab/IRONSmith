@@ -54,6 +54,17 @@ configure_file(
     COPYONLY
 )
 
+# Install Python wrapper module to resources/hlir_bridge/ so the runtime path
+# resolution in HlirBridge.cpp finds it in installed distributions.
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/python/hlir_bridge_wrapper.py
+        DESTINATION "resources/hlir_bridge")
+
+# Install Python DLL (Windows runtime dependency for the embedded interpreter).
+if(WIN32 AND Python3_RUNTIME_LIBRARY_DIRS)
+    file(GLOB _python_dlls "${Python3_RUNTIME_LIBRARY_DIRS}/python*.dll")
+    install(FILES ${_python_dlls} DESTINATION "${CMAKE_INSTALL_BINDIR}")
+endif()
+
 # Print configuration
 message(STATUS "HLIR C++ Bridge Configuration:")
 message(STATUS "  Python3 Version: ${Python3_VERSION}")
