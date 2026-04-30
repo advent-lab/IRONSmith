@@ -67,18 +67,6 @@
                 <dtype>int32</dtype>
             </ndarray>
         </TypeAbstraction>
-        <TypeAbstraction name="type_bfloat16_64x64">
-            <ndarray>
-                <shape>64, 64</shape>
-                <dtype>bfloat16</dtype>
-            </ndarray>
-        </TypeAbstraction>
-        <TypeAbstraction name="type_bfloat16_64x256">
-            <ndarray>
-                <shape>64, 256</shape>
-                <dtype>bfloat16</dtype>
-            </ndarray>
-        </TypeAbstraction>
         <TAP name="tap_act" offset="0" use_tiler2d="false">
             <tensor_dims>1, 4096</tensor_dims>
             <sizes>1, 4096</sizes>
@@ -90,22 +78,22 @@
             <strides>4096, 1</strides>
         </TAP>
         <TAP name="tap_w_0" offset="0" use_tiler2d="false">
-            <tensor_dims>1, 4096</tensor_dims>
+            <tensor_dims>1, 16384</tensor_dims>
             <sizes>1, 4096</sizes>
             <strides>4096, 1</strides>
         </TAP>
         <TAP name="tap_w_1" offset="4096" use_tiler2d="false">
-            <tensor_dims>1, 4096</tensor_dims>
+            <tensor_dims>1, 16384</tensor_dims>
             <sizes>1, 4096</sizes>
             <strides>4096, 1</strides>
         </TAP>
         <TAP name="tap_w_2" offset="8192" use_tiler2d="false">
-            <tensor_dims>1, 4096</tensor_dims>
+            <tensor_dims>1, 16384</tensor_dims>
             <sizes>1, 4096</sizes>
             <strides>4096, 1</strides>
         </TAP>
         <TAP name="tap_w_3" offset="12288" use_tiler2d="false">
-            <tensor_dims>1, 4096</tensor_dims>
+            <tensor_dims>1, 16384</tensor_dims>
             <sizes>1, 4096</sizes>
             <strides>4096, 1</strides>
         </TAP>
@@ -496,26 +484,62 @@
             <placement>Tile(3, 5)</placement>
         </Worker>
         <Runtime name="runtime">
-            <Sequence inputs="type_bfloat16_64x64, type_bfloat16_64x256, type_bfloat16_64x64" as="input_a_in, w_in, outputc_out">
-                <Start>worker_aie0_3, worker_aie3_2, worker_aie2_2, worker_aie1_5, worker_aie2_4, worker_aie0_2, worker_aie3_5, worker_aie0_5, worker_aie0_4, worker_aie1_3, worker_aie1_4, worker_aie2_3, worker_aie3_3, worker_aie1_2, worker_aie3_4, worker_aie2_5</Start>
-                <Fill target="of_inA" source="input_a_in" data_ref="Input_A" use_tap="false">
+            <Sequence inputs="activation_flat_type, weight_all_flat_type, output_full_flat_type" as="input_a_in, w_in, outputc_out">
+                <Start>worker_aie1_2, worker_aie2_3, worker_aie0_3, worker_aie3_2, worker_aie0_5, worker_aie3_3, worker_aie3_4, worker_aie1_5, worker_aie3_5, worker_aie2_2, worker_aie1_4, worker_aie0_4, worker_aie1_3, worker_aie2_5, worker_aie0_2, worker_aie2_4</Start>
+                <Fill target="of_inA" source="input_a_in" data_ref="Input_A" use_tap="true" tap_type="tap" tap_var="tap_act">
                     <placement>Tile(0, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 4096</tensor_dims>
+                        <offset>0</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
                 </Fill>
-                <Fill target="of_W0" source="w_in" data_ref="W" use_tap="false">
+                <Fill target="of_W0" source="w_in" data_ref="W" use_tap="true" tap_type="tap" tap_var="tap_w_0">
                     <placement>Tile(0, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 16384</tensor_dims>
+                        <offset>0</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
                 </Fill>
-                <Fill target="of_W1" source="w_in" data_ref="W" use_tap="false">
+                <Fill target="of_W1" source="w_in" data_ref="W" use_tap="true" tap_type="tap" tap_var="tap_w_1">
                     <placement>Tile(1, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 16384</tensor_dims>
+                        <offset>4096</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
                 </Fill>
-                <Fill target="of_W2" source="w_in" data_ref="W" use_tap="false">
+                <Fill target="of_W2" source="w_in" data_ref="W" use_tap="true" tap_type="tap" tap_var="tap_w_2">
                     <placement>Tile(2, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 16384</tensor_dims>
+                        <offset>8192</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
                 </Fill>
-                <Fill target="of_W3" source="w_in" data_ref="W" use_tap="false">
+                <Fill target="of_W3" source="w_in" data_ref="W" use_tap="true" tap_type="tap" tap_var="tap_w_3">
                     <placement>Tile(3, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 16384</tensor_dims>
+                        <offset>12288</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
                 </Fill>
-                <Drain source="of_outC" target="outputc_out" data_ref="OutputC" use_tap="false">
+                <Drain source="of_outC" target="outputc_out" data_ref="OutputC" use_tap="true" tap_type="tap" tap_var="tap_out">
                     <placement>Tile(0, 0)</placement>
                     <wait>true</wait>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 4096</tensor_dims>
+                        <offset>0</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
                 </Drain>
             </Sequence>
         </Runtime>
@@ -527,9 +551,9 @@
     </DataFlow>
     <Function name="jit_function" decorator="iron.jit" entry="gui_design_jit">
         <parameters>
-            <param name="Input_A" type="type_bfloat16_64x64"/>
-            <param name="W" type="type_bfloat16_64x256"/>
-            <param name="OutputC" type="type_bfloat16_64x64"/>
+            <param name="Input_A" type="activation_flat_type"/>
+            <param name="W" type="weight_all_flat_type"/>
+            <param name="OutputC" type="output_full_flat_type"/>
         </parameters>
         <body>
             <UseDataFlow/>
@@ -551,17 +575,13 @@
             <Assign name="weight_layout_dims" value="[(K // micro_s, micro_s * N), (N // micro_t, micro_t), (micro_s, N), (micro_t, 1)]"/>
             <Assign name="layout_dims" value="[(M_tile // micro_r, micro_r * N), (N // micro_t, micro_t), (micro_r, N), (micro_t, 1)]"/>
             <Tensor name="Input_A">
-                <init>iron.zeros(64 * 64, dtype=bfloat16, device="npu")</init>
+                <init>iron.arange(M * K, dtype=bfloat16, device="npu")</init>
             </Tensor>
-            <RawLine>Input_A.data[:] = np.arange(64 * 64, dtype=bfloat16)</RawLine>
-            <RawLine>Input_A._sync_to_device()</RawLine>
             <Tensor name="W">
-                <init>iron.zeros(64 * 256, dtype=bfloat16, device="npu")</init>
+                <init>iron.arange(4 * K * N, dtype=bfloat16, device="npu")</init>
             </Tensor>
-            <RawLine>W.data[:] = np.arange(64 * 256, dtype=bfloat16)</RawLine>
-            <RawLine>W._sync_to_device()</RawLine>
             <Tensor name="OutputC">
-                <init>np.zeros((64, 64), dtype=bfloat16)</init>
+                <init>iron.zeros(M * N, dtype=bfloat16, device="npu")</init>
             </Tensor>
             <Call function="jit_function" args="Input_A, W, OutputC"/>
         </body>

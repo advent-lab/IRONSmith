@@ -43,8 +43,6 @@ def gui_design_jit(Input_A, W, OutputC):
     output_tile_type = np.ndarray[(M_tile, N), np.dtype[bfloat16]]
     type_int32_16x64 = np.ndarray[(16, 64), np.dtype[np.int32]]
     type_int32_M_tilexN = np.ndarray[(M_tile, N), np.dtype[np.int32]]
-    type_bfloat16_64x64 = np.ndarray[(64, 64), np.dtype[bfloat16]]
-    type_bfloat16_64x256 = np.ndarray[(64, 256), np.dtype[bfloat16]]
 
     # Data Movement
     # Object Fifos
@@ -147,26 +145,26 @@ def gui_design_jit(Input_A, W, OutputC):
     Workers = [worker_aie0_2, worker_aie1_2, worker_aie2_2, worker_aie3_2, worker_aie0_3, worker_aie1_3, worker_aie2_3, worker_aie3_3, worker_aie0_4, worker_aie1_4, worker_aie2_4, worker_aie3_4, worker_aie0_5, worker_aie1_5, worker_aie2_5, worker_aie3_5]
 
     # Tensor Access Patterns (TAPs)
-    tap_act = TensorAccessPattern((1, 4096,), offset=0, sizes=[1, 4096], strides=[4096, 1])
-    tap_out = TensorAccessPattern((1, 4096,), offset=0, sizes=[1, 4096], strides=[4096, 1])
-    tap_w_0 = TensorAccessPattern((1, 4096,), offset=0, sizes=[1, 4096], strides=[4096, 1])
-    tap_w_1 = TensorAccessPattern((1, 4096,), offset=4096, sizes=[1, 4096], strides=[4096, 1])
-    tap_w_2 = TensorAccessPattern((1, 4096,), offset=8192, sizes=[1, 4096], strides=[4096, 1])
-    tap_w_3 = TensorAccessPattern((1, 4096,), offset=12288, sizes=[1, 4096], strides=[4096, 1])
+    tap_act = TensorAccessPattern(tensor_dims=[4096], offset=0, sizes=[1, 4096], strides=[4096, 1])
+    tap_out = TensorAccessPattern(tensor_dims=[4096], offset=0, sizes=[1, 4096], strides=[4096, 1])
+    tap_w_0 = TensorAccessPattern(tensor_dims=[16384], offset=0, sizes=[1, 4096], strides=[4096, 1])
+    tap_w_1 = TensorAccessPattern(tensor_dims=[16384], offset=4096, sizes=[1, 4096], strides=[4096, 1])
+    tap_w_2 = TensorAccessPattern(tensor_dims=[16384], offset=8192, sizes=[1, 4096], strides=[4096, 1])
+    tap_w_3 = TensorAccessPattern(tensor_dims=[16384], offset=12288, sizes=[1, 4096], strides=[4096, 1])
 
     # Runtime
     rt = Runtime()
-    with rt.sequence(type_bfloat16_64x64, type_bfloat16_64x256, type_bfloat16_64x64) as (input_a_in, w_in, outputc_out):
+    with rt.sequence(activation_flat_type, weight_all_flat_type, output_full_flat_type) as (input_a_in, w_in, outputc_out):
         # Start Workers
         rt.start(*Workers)
         # Fills
-        rt.fill(of_inA.prod(), input_a_in, placement=Tile(0, 0))
-        rt.fill(of_W0.prod(), w_in, placement=Tile(0, 0))
-        rt.fill(of_W1.prod(), w_in, placement=Tile(1, 0))
-        rt.fill(of_W2.prod(), w_in, placement=Tile(2, 0))
-        rt.fill(of_W3.prod(), w_in, placement=Tile(3, 0))
+        rt.fill(placement=Tile(0, 0), in_fifo=of_inA.prod(), source=input_a_in, tap=tap_act)
+        rt.fill(placement=Tile(0, 0), in_fifo=of_W0.prod(), source=w_in, tap=tap_w_0)
+        rt.fill(placement=Tile(1, 0), in_fifo=of_W1.prod(), source=w_in, tap=tap_w_1)
+        rt.fill(placement=Tile(2, 0), in_fifo=of_W2.prod(), source=w_in, tap=tap_w_2)
+        rt.fill(placement=Tile(3, 0), in_fifo=of_W3.prod(), source=w_in, tap=tap_w_3)
         # Drains
-        rt.drain(of_outC.cons(), outputc_out, wait=True, placement=Tile(0, 0))
+        rt.drain(placement=Tile(0, 0), out_fifo=of_outC.cons(), dest=outputc_out, wait=True, tap=tap_out)
 
     # Program
     my_program = Program(iron.get_current_device(), rt)
@@ -188,13 +186,9 @@ def main():
     activation_layout_dims = [(M_tile // micro_r, micro_r * K), (K // micro_s, micro_s), (micro_r, K), (micro_s, 1)]
     weight_layout_dims = [(K // micro_s, micro_s * N), (N // micro_t, micro_t), (micro_s, N), (micro_t, 1)]
     layout_dims = [(M_tile // micro_r, micro_r * N), (N // micro_t, micro_t), (micro_r, N), (micro_t, 1)]
-    Input_A = iron.zeros(64 * 64, dtype=bfloat16, device="npu")
-    Input_A.data[:] = np.arange(64 * 64, dtype=bfloat16)
-    Input_A._sync_to_device()
-    W = iron.zeros(64 * 256, dtype=bfloat16, device="npu")
-    W.data[:] = np.arange(64 * 256, dtype=bfloat16)
-    W._sync_to_device()
-    OutputC = np.zeros((64, 64), dtype=bfloat16)
+    Input_A = iron.arange(M * K, dtype=bfloat16, device="npu")
+    W = iron.arange(4 * K * N, dtype=bfloat16, device="npu")
+    OutputC = iron.zeros(M * N, dtype=bfloat16, device="npu")
     gui_design_jit(Input_A, W, OutputC)
 
 

@@ -632,6 +632,9 @@ class GUIXMLSerializer:
             fill_elem.set('tap_var', fill_op.tap.name)
         elif fill_op.tap is not None:
             fill_elem.set('tap_type', 'tap')
+            tap_name = getattr(fill_op.tap, 'name', None)
+            if tap_name:
+                fill_elem.set('tap_var', tap_name)
 
         fill_elem.text = '\n'
         fill_elem.tail = '\n'
@@ -676,6 +679,9 @@ class GUIXMLSerializer:
             drain_elem.set('tap_var', drain_op.tap.name)
         elif drain_op.tap is not None:
             drain_elem.set('tap_type', 'tap')
+            tap_name = getattr(drain_op.tap, 'name', None)
+            if tap_name:
+                drain_elem.set('tap_var', tap_name)
 
         drain_elem.text = '\n'
         drain_elem.tail = '\n'

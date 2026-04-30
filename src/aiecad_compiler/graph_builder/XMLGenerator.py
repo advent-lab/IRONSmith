@@ -1510,9 +1510,9 @@ class XMLTransformer:
             kwarg_source = etree.SubElement(args, "kwarg", name="source")
             var = etree.SubElement(kwarg_source, "var", ref=source)
 
-            # tap — either a TensorTiler2D variable reference or inline TAP constructor
+            # tap — variable reference (tiler2d or named tap) or inline TAP constructor
             kwarg_tap = etree.SubElement(args, "kwarg", name="tap")
-            if tap_type == "tiler2d" and tap_var:
+            if tap_var:
                 var_ref = etree.SubElement(kwarg_tap, "var", ref=tap_var)
             else:
                 self._build_tensor_access_pattern(kwarg_tap, data_ref, column)
@@ -1596,9 +1596,9 @@ class XMLTransformer:
             if wait is not None:
                 kwarg_wait = etree.SubElement(args, "kwarg", name="wait", value=wait.text.strip().capitalize())
 
-            # tap — either a TensorTiler2D variable reference or inline TAP constructor
+            # tap — variable reference (tiler2d or named tap) or inline TAP constructor
             kwarg_tap = etree.SubElement(args, "kwarg", name="tap")
-            if tap_type == "tiler2d" and tap_var:
+            if tap_var:
                 var_ref = etree.SubElement(kwarg_tap, "var", ref=tap_var)
             else:
                 self._build_tensor_access_pattern(kwarg_tap, data_ref, column)

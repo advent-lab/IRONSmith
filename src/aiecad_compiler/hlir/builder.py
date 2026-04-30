@@ -1221,7 +1221,7 @@ def _remove_component(builder: ProgramBuilder, comp_id: str) -> BuilderResult:
 
     # Remove from program
     component_name = getattr(component, 'name', None)
-    if comp_type in ['constant', 'tensor_type', 'symbol', 'fifo_split', 'fifo_join', 'fifo_forward', 'tiler2d'] and component_name in builder.program.symbols:
+    if comp_type in ['constant', 'tensor_type', 'symbol', 'fifo_split', 'fifo_join', 'fifo_forward', 'tiler2d', 'tap'] and component_name in builder.program.symbols:
         del builder.program.symbols[component_name]
     elif comp_type == 'tile' and component_name in builder.program.tiles:
         del builder.program.tiles[component_name]

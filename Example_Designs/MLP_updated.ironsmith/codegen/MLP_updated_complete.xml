@@ -159,42 +159,12 @@
         </dtype>
       </ndarray>
     </TypeAbstraction>
-    <TypeAbstraction name="type_bfloat16_64x64">
-      <ndarray>
-        <shape>
-          <tuple>
-            <expr>64</expr>
-          </tuple>
-          <tuple>
-            <expr>64</expr>
-          </tuple>
-        </shape>
-        <dtype>
-          <numpy_dtype>bfloat16</numpy_dtype>
-        </dtype>
-      </ndarray>
-    </TypeAbstraction>
-    <TypeAbstraction name="type_bfloat16_64x256">
-      <ndarray>
-        <shape>
-          <tuple>
-            <expr>64</expr>
-          </tuple>
-          <tuple>
-            <expr>256</expr>
-          </tuple>
-        </shape>
-        <dtype>
-          <numpy_dtype>bfloat16</numpy_dtype>
-        </dtype>
-      </ndarray>
-    </TypeAbstraction>
     <TensorAccessPattern name="tap_act" offset="0" tensor_dims="1, 4096" sizes="1, 4096" strides="4096, 1"/>
     <TensorAccessPattern name="tap_out" offset="0" tensor_dims="1, 4096" sizes="1, 4096" strides="4096, 1"/>
-    <TensorAccessPattern name="tap_w_0" offset="0" tensor_dims="1, 4096" sizes="1, 4096" strides="4096, 1"/>
-    <TensorAccessPattern name="tap_w_1" offset="4096" tensor_dims="1, 4096" sizes="1, 4096" strides="4096, 1"/>
-    <TensorAccessPattern name="tap_w_2" offset="8192" tensor_dims="1, 4096" sizes="1, 4096" strides="4096, 1"/>
-    <TensorAccessPattern name="tap_w_3" offset="12288" tensor_dims="1, 4096" sizes="1, 4096" strides="4096, 1"/>
+    <TensorAccessPattern name="tap_w_0" offset="0" tensor_dims="1, 16384" sizes="1, 4096" strides="4096, 1"/>
+    <TensorAccessPattern name="tap_w_1" offset="4096" tensor_dims="1, 16384" sizes="1, 4096" strides="4096, 1"/>
+    <TensorAccessPattern name="tap_w_2" offset="8192" tensor_dims="1, 16384" sizes="1, 4096" strides="4096, 1"/>
+    <TensorAccessPattern name="tap_w_3" offset="12288" tensor_dims="1, 16384" sizes="1, 4096" strides="4096, 1"/>
   </Symbols>
   <DataFlow>
     <ExternalFunction name="kernel_zero_i16">
@@ -2105,16 +2075,16 @@
       <context>
         <call>
           <method ref="rt" name="sequence">
-            <arg type_ref="type_bfloat16_64x64"/>
-            <arg type_ref="type_bfloat16_64x256"/>
-            <arg type_ref="type_bfloat16_64x64"/>
+            <arg type_ref="activation_flat_type"/>
+            <arg type_ref="weight_all_flat_type"/>
+            <arg type_ref="output_full_flat_type"/>
           </method>
         </call>
       </context>
       <bindings>
-        <bind name="input_a_in" type_ref="type_bfloat16_64x64"/>
-        <bind name="w_in" type_ref="type_bfloat16_64x256"/>
-        <bind name="outputc_out" type_ref="type_bfloat16_64x64"/>
+        <bind name="input_a_in" type_ref="activation_flat_type"/>
+        <bind name="w_in" type_ref="weight_all_flat_type"/>
+        <bind name="outputc_out" type_ref="output_full_flat_type"/>
       </bindings>
       <body>
         <Operation name="start">
@@ -2132,14 +2102,33 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <arg>
-              <call>
-                <method ref="of_inA" name="prod"/>
-              </call>
-            </arg>
-            <arg>
+            <kwarg name="placement">
+              <constructor ref="Tile">
+                <arg>
+                  <const>0</const>
+                </arg>
+                <arg>
+                  <const>0</const>
+                </arg>
+              </constructor>
+            </kwarg>
+            <kwarg name="in_fifo">
+              <var ref="of_inA"/>
+              <method name="prod"/>
+            </kwarg>
+            <kwarg name="source">
               <var ref="input_a_in"/>
-            </arg>
+            </kwarg>
+            <kwarg name="tap">
+              <var ref="tap_act"/>
+            </kwarg>
+          </args>
+        </Operation>
+        <Operation name="fill_w_in_col0">
+          <target>
+            <method ref="rt" name="fill"/>
+          </target>
+          <args>
             <kwarg name="placement">
               <constructor ref="Tile">
                 <arg>
@@ -2150,30 +2139,15 @@
                 </arg>
               </constructor>
             </kwarg>
-          </args>
-        </Operation>
-        <Operation name="fill_w_in_col0">
-          <target>
-            <method ref="rt" name="fill"/>
-          </target>
-          <args>
-            <arg>
-              <call>
-                <method ref="of_W0" name="prod"/>
-              </call>
-            </arg>
-            <arg>
+            <kwarg name="in_fifo">
+              <var ref="of_W0"/>
+              <method name="prod"/>
+            </kwarg>
+            <kwarg name="source">
               <var ref="w_in"/>
-            </arg>
-            <kwarg name="placement">
-              <constructor ref="Tile">
-                <arg>
-                  <const>0</const>
-                </arg>
-                <arg>
-                  <const>0</const>
-                </arg>
-              </constructor>
+            </kwarg>
+            <kwarg name="tap">
+              <var ref="tap_w_0"/>
             </kwarg>
           </args>
         </Operation>
@@ -2182,14 +2156,6 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <arg>
-              <call>
-                <method ref="of_W1" name="prod"/>
-              </call>
-            </arg>
-            <arg>
-              <var ref="w_in"/>
-            </arg>
             <kwarg name="placement">
               <constructor ref="Tile">
                 <arg>
@@ -2200,6 +2166,16 @@
                 </arg>
               </constructor>
             </kwarg>
+            <kwarg name="in_fifo">
+              <var ref="of_W1"/>
+              <method name="prod"/>
+            </kwarg>
+            <kwarg name="source">
+              <var ref="w_in"/>
+            </kwarg>
+            <kwarg name="tap">
+              <var ref="tap_w_1"/>
+            </kwarg>
           </args>
         </Operation>
         <Operation name="fill_w_in_col0">
@@ -2207,14 +2183,6 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <arg>
-              <call>
-                <method ref="of_W2" name="prod"/>
-              </call>
-            </arg>
-            <arg>
-              <var ref="w_in"/>
-            </arg>
             <kwarg name="placement">
               <constructor ref="Tile">
                 <arg>
@@ -2225,6 +2193,16 @@
                 </arg>
               </constructor>
             </kwarg>
+            <kwarg name="in_fifo">
+              <var ref="of_W2"/>
+              <method name="prod"/>
+            </kwarg>
+            <kwarg name="source">
+              <var ref="w_in"/>
+            </kwarg>
+            <kwarg name="tap">
+              <var ref="tap_w_2"/>
+            </kwarg>
           </args>
         </Operation>
         <Operation name="fill_w_in_col0">
@@ -2232,14 +2210,6 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <arg>
-              <call>
-                <method ref="of_W3" name="prod"/>
-              </call>
-            </arg>
-            <arg>
-              <var ref="w_in"/>
-            </arg>
             <kwarg name="placement">
               <constructor ref="Tile">
                 <arg>
@@ -2250,6 +2220,16 @@
                 </arg>
               </constructor>
             </kwarg>
+            <kwarg name="in_fifo">
+              <var ref="of_W3"/>
+              <method name="prod"/>
+            </kwarg>
+            <kwarg name="source">
+              <var ref="w_in"/>
+            </kwarg>
+            <kwarg name="tap">
+              <var ref="tap_w_3"/>
+            </kwarg>
           </args>
         </Operation>
         <Operation name="drain_outputc_out_col0">
@@ -2257,15 +2237,6 @@
             <method ref="rt" name="drain"/>
           </target>
           <args>
-            <arg>
-              <call>
-                <method ref="of_outC" name="cons"/>
-              </call>
-            </arg>
-            <arg>
-              <var ref="outputc_out"/>
-            </arg>
-            <kwarg name="wait" value="True"/>
             <kwarg name="placement">
               <constructor ref="Tile">
                 <arg>
@@ -2275,6 +2246,17 @@
                   <const>0</const>
                 </arg>
               </constructor>
+            </kwarg>
+            <kwarg name="out_fifo">
+              <var ref="of_outC"/>
+              <method name="cons"/>
+            </kwarg>
+            <kwarg name="dest">
+              <var ref="outputc_out"/>
+            </kwarg>
+            <kwarg name="wait" value="True"/>
+            <kwarg name="tap">
+              <var ref="tap_out"/>
             </kwarg>
           </args>
         </Operation>
@@ -2311,9 +2293,9 @@
   </DataFlow>
   <Function name="gui_design_jit" decorator="iron.jit">
     <parameters>
-      <param name="Input_A" type_ref="type_bfloat16_64x64"/>
-      <param name="W" type_ref="type_bfloat16_64x256"/>
-      <param name="OutputC" type_ref="type_bfloat16_64x64"/>
+      <param name="Input_A" type_ref="activation_flat_type"/>
+      <param name="W" type_ref="weight_all_flat_type"/>
+      <param name="OutputC" type_ref="output_full_flat_type"/>
     </parameters>
     <attributes>
       <kwarg name="is_placed" value="False"/>
@@ -2329,8 +2311,6 @@
         <UseType name="output_tile_type"/>
         <UseType name="type_int32_16x64"/>
         <UseType name="type_int32_M_tilexN"/>
-        <UseType name="type_bfloat16_64x64"/>
-        <UseType name="type_bfloat16_64x256"/>
       </UseDataFlow>
       <Return>
         <var ref="program"/>
@@ -2415,9 +2395,9 @@
         <target>Input_A</target>
         <source>
           <call>
-            <function ref="iron.zeros">
+            <function ref="iron.arange">
               <arg>
-                <var>64 * 64</var>
+                <var>M * K</var>
               </arg>
               <kwarg name="dtype">
                 <var>bfloat16</var>
@@ -2429,15 +2409,13 @@
           </call>
         </source>
       </Assign>
-      <RawLine>Input_A.data[:] = np.arange(64 * 64, dtype=bfloat16)</RawLine>
-      <RawLine>Input_A._sync_to_device()</RawLine>
       <Assign>
         <target>W</target>
         <source>
           <call>
-            <function ref="iron.zeros">
+            <function ref="iron.arange">
               <arg>
-                <var>64 * 256</var>
+                <var>4 * K * N</var>
               </arg>
               <kwarg name="dtype">
                 <var>bfloat16</var>
@@ -2449,21 +2427,19 @@
           </call>
         </source>
       </Assign>
-      <RawLine>W.data[:] = np.arange(64 * 256, dtype=bfloat16)</RawLine>
-      <RawLine>W._sync_to_device()</RawLine>
       <Assign>
         <target>OutputC</target>
         <source>
           <call>
-            <function ref="np.zeros">
+            <function ref="iron.zeros">
               <arg>
-                <var>(64</var>
-              </arg>
-              <arg>
-                <var>64)</var>
+                <var>M * N</var>
               </arg>
               <kwarg name="dtype">
                 <var>bfloat16</var>
+              </kwarg>
+              <kwarg name="device">
+                <string>npu</string>
               </kwarg>
             </function>
           </call>

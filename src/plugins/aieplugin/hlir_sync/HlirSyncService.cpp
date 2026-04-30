@@ -2822,9 +2822,33 @@ void HlirSyncService::buildRuntime()
                 valueType = normalizeValueType(fd.valueType);
             mainSize = fd.totalDims.trimmed();
             if (!mainSize.isEmpty()) {
-                typeId = (fd.symbolRef.has_value() && !fd.symbolRef->isEmpty())
-                    ? ensureNamedTensorType(*fd.symbolRef, mainSize, valueType)
-                    : ensureTensorType(mainSize, valueType);
+                // Explicit symbol reference takes priority.
+                QString effectiveSymRef = (fd.symbolRef.has_value() && !fd.symbolRef->isEmpty())
+                    ? *fd.symbolRef : QString();
+                // If totalDims looks like a symbol name (not a numeric/x-separated
+                // dimension string), treat it as an implicit symbolRef.
+                if (effectiveSymRef.isEmpty() && !mainSize.isEmpty()) {
+                    const bool looksNumeric = mainSize.at(0).isDigit()
+                                             || mainSize.contains(u'x');
+                    if (!looksNumeric && m_symbolsController) {
+                        for (const auto& sym : m_symbolsController->symbols()) {
+                            if (sym.name == mainSize
+                                    && sym.kind == SymbolKind::TypeAbstraction) {
+                                effectiveSymRef = mainSize;
+                                Canvas::CanvasWire::ObjectFifoTypeAbstraction typeAbs;
+                                typeAbs.symbolRef  = mainSize;
+                                typeAbs.dimensions = sym.type.shapeTokens.join(u'x');
+                                typeAbs.valueType  = sym.type.dtype;
+                                const auto resolved = resolveType(typeAbs, constantsMap);
+                                mainSize = resolved.dimensions;
+                                break;
+                            }
+                        }
+                    }
+                }
+                typeId = effectiveSymRef.isEmpty()
+                    ? ensureTensorType(mainSize, valueType)
+                    : ensureNamedTensorType(effectiveSymRef, mainSize, valueType);
             }
         }
         // Fallback: use first arm's FIFO dimensions.

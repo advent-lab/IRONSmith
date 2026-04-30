@@ -1207,7 +1207,14 @@ class CodeGenerator:
 
         sizes_list = "[" + sizes + "]" if sizes else "[]"
         strides_list = "[" + strides + "]" if strides else "[]"
-        self._emit(f"{name} = TensorAccessPattern(({tensor_dims},), offset={offset}, "
+        # tensor_dims is stored as "rows, cols" — emit as a list with the keyword arg.
+        # The IRON API expects tensor_dims=[N] (1-element) or [rows, cols] (2-element).
+        dims_parts = [d.strip() for d in tensor_dims.split(',') if d.strip()]
+        # Drop a leading "1" row-count added by the symbol editor (it only represents cols).
+        if len(dims_parts) == 2 and dims_parts[0] == "1":
+            dims_parts = [dims_parts[1]]
+        tensor_dims_list = "[" + ", ".join(dims_parts) + "]" if dims_parts else "[]"
+        self._emit(f"{name} = TensorAccessPattern(tensor_dims={tensor_dims_list}, offset={offset}, "
                    f"sizes={sizes_list}, strides={strides_list})")
 
     def _emit_tiler2d_assignment(self, tiler_id: str):
