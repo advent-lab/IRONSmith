@@ -413,7 +413,7 @@
         </Worker>
         <Runtime name="runtime">
             <Sequence inputs="type_int16_256x256, type_int16_1024, type_int16_1024, type_int16_1024, type_int16_1024, type_int16_256" as="input_activation_in, weight_layer0_in, weight_layer1_in, weight_layer2_in, weight_layer3_in, output_activation_out">
-                <Start>worker_aie0_5, worker_aie0_4, worker_aie1_2, worker_aie3_4, worker_aie2_2, worker_aie1_5, worker_aie3_2, worker_aie3_5, worker_aie1_4, worker_aie0_3, worker_aie2_5, worker_aie2_4, worker_aie1_3, worker_aie0_2, worker_aie3_3, worker_aie2_3</Start>
+                <Start>worker_aie0_3, worker_aie0_5, worker_aie1_2, worker_aie1_4, worker_aie2_2, worker_aie2_5, worker_aie0_4, worker_aie3_3, worker_aie1_3, worker_aie2_3, worker_aie3_5, worker_aie2_4, worker_aie1_5, worker_aie3_2, worker_aie0_2, worker_aie3_4</Start>
                 <Fill target="input_activation_fifo" source="input_activation_in" data_ref="input_activation" use_tap="false">
                     <placement>Tile(0, 0)</placement>
                 </Fill>

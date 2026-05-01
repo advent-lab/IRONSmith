@@ -1,0 +1,592 @@
+<?xml version="1.0" ?>
+<Module name="gui_design">
+    <Symbols>
+        <Const name="N" type="int">64</Const>
+        <Const name="M" type="int">64</Const>
+        <Const name="K" type="int">64</Const>
+        <Const name="n_tiles" type="int">4</Const>
+        <Const name="M_tile" type="int">16</Const>
+        <Const name="micro_r" type="int">4</Const>
+        <Const name="micro_s" type="int">8</Const>
+        <Const name="micro_t" type="int">4</Const>
+        <Const name="activation_layout_dims" type="list">[(M_tile // micro_r, micro_r * K), (K // micro_s, micro_s), (micro_r, K), (micro_s, 1)]</Const>
+        <Const name="weight_layout_dims" type="list">[(K // micro_s, micro_s * N), (N // micro_t, micro_t), (micro_s, N), (micro_t, 1)]</Const>
+        <Const name="layout_dims" type="list">[(M_tile // micro_r, micro_r * N), (N // micro_t, micro_t), (micro_r, N), (micro_t, 1)]</Const>
+        <TypeAbstraction name="activation_flat_type">
+            <ndarray>
+                <shape>M * K</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="weight_all_flat_type">
+            <ndarray>
+                <shape>4 * K * N</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="output_full_flat_type">
+            <ndarray>
+                <shape>M * N</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="activation_tile_type">
+            <ndarray>
+                <shape>M_tile, K</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="weight_full_type">
+            <ndarray>
+                <shape>K, N</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="output_full_type">
+            <ndarray>
+                <shape>M, N</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="output_tile_type">
+            <ndarray>
+                <shape>M_tile, N</shape>
+                <dtype>bfloat16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="type_int32_16x64">
+            <ndarray>
+                <shape>16, 64</shape>
+                <dtype>int32</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="type_int32_M_tilexN">
+            <ndarray>
+                <shape>M_tile, N</shape>
+                <dtype>int32</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TAP name="tap_act" offset="0" use_tiler2d="false">
+            <tensor_dims>1, 4096</tensor_dims>
+            <sizes>1, 4096</sizes>
+            <strides>4096, 1</strides>
+        </TAP>
+        <TAP name="tap_out" offset="0" use_tiler2d="false">
+            <tensor_dims>1, 4096</tensor_dims>
+            <sizes>1, 4096</sizes>
+            <strides>4096, 1</strides>
+        </TAP>
+        <TAP name="tap_w_0" offset="0" use_tiler2d="false">
+            <tensor_dims>1, 16384</tensor_dims>
+            <sizes>1, 4096</sizes>
+            <strides>4096, 1</strides>
+        </TAP>
+        <TAP name="tap_w_1" offset="4096" use_tiler2d="false">
+            <tensor_dims>1, 16384</tensor_dims>
+            <sizes>1, 4096</sizes>
+            <strides>4096, 1</strides>
+        </TAP>
+        <TAP name="tap_w_2" offset="8192" use_tiler2d="false">
+            <tensor_dims>1, 16384</tensor_dims>
+            <sizes>1, 4096</sizes>
+            <strides>4096, 1</strides>
+        </TAP>
+        <TAP name="tap_w_3" offset="12288" use_tiler2d="false">
+            <tensor_dims>1, 16384</tensor_dims>
+            <sizes>1, 4096</sizes>
+            <strides>4096, 1</strides>
+        </TAP>
+    </Symbols>
+    <DataFlow>
+        <ExternalFunction name="kernel_zero_i16">
+            <kernel>zero_i16</kernel>
+            <source>C:/Users/fasta/Projects/IRONSmith/resources/kernels/zero_i16/mm.cc</source>
+            <arg_types>
+                <type>activation_tile_type</type>
+                <type>weight_full_type</type>
+                <type>type_int32_16x64</type>
+            </arg_types>
+            <include_dirs>
+                <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/zero_i16</dir>
+            </include_dirs>
+        </ExternalFunction>
+        <ExternalFunction name="kernel_gemm_bf16">
+            <kernel>gemm_bf16</kernel>
+            <source>C:/Users/fasta/Projects/IRONSmith/resources/kernels/gemm_bf16/gemm_bf16.cpp</source>
+            <arg_types>
+                <type>activation_tile_type</type>
+                <type>weight_full_type</type>
+                <type>type_int32_16x64</type>
+            </arg_types>
+            <include_dirs>
+                <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/gemm_bf16</dir>
+            </include_dirs>
+        </ExternalFunction>
+        <ExternalFunction name="kernel_relu_bf16">
+            <kernel>bf16_relu</kernel>
+            <source>C:/Users/fasta/Projects/IRONSmith/resources/kernels/relu_bf16/relu.cc</source>
+            <arg_types>
+                <type>activation_tile_type</type>
+                <type>weight_full_type</type>
+                <type>type_int32_16x64</type>
+            </arg_types>
+            <include_dirs>
+                <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/relu_bf16</dir>
+            </include_dirs>
+        </ExternalFunction>
+        <ExternalFunction name="kernel_softmax_bf16">
+            <kernel>softmax_bf16</kernel>
+            <source>C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16/softmax.cc</source>
+            <arg_types>
+                <type>weight_full_type</type>
+                <type>type_int32_M_tilexN</type>
+                <type>output_tile_type</type>
+            </arg_types>
+            <include_dirs>
+                <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/softmax_bf16</dir>
+            </include_dirs>
+        </ExternalFunction>
+        <CoreFunction name="core_shared_matmul_relu">
+            <parameters>
+                <param name="relu" role="external_function"/>
+                <param name="matmul" role="unknown"/>
+                <param name="zero" role="unknown"/>
+                <param name="activation" role="unknown"/>
+                <param name="weights" role="unknown"/>
+                <param name="output" role="unknown"/>
+            </parameters>
+            <body>
+                <Acquire source="activation" count="1" name="buf_in_act"/>
+                <Acquire source="weights" count="1" name="buf_in_w"/>
+                <Acquire source="output" count="1" name="buf_out0"/>
+                <Call function="zero" args="buf_out0"/>
+                <Call function="matmul" args="buf_in_act, buf_in_w, buf_out0"/>
+                <Call function="relu" args="buf_out0, buf_out0"/>
+                <Release source="activation" count="1"/>
+                <Release source="weights" count="1"/>
+                <Release source="output" count="1"/>
+            </body>
+        </CoreFunction>
+        <CoreFunction name="core_shared_softmax_matmul">
+            <parameters>
+                <param name="zero" role="external_function"/>
+                <param name="matmul" role="unknown"/>
+                <param name="softmax" role="unknown"/>
+                <param name="activation" role="unknown"/>
+                <param name="weights" role="unknown"/>
+                <param name="out0" role="unknown"/>
+            </parameters>
+            <body>
+                <Acquire source="activation" count="1" name="buf_in_act"/>
+                <Acquire source="weights" count="1" name="buf_in_w"/>
+                <Acquire source="out0" count="1" name="buf_out0"/>
+                <Call function="zero" args="buf_out0"/>
+                <Call function="matmul" args="buf_in_act, buf_in_w, buf_out0"/>
+                <Call function="softmax" args="buf_out0"/>
+                <Release source="activation" count="1"/>
+                <Release source="weights" count="1"/>
+                <Release source="out0" count="1"/>
+            </body>
+        </CoreFunction>
+        <ObjectFifo name="of_inA">
+            <type>activation_flat_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_W0">
+            <type>weight_full_type</type>
+            <depth>1</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_W1">
+            <type>weight_full_type</type>
+            <depth>1</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_W2">
+            <type>weight_full_type</type>
+            <depth>1</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_W3">
+            <type>weight_full_type</type>
+            <depth>1</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_outC">
+            <type>output_full_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h01_0">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h12_0">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h23_0">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h01_1">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h12_1">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h23_1">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h01_2">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h12_2">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h23_2">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h01_3">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h12_3">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="h23_3">
+            <type>output_tile_type</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifoSplit name="split_inA" dims_to_stream="activation_layout_dims">
+            <source>of_inA</source>
+            <num_outputs>4</num_outputs>
+            <output_type>activation_tile_type</output_type>
+            <placement>Tile(0, 1)</placement>
+            <offsets>0, 1024, 2048, 3072</offsets>
+        </ObjectFifoSplit>
+        <ObjectFifoForward name="weights_col0_broadcast" source="of_W0" placement="Tile(0, 1)" dims_to_stream="weight_layout_dims"/>
+        <ObjectFifoForward name="weights_col1_broadcast" source="of_W1" placement="Tile(1, 1)" dims_to_stream="weight_layout_dims"/>
+        <ObjectFifoForward name="weights_col2_broadcast" source="of_W2" placement="Tile(2, 1)" dims_to_stream="weight_layout_dims"/>
+        <ObjectFifoForward name="weights_col3_broadcast" source="of_W3" placement="Tile(3, 1)" dims_to_stream="weight_layout_dims"/>
+        <ObjectFifoJoin name="join1">
+            <dest>of_outC</dest>
+            <num_inputs>4</num_inputs>
+            <input_type>output_tile_type</input_type>
+            <placement>Tile(0, 1)</placement>
+            <offsets>0, 1024, 2048, 3072</offsets>
+        </ObjectFifoJoin>
+        <ObjectFifoForward name="h01_3_fwd" source="h01_3" placement="Tile(1, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h01_2_fwd" source="h01_2" placement="Tile(1, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h01_1_fwd" source="h01_1" placement="Tile(1, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h01_0_fwd" source="h01_0" placement="Tile(1, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h12_3_fwd" source="h12_3" placement="Tile(2, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h12_2_fwd" source="h12_2" placement="Tile(2, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h12_1_fwd" source="h12_1" placement="Tile(2, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h12_0_fwd" source="h12_0" placement="Tile(2, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h23_3_fwd" source="h23_3" placement="Tile(3, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h23_2_fwd" source="h23_2" placement="Tile(3, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h23_1_fwd" source="h23_1" placement="Tile(3, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <ObjectFifoForward name="h23_0_fwd" source="h23_0" placement="Tile(3, 1)" dims_to_stream="activation_layout_dims" dims_from_stream="layout_dims"/>
+        <Worker name="worker_aie0_2">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="split_inA" index="0" mode="consumer"/>
+                <arg ref="weights_col0_broadcast" mode="consumer"/>
+                <arg ref="h01_3" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 2)</placement>
+        </Worker>
+        <Worker name="worker_aie1_2">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="h01_3_fwd" mode="consumer"/>
+                <arg ref="weights_col1_broadcast" mode="consumer"/>
+                <arg ref="h12_3" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 2)</placement>
+        </Worker>
+        <Worker name="worker_aie2_2">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="h12_3_fwd" mode="consumer"/>
+                <arg ref="weights_col2_broadcast" mode="consumer"/>
+                <arg ref="h23_3" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 2)</placement>
+        </Worker>
+        <Worker name="worker_aie3_2">
+            <core_function>core_shared_softmax_matmul</core_function>
+            <arguments>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_softmax_bf16"/>
+                <arg ref="h23_3_fwd" mode="consumer"/>
+                <arg ref="weights_col3_broadcast" mode="consumer"/>
+                <arg ref="join1" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 2)</placement>
+        </Worker>
+        <Worker name="worker_aie0_3">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="split_inA" index="1" mode="consumer"/>
+                <arg ref="weights_col0_broadcast" mode="consumer"/>
+                <arg ref="h01_2" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 3)</placement>
+        </Worker>
+        <Worker name="worker_aie1_3">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="h01_2_fwd" mode="consumer"/>
+                <arg ref="weights_col1_broadcast" mode="consumer"/>
+                <arg ref="h12_2" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 3)</placement>
+        </Worker>
+        <Worker name="worker_aie2_3">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="h12_2_fwd" mode="consumer"/>
+                <arg ref="weights_col2_broadcast" mode="consumer"/>
+                <arg ref="h23_2" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 3)</placement>
+        </Worker>
+        <Worker name="worker_aie3_3">
+            <core_function>core_shared_softmax_matmul</core_function>
+            <arguments>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_softmax_bf16"/>
+                <arg ref="h23_2_fwd" mode="consumer"/>
+                <arg ref="weights_col3_broadcast" mode="consumer"/>
+                <arg ref="join1" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 3)</placement>
+        </Worker>
+        <Worker name="worker_aie0_4">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="split_inA" index="2" mode="consumer"/>
+                <arg ref="weights_col0_broadcast" mode="consumer"/>
+                <arg ref="h01_1" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 4)</placement>
+        </Worker>
+        <Worker name="worker_aie1_4">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="h01_1_fwd" mode="consumer"/>
+                <arg ref="weights_col1_broadcast" mode="consumer"/>
+                <arg ref="h12_1" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 4)</placement>
+        </Worker>
+        <Worker name="worker_aie2_4">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="h12_1_fwd" mode="consumer"/>
+                <arg ref="weights_col2_broadcast" mode="consumer"/>
+                <arg ref="h23_1" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 4)</placement>
+        </Worker>
+        <Worker name="worker_aie3_4">
+            <core_function>core_shared_softmax_matmul</core_function>
+            <arguments>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_softmax_bf16"/>
+                <arg ref="h23_1_fwd" mode="consumer"/>
+                <arg ref="weights_col3_broadcast" mode="consumer"/>
+                <arg ref="join1" index="2" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 4)</placement>
+        </Worker>
+        <Worker name="worker_aie0_5">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="split_inA" index="3" mode="consumer"/>
+                <arg ref="weights_col0_broadcast" mode="consumer"/>
+                <arg ref="h01_0" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 5)</placement>
+        </Worker>
+        <Worker name="worker_aie1_5">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="h01_0_fwd" mode="consumer"/>
+                <arg ref="weights_col1_broadcast" mode="consumer"/>
+                <arg ref="h12_0" mode="producer"/>
+            </arguments>
+            <placement>Tile(1, 5)</placement>
+        </Worker>
+        <Worker name="worker_aie2_5">
+            <core_function>core_shared_matmul_relu</core_function>
+            <arguments>
+                <arg ref="kernel_relu_bf16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="h12_0_fwd" mode="consumer"/>
+                <arg ref="weights_col2_broadcast" mode="consumer"/>
+                <arg ref="h23_0" mode="producer"/>
+            </arguments>
+            <placement>Tile(2, 5)</placement>
+        </Worker>
+        <Worker name="worker_aie3_5">
+            <core_function>core_shared_softmax_matmul</core_function>
+            <arguments>
+                <arg ref="kernel_zero_i16"/>
+                <arg ref="kernel_gemm_bf16"/>
+                <arg ref="kernel_softmax_bf16"/>
+                <arg ref="h23_0_fwd" mode="consumer"/>
+                <arg ref="weights_col3_broadcast" mode="consumer"/>
+                <arg ref="join1" index="3" mode="producer"/>
+            </arguments>
+            <placement>Tile(3, 5)</placement>
+        </Worker>
+        <Runtime name="runtime">
+            <Sequence inputs="activation_flat_type, weight_all_flat_type, output_full_flat_type" as="input_a_in, w_in, outputc_out">
+                <Start>worker_aie1_2, worker_aie2_3, worker_aie0_3, worker_aie3_2, worker_aie0_5, worker_aie3_3, worker_aie3_4, worker_aie1_5, worker_aie3_5, worker_aie2_2, worker_aie1_4, worker_aie0_4, worker_aie1_3, worker_aie2_5, worker_aie0_2, worker_aie2_4</Start>
+                <Fill target="of_inA" source="input_a_in" data_ref="Input_A" use_tap="true" tap_type="tap" tap_var="tap_act">
+                    <placement>Tile(0, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 4096</tensor_dims>
+                        <offset>0</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
+                </Fill>
+                <Fill target="of_W0" source="w_in" data_ref="W" use_tap="true" tap_type="tap" tap_var="tap_w_0">
+                    <placement>Tile(0, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 16384</tensor_dims>
+                        <offset>0</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
+                </Fill>
+                <Fill target="of_W1" source="w_in" data_ref="W" use_tap="true" tap_type="tap" tap_var="tap_w_1">
+                    <placement>Tile(1, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 16384</tensor_dims>
+                        <offset>4096</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
+                </Fill>
+                <Fill target="of_W2" source="w_in" data_ref="W" use_tap="true" tap_type="tap" tap_var="tap_w_2">
+                    <placement>Tile(2, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 16384</tensor_dims>
+                        <offset>8192</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
+                </Fill>
+                <Fill target="of_W3" source="w_in" data_ref="W" use_tap="true" tap_type="tap" tap_var="tap_w_3">
+                    <placement>Tile(3, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 16384</tensor_dims>
+                        <offset>12288</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
+                </Fill>
+                <Drain source="of_outC" target="outputc_out" data_ref="OutputC" use_tap="true" tap_type="tap" tap_var="tap_out">
+                    <placement>Tile(0, 0)</placement>
+                    <wait>true</wait>
+                    <TensorAccessPattern>
+                        <tensor_dims>1, 4096</tensor_dims>
+                        <offset>0</offset>
+                        <sizes>1, 4096</sizes>
+                        <strides>4096, 1</strides>
+                    </TensorAccessPattern>
+                </Drain>
+            </Sequence>
+        </Runtime>
+        <Program name="program">
+            <device>current_device</device>
+            <runtime>runtime</runtime>
+            <placer>SequentialPlacer</placer>
+        </Program>
+    </DataFlow>
+    <Function name="jit_function" decorator="iron.jit" entry="gui_design_jit">
+        <parameters>
+            <param name="Input_A" type="activation_flat_type"/>
+            <param name="W" type="weight_all_flat_type"/>
+            <param name="OutputC" type="output_full_flat_type"/>
+        </parameters>
+        <body>
+            <UseDataFlow/>
+            <Return>program</Return>
+        </body>
+    </Function>
+    <Function name="main_function" entry="main">
+        <body>
+            <Assign name="N" value="64"/>
+            <Assign name="M" value="64"/>
+            <Assign name="K" value="64"/>
+            <Assign name="n_tiles" value="4"/>
+            <Assign name="M_tile" value="16"/>
+            <Assign name="micro_r" value="4"/>
+            <Assign name="micro_s" value="8"/>
+            <Assign name="micro_t" value="4"/>
+            <Assign name="activation_layout_dims" value="[(M_tile // micro_r, micro_r * K), (K // micro_s, micro_s), (micro_r, K), (micro_s, 1)]"/>
+            <Assign name="weight_layout_dims" value="[(K // micro_s, micro_s * N), (N // micro_t, micro_t), (micro_s, N), (micro_t, 1)]"/>
+            <Assign name="layout_dims" value="[(M_tile // micro_r, micro_r * N), (N // micro_t, micro_t), (micro_r, N), (micro_t, 1)]"/>
+            <Tensor name="Input_A">
+                <init>iron.arange(M * K, dtype=bfloat16, device="npu")</init>
+            </Tensor>
+            <Tensor name="W">
+                <init>iron.arange(4 * K * N, dtype=bfloat16, device="npu")</init>
+            </Tensor>
+            <Tensor name="OutputC">
+                <init>iron.zeros(M * N, dtype=bfloat16, device="npu")</init>
+            </Tensor>
+            <Call function="jit_function" args="Input_A, W, OutputC"/>
+        </body>
+    </Function>
+    <EntryPoint>
+        <If condition="__name__ == '__main__'">
+            <Call function="main_function"/>
+        </If>
+    </EntryPoint>
+</Module>

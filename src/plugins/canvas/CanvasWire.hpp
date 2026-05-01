@@ -76,6 +76,16 @@ public:
         // When non-empty this wire is the pivot wire of a split/join hub.
         // Annotation renders as "{hubName}, {name}" instead of "FIFO<...>".
         QString hubName;
+        // For Forward wires: symbol names for format-conversion dims kwargs.
+        // dimsFromStream → dims_from_stream on .cons()  (e.g. "tiled_c_to_rowmajor_dims")
+        // dimsToStream   → dims_to_stream   on .forward() (e.g. "activation_layout_dims")
+        QString dimsFromStream;
+        QString dimsToStream;
+        // Split/join pivot overrides (leave empty to use auto-computed values).
+        // branchTypeSymbol: symbol name for the arm obj_type (e.g. "activation_tile_type")
+        // offsetsOverride:  comma-separated element offsets (e.g. "0, 1024, 2048, 3072")
+        QString branchTypeSymbol;
+        QString offsetsOverride;
     };
 
     // Dedicated configuration for DDR-side fill/drain wires (replacing the

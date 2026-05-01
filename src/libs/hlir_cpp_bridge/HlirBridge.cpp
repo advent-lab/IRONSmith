@@ -492,12 +492,17 @@ HlirResult<ComponentId> HlirBridge::addFifoSplit(
     const std::vector<std::string>& outputNames,
     const std::vector<int>& offsets,
     const ComponentId& placementId,
+    const std::string& dimsToStream,
     const ComponentId& providedId,
     const std::map<std::string, std::string>& metadata)
 {
+    std::map<std::string, std::string> fullMetadata = metadata;
+    if (!dimsToStream.empty())
+        fullMetadata["dims_to_stream"] = dimsToStream;
+
     PyObject* outputNamesList = buildPythonList(outputNames);
     PyObject* offsetsList = buildPythonList(offsets);
-    PyObject* metadataDict = buildMetadataDict(metadata);
+    PyObject* metadataDict = buildMetadataDict(fullMetadata);
 
     const char* providedIdStr = providedId.value.empty() ? nullptr : providedId.value.c_str();
 
@@ -526,12 +531,17 @@ HlirResult<ComponentId> HlirBridge::addFifoJoin(
     const std::vector<std::string>& inputNames,
     const std::vector<int>& offsets,
     const ComponentId& placementId,
+    const std::string& dimsFromStream,
     const ComponentId& providedId,
     const std::map<std::string, std::string>& metadata)
 {
+    std::map<std::string, std::string> fullMetadata = metadata;
+    if (!dimsFromStream.empty())
+        fullMetadata["dims_from_stream"] = dimsFromStream;
+
     PyObject* inputNamesList = buildPythonList(inputNames);
     PyObject* offsetsList = buildPythonList(offsets);
-    PyObject* metadataDict = buildMetadataDict(metadata);
+    PyObject* metadataDict = buildMetadataDict(fullMetadata);
 
     const char* providedIdStr = providedId.value.empty() ? nullptr : providedId.value.c_str();
 
@@ -649,10 +659,19 @@ HlirResult<ComponentId> HlirBridge::addTap(
 HlirResult<ComponentId> HlirBridge::addFifoForward(
     const std::string& name,
     const ComponentId& sourceId,
+    const std::string& dimsFromStream,
+    const std::string& dimsToStream,
     const ComponentId& providedId,
     const std::map<std::string, std::string>& metadata)
 {
-    PyObject* metadataDict = buildMetadataDict(metadata);
+    // Merge dims into metadata so the Python bridge unpacks them as kwargs
+    std::map<std::string, std::string> fullMetadata = metadata;
+    if (!dimsFromStream.empty())
+        fullMetadata["dims_from_stream"] = dimsFromStream;
+    if (!dimsToStream.empty())
+        fullMetadata["dims_to_stream"] = dimsToStream;
+
+    PyObject* metadataDict = buildMetadataDict(fullMetadata);
 
     const char* providedIdStr = providedId.value.empty() ? nullptr : providedId.value.c_str();
 

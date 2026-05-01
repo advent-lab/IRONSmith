@@ -70,9 +70,11 @@ class BuilderResult:
     @classmethod
     def duplicate(cls, name: str, component_type: str, existing_id: str):
         """Create a duplicate name error."""
-        return cls.error(
-            ErrorCode.DUPLICATE_NAME,
-            f"{component_type} '{name}' already exists with ID {existing_id}"
+        return cls(
+            success=False,
+            id=existing_id,
+            error_code=ErrorCode.DUPLICATE_NAME,
+            error_message=f"{component_type} '{name}' already exists with ID {existing_id}"
         )
 
     @classmethod

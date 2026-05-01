@@ -31,6 +31,7 @@ class SplitOperation(FifoOperation):
         output_names: Names for each split output
         offsets: Byte offsets for each output (symbolic expressions)
         placement: Tile where split occurs
+        dims_to_stream: Optional symbol name for dims_to_stream on .split() (applied to all outputs)
         metadata: Additional properties
     """
     name: str
@@ -40,6 +41,7 @@ class SplitOperation(FifoOperation):
     output_names: List[str]
     offsets: List[Union[int, str]]  # Can be symbolic expressions
     placement: Tile
+    dims_to_stream: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __str__(self):
@@ -62,6 +64,7 @@ class JoinOperation(FifoOperation):
         input_names: Names for each join input
         offsets: Byte offsets for each input (symbolic expressions)
         placement: Tile where join occurs
+        dims_from_stream: Optional symbol name for dims_from_stream on .join() (applied to all inputs)
         metadata: Additional properties
     """
     name: str
@@ -71,6 +74,7 @@ class JoinOperation(FifoOperation):
     input_names: List[str]
     offsets: List[Union[int, str]]  # Can be symbolic expressions
     placement: Tile
+    dims_from_stream: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __str__(self):
@@ -83,17 +87,21 @@ class ForwardOperation(FifoOperation):
     """
     Forward operation: Simple passthrough from consumer to producer.
 
-    Represents the pattern: base_fifo.cons().forward(placement=Tile(x, y))
+    Represents the pattern: base_fifo.cons(dims_from_stream=X).forward(dims_to_stream=Y, placement=Tile(x, y))
 
     Attributes:
         name: Name of the resulting forwarded FIFO
         source: Source ObjectFifo to forward
         placement: Optional tile where the forward occurs (e.g., a mem tile)
+        dims_to_stream: Optional symbol name for dims_to_stream kwarg on .forward()
+        dims_from_stream: Optional symbol name for dims_from_stream kwarg on .cons()
         metadata: Additional properties
     """
     name: str
     source: Union[ObjectFifo, str]
     placement: Optional["Tile"] = None
+    dims_to_stream: Optional[str] = None
+    dims_from_stream: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __str__(self):

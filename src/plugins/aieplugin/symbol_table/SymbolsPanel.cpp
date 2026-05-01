@@ -195,6 +195,10 @@ void SymbolsPanel::buildUi()
     addTapButton->setObjectName(QStringLiteral("AieSymbolsSecondaryButton"));
     m_addTapButton = addTapButton;
 
+    auto* addDimsButton = new QPushButton(QStringLiteral("New Dims"), toolbarCard);
+    addDimsButton->setObjectName(QStringLiteral("AieSymbolsSecondaryButton"));
+    m_addDimsButton = addDimsButton;
+
     auto* deleteButton = new QPushButton(QStringLiteral("Delete"), toolbarCard);
     deleteButton->setObjectName(QStringLiteral("AieSymbolsDangerButton"));
     m_deleteButton = deleteButton;
@@ -205,12 +209,14 @@ void SymbolsPanel::buildUi()
     filterCombo->addItem(QStringLiteral("Constants"), static_cast<int>(SymbolFilterKind::Constants));
     filterCombo->addItem(QStringLiteral("Types"), static_cast<int>(SymbolFilterKind::Types));
     filterCombo->addItem(QStringLiteral("TAPs"), static_cast<int>(SymbolFilterKind::TensorAccessPatterns));
+    filterCombo->addItem(QStringLiteral("Layout Dims"), static_cast<int>(SymbolFilterKind::LayoutDims));
     filterCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     m_filterCombo = filterCombo;
 
     toolbarLayout->addWidget(addConstantButton);
     toolbarLayout->addWidget(addTypeButton);
     toolbarLayout->addWidget(addTapButton);
+    toolbarLayout->addWidget(addDimsButton);
     toolbarLayout->addWidget(deleteButton);
     toolbarLayout->addStretch(1);
     toolbarLayout->addWidget(filterCombo, 0);
@@ -310,6 +316,15 @@ void SymbolsPanel::buildUi()
             return;
         QString newId;
         const Utils::Result result = m_controller->createTensorAccessPattern(&newId);
+        refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+        if (result)
+            refreshSelection();
+    });
+    connect(addDimsButton, &QPushButton::clicked, this, [this]() {
+        if (!m_controller)
+            return;
+        QString newId;
+        const Utils::Result result = m_controller->createLayoutDims(&newId);
         refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
         if (result)
             refreshSelection();
@@ -513,8 +528,8 @@ void SymbolsPanel::buildEditorPages()
     tapConfigLayout->setHorizontalSpacing(8);
     tapConfigLayout->setVerticalSpacing(8);
 
-    auto* tapRowsSpin = makeTapSpinBox(tapConfigCard, 1, 4096);
-    auto* tapColsSpin = makeTapSpinBox(tapConfigCard, 1, 4096);
+    auto* tapRowsSpin = makeTapSpinBox(tapConfigCard, 1, 1000000);
+    auto* tapColsSpin = makeTapSpinBox(tapConfigCard, 1, 1000000);
     auto* tapOffsetSpin = makeTapSpinBox(tapConfigCard, 0, 1000000);
     auto* tapShowRepetitions = new QCheckBox(QStringLiteral("Show repetitions"), tapConfigCard);
     tapShowRepetitions->setObjectName(QStringLiteral("AieTapShowRepetitionsCheck"));
@@ -644,6 +659,67 @@ void SymbolsPanel::buildEditorPages()
     m_tapTiler2DPatternRepeatEdit = tapTiler2DPatternRepeatEdit;
     m_tapPreviewWidget = tapPreviewWidget;
     m_editorStack->addWidget(tapPage);
+
+    // ── Layout Dims editor page (index 4) ──────────────────────────────────
+    auto* dimsPage = new QWidget(m_editorStack);
+    dimsPage->setObjectName(QStringLiteral("AieSymbolsEditorPage"));
+    auto* dimsHostLayout = new QVBoxLayout(dimsPage);
+    dimsHostLayout->setContentsMargins(0, 0, 0, 0);
+    dimsHostLayout->setSpacing(6);
+
+    auto* dimsCard = new QGroupBox(QStringLiteral("Layout Dims"), dimsPage);
+    dimsCard->setObjectName(QStringLiteral("AieSymbolsSection"));
+    auto* dimsForm = new QFormLayout(dimsCard);
+    dimsForm->setContentsMargins(12, 12, 12, 12);
+    dimsForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    dimsForm->setHorizontalSpacing(10);
+    dimsForm->setVerticalSpacing(8);
+    dimsForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    auto* dimsNameEdit = makeField(dimsCard, QStringLiteral("identifier"));
+    dimsForm->addRow(makeKeyLabel(QStringLiteral("Identifier"), dimsCard), dimsNameEdit);
+
+    // Entries sub-widget: a grid of (count, stride, remove) rows
+    auto* dimsEntriesHost = new QWidget(dimsCard);
+    auto* dimsEntriesGrid = new QGridLayout(dimsEntriesHost);
+    dimsEntriesGrid->setContentsMargins(0, 0, 0, 0);
+    dimsEntriesGrid->setHorizontalSpacing(6);
+    dimsEntriesGrid->setVerticalSpacing(4);
+    // Header labels
+    auto* dimsCountHeader  = new QLabel(QStringLiteral("Count"), dimsEntriesHost);
+    auto* dimsStrideHeader = new QLabel(QStringLiteral("Stride"), dimsEntriesHost);
+    dimsCountHeader->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+    dimsStrideHeader->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+    dimsEntriesGrid->addWidget(dimsCountHeader,  0, 0);
+    dimsEntriesGrid->addWidget(dimsStrideHeader, 0, 1);
+    dimsEntriesGrid->setColumnStretch(0, 1);
+    dimsEntriesGrid->setColumnStretch(1, 1);
+
+    auto* dimsAddEntryButton = new QPushButton(QStringLiteral("+ Add Level"), dimsCard);
+    dimsAddEntryButton->setObjectName(QStringLiteral("AieSymbolsSecondaryButton"));
+    dimsForm->addRow(makeKeyLabel(QStringLiteral("Levels"), dimsCard), dimsEntriesHost);
+    dimsForm->addRow(QString(), dimsAddEntryButton);
+
+    auto* dimsPreviewLabel = new QLabel(dimsCard);
+    dimsPreviewLabel->setObjectName(QStringLiteral("AieSymbolsPreviewLabel"));
+    dimsPreviewLabel->setFont(fixedFont());
+    dimsPreviewLabel->setWordWrap(true);
+    dimsForm->addRow(makeKeyLabel(QStringLiteral("Preview"), dimsCard), dimsPreviewLabel);
+
+    dimsHostLayout->addWidget(dimsCard);
+    dimsHostLayout->addStretch(1);
+
+    m_dimsEditorPage    = dimsPage;
+    m_dimsNameEdit      = dimsNameEdit;
+    m_dimsEntriesHost   = dimsEntriesHost;
+    m_dimsEntriesGrid   = dimsEntriesGrid;
+    m_dimsAddEntryButton = dimsAddEntryButton;
+    m_dimsPreviewLabel  = dimsPreviewLabel;
+    m_editorStack->addWidget(dimsPage);
+
+    connect(dimsNameEdit, &QLineEdit::textChanged,      this, &SymbolsPanel::refreshEditorPreview);
+    connect(dimsNameEdit, &QLineEdit::editingFinished,  this, &SymbolsPanel::requestDimsCommit);
+    connect(dimsAddEntryButton, &QPushButton::clicked,  this, &SymbolsPanel::addDimsEntryRow);
 
     rebuildDimensionEditors(1);
     rebuildTapPatternEditors();
@@ -969,7 +1045,7 @@ void SymbolsPanel::refreshEditor()
         }
         if (m_editorStack)
             m_editorStack->setCurrentIndex(2);
-    } else {
+    } else if (symbol->kind == SymbolKind::TensorAccessPattern) {
         if (m_tapNameEdit)
             m_tapNameEdit->setText(symbol->name);
         
@@ -1005,6 +1081,12 @@ void SymbolsPanel::refreshEditor()
         
         if (m_editorStack && m_tapEditorPage)
             m_editorStack->setCurrentWidget(m_tapEditorPage);
+    } else if (symbol->kind == SymbolKind::LayoutDims) {
+        if (m_dimsNameEdit)
+            m_dimsNameEdit->setText(symbol->name);
+        rebuildDimsEntryEditors();
+        if (m_editorStack && m_dimsEditorPage)
+            m_editorStack->setCurrentWidget(m_dimsEditorPage);
     }
 
     m_updatingUi = false;
@@ -1057,6 +1139,9 @@ void SymbolsPanel::refreshEditorPreview()
         }
         
         m_tapPreviewWidget->setTapData(tapData);
+    } else if (symbol->kind == SymbolKind::LayoutDims) {
+        if (m_dimsPreviewLabel)
+            m_dimsPreviewLabel->setText(currentDimsPreview());
     }
 }
 
@@ -1144,6 +1229,9 @@ void SymbolsPanel::flushPendingCommit()
             break;
         case PendingCommitKind::Tap:
             commitTapEdits();
+            break;
+        case PendingCommitKind::Dims:
+            commitDimsEdits();
             break;
         case PendingCommitKind::None:
             break;
@@ -1240,6 +1328,133 @@ void SymbolsPanel::commitTapEdits()
     refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
 }
 
+void SymbolsPanel::requestDimsCommit()
+{
+    if (m_updatingUi)
+        return;
+    m_pendingCommit = PendingCommitKind::Dims;
+    m_commitTimer.start();
+}
+
+void SymbolsPanel::commitDimsEdits()
+{
+    if (m_updatingUi || !m_controller)
+        return;
+
+    const SymbolRecord* current = m_controller->symbolById(m_controller->selectedSymbolId());
+    if (!current || current->kind != SymbolKind::LayoutDims)
+        return;
+
+    SymbolRecord updated = *current;
+    updated.name = m_dimsNameEdit ? m_dimsNameEdit->text().trimmed() : current->name;
+    updated.layoutDims.entries.clear();
+    updated.layoutDims.entries.reserve(m_dimsCountEdits.size());
+    for (int i = 0; i < m_dimsCountEdits.size(); ++i) {
+        LayoutDimsEntry e;
+        e.count  = m_dimsCountEdits[i]  ? m_dimsCountEdits[i]->text().trimmed()  : QString();
+        e.stride = m_dimsStrideEdits[i] ? m_dimsStrideEdits[i]->text().trimmed() : QString();
+        updated.layoutDims.entries.push_back(e);
+    }
+
+    const Utils::Result result = m_controller->updateSymbol(updated);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+}
+
+void SymbolsPanel::rebuildDimsEntryEditors()
+{
+    if (!m_dimsEntriesGrid || !m_dimsEntriesHost)
+        return;
+
+    // Clear old widgets (skip row 0 — the header row)
+    for (auto w : m_dimsCountEdits)  if (w) w->deleteLater();
+    for (auto w : m_dimsStrideEdits) if (w) w->deleteLater();
+    for (auto b : m_dimsRemoveButtons) if (b) b->deleteLater();
+    m_dimsCountEdits.clear();
+    m_dimsStrideEdits.clear();
+    m_dimsRemoveButtons.clear();
+
+    const SymbolRecord* symbol = m_controller ? m_controller->symbolById(m_controller->selectedSymbolId()) : nullptr;
+    const int n = symbol ? symbol->layoutDims.entries.size() : 0;
+
+    for (int row = 0; row < n; ++row) {
+        const LayoutDimsEntry& e = symbol->layoutDims.entries[row];
+        const int gridRow = row + 1; // row 0 is header
+
+        auto* countEdit  = makeField(m_dimsEntriesHost, QStringLiteral("count expr"));
+        auto* strideEdit = makeField(m_dimsEntriesHost, QStringLiteral("stride expr"));
+        auto* removeBtn  = new QPushButton(QStringLiteral("✕"), m_dimsEntriesHost);
+        removeBtn->setObjectName(QStringLiteral("AieTapPatternButton"));
+        removeBtn->setMaximumWidth(28);
+        countEdit->setText(e.count);
+        strideEdit->setText(e.stride);
+
+        m_dimsEntriesGrid->addWidget(countEdit,  gridRow, 0);
+        m_dimsEntriesGrid->addWidget(strideEdit, gridRow, 1);
+        m_dimsEntriesGrid->addWidget(removeBtn,  gridRow, 2);
+
+        m_dimsCountEdits.push_back(countEdit);
+        m_dimsStrideEdits.push_back(strideEdit);
+        m_dimsRemoveButtons.push_back(removeBtn);
+
+        connect(countEdit,  &QLineEdit::textChanged,     this, &SymbolsPanel::refreshEditorPreview);
+        connect(countEdit,  &QLineEdit::editingFinished, this, &SymbolsPanel::requestDimsCommit);
+        connect(strideEdit, &QLineEdit::textChanged,     this, &SymbolsPanel::refreshEditorPreview);
+        connect(strideEdit, &QLineEdit::editingFinished, this, &SymbolsPanel::requestDimsCommit);
+        const int capturedRow = row;
+        connect(removeBtn,  &QPushButton::clicked, this, [this, capturedRow]() { removeDimsEntryRow(capturedRow); });
+    }
+}
+
+void SymbolsPanel::addDimsEntryRow()
+{
+    flushPendingCommit();
+    const SymbolRecord* current = m_controller ? m_controller->symbolById(m_controller->selectedSymbolId()) : nullptr;
+    if (!current || current->kind != SymbolKind::LayoutDims)
+        return;
+
+    SymbolRecord updated = *current;
+    updated.layoutDims.entries.push_back(LayoutDimsEntry{QStringLiteral("1"), QStringLiteral("1")});
+
+    const Utils::Result result = m_controller->updateSymbol(updated);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+    if (result) {
+        rebuildDimsEntryEditors();
+        refreshEditorPreview();
+    }
+}
+
+void SymbolsPanel::removeDimsEntryRow(int row)
+{
+    flushPendingCommit();
+    const SymbolRecord* current = m_controller ? m_controller->symbolById(m_controller->selectedSymbolId()) : nullptr;
+    if (!current || current->kind != SymbolKind::LayoutDims || current->layoutDims.entries.size() <= 1)
+        return;
+
+    SymbolRecord updated = *current;
+    if (row >= 0 && row < updated.layoutDims.entries.size())
+        updated.layoutDims.entries.remove(row);
+
+    const Utils::Result result = m_controller->updateSymbol(updated);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+    if (result) {
+        rebuildDimsEntryEditors();
+        refreshEditorPreview();
+    }
+}
+
+QString SymbolsPanel::currentDimsPreview() const
+{
+    LayoutDimsSymbolData dimsData;
+    for (int i = 0; i < m_dimsCountEdits.size(); ++i) {
+        LayoutDimsEntry e;
+        e.count  = m_dimsCountEdits[i]  ? m_dimsCountEdits[i]->text().trimmed()  : QString();
+        e.stride = m_dimsStrideEdits[i] ? m_dimsStrideEdits[i]->text().trimmed() : QString();
+        dimsData.entries.push_back(e);
+    }
+    const QString name = m_dimsNameEdit ? m_dimsNameEdit->text().trimmed() : QString();
+    return layoutDimsPreview(name, dimsData);
+}
+
 void SymbolsPanel::deleteSelectedSymbol()
 {
     if (!m_controller)
@@ -1272,6 +1487,8 @@ QString SymbolsPanel::currentEditorName() const
         return m_typeNameEdit->text().trimmed();
     if (current->kind == SymbolKind::TensorAccessPattern && m_tapNameEdit)
         return m_tapNameEdit->text().trimmed();
+    if (current->kind == SymbolKind::LayoutDims && m_dimsNameEdit)
+        return m_dimsNameEdit->text().trimmed();
     return current->name;
 }
 

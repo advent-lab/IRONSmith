@@ -535,6 +535,14 @@ QJsonObject CanvasDocumentJsonSerializer::serialize(const CanvasDocument& docume
                 fifoObject.insert(u"operation"_s, objectFifoOperationToString(fifo.operation));
                 if (!fifo.hubName.isEmpty())
                     fifoObject.insert(u"hubName"_s, fifo.hubName);
+                if (!fifo.dimsFromStream.isEmpty())
+                    fifoObject.insert(u"dimsFromStream"_s, fifo.dimsFromStream);
+                if (!fifo.dimsToStream.isEmpty())
+                    fifoObject.insert(u"dimsToStream"_s, fifo.dimsToStream);
+                if (!fifo.branchTypeSymbol.isEmpty())
+                    fifoObject.insert(u"branchTypeSymbol"_s, fifo.branchTypeSymbol);
+                if (!fifo.offsetsOverride.isEmpty())
+                    fifoObject.insert(u"offsetsOverride"_s, fifo.offsetsOverride);
                 fifoObject.insert(u"dimensions"_s, fifo.type.dimensions);
                 fifoObject.insert(u"valueType"_s, fifo.type.valueType);
                 if (!fifo.type.typeId.trimmed().isEmpty())
@@ -937,6 +945,10 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
                 objectFifo.depth = objectFifoObject.value(u"depth"_s).toInt(2);
                 objectFifo.operation = objectFifoOperationFromString(objectFifoObject.value(u"operation"_s).toString());
                 objectFifo.hubName = objectFifoObject.value(u"hubName"_s).toString();
+                objectFifo.dimsFromStream    = objectFifoObject.value(u"dimsFromStream"_s).toString();
+                objectFifo.dimsToStream      = objectFifoObject.value(u"dimsToStream"_s).toString();
+                objectFifo.branchTypeSymbol  = objectFifoObject.value(u"branchTypeSymbol"_s).toString();
+                objectFifo.offsetsOverride   = objectFifoObject.value(u"offsetsOverride"_s).toString();
                 objectFifo.type.typeId = objectFifoObject.value(u"typeId"_s).toString();
                 objectFifo.type.tapSymbolId = objectFifoObject.value(u"tapSymbolId"_s).toString();
                 objectFifo.hubName = objectFifoObject.value(u"hubName"_s).toString();

@@ -15,14 +15,16 @@ namespace Aie::Internal {
 enum class SymbolKind : uint8_t {
     Constant,
     TypeAbstraction,
-    TensorAccessPattern
+    TensorAccessPattern,
+    LayoutDims
 };
 
 enum class SymbolFilterKind : uint8_t {
     All,
     Constants,
     Types,
-    TensorAccessPatterns
+    TensorAccessPatterns,
+    LayoutDims
 };
 
 struct ConstantSymbolData final {
@@ -32,6 +34,16 @@ struct ConstantSymbolData final {
 struct TypeAbstractionSymbolData final {
     QStringList shapeTokens{QStringLiteral("1")};
     QString dtype = QStringLiteral("int32");
+};
+
+// One level of a tiling layout: (count, stride) pair stored as expression strings.
+struct LayoutDimsEntry final {
+    QString count;   // first tuple element, e.g. "M_tile // micro_r"
+    QString stride;  // second tuple element, e.g. "micro_r * K"
+};
+
+struct LayoutDimsSymbolData final {
+    QVector<LayoutDimsEntry> entries;
 };
 
 struct TensorAccessPatternSymbolData final {
@@ -56,14 +68,18 @@ struct SymbolRecord final {
     ConstantSymbolData constant;
     TypeAbstractionSymbolData type;
     TensorAccessPatternSymbolData tap;
+    LayoutDimsSymbolData layoutDims;
 };
 
 QString symbolKindDisplayName(SymbolKind kind);
 QString typeAbstractionSummary(const TypeAbstractionSymbolData& typeData);
 QString tensorAccessPatternSummary(const TensorAccessPatternSymbolData& tapData);
+QString layoutDimsSummary(const LayoutDimsSymbolData& dimsData);
 QString symbolSummary(const SymbolRecord& symbol);
 QString typeAbstractionPreview(const QString& name, const TypeAbstractionSymbolData& typeData);
 QString tensorAccessPatternPreview(const QString& name, const TensorAccessPatternSymbolData& tapData);
+QString layoutDimsPreview(const QString& name, const LayoutDimsSymbolData& dimsData);
+QString layoutDimsPythonExpr(const LayoutDimsSymbolData& dimsData);
 QString symbolPreview(const SymbolRecord& symbol);
 QStringList supportedSymbolDtypes();
 bool isValidSymbolIdentifier(const QString& name);

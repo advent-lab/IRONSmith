@@ -140,6 +140,7 @@ public:
     /// @param outputNames Names for each output (will be created by split operation)
     /// @param offsets Split offsets
     /// @param placementId Placement tile ID
+    /// @param dimsToStream Symbol name for dims_to_stream on .split() (applied to all outputs; empty = omit)
     /// @param providedId Optional provided ID for the component
     /// @param metadata Additional metadata
     /// @return ComponentId on success, errors on failure
@@ -151,6 +152,7 @@ public:
         const std::vector<std::string>& outputNames,
         const std::vector<int>& offsets,
         const ComponentId& placementId,
+        const std::string& dimsToStream = {},
         const ComponentId& providedId = ComponentId(),
         const std::map<std::string, std::string>& metadata = {});
 
@@ -162,6 +164,7 @@ public:
     /// @param inputNames Names for each input (will be created by join operation)
     /// @param offsets Join offsets
     /// @param placementId Placement tile ID
+    /// @param dimsFromStream Symbol name for dims_from_stream on .join() (applied to all inputs; empty = omit)
     /// @param providedId Optional provided ID for the component
     /// @param metadata Additional metadata
     /// @return ComponentId on success, errors on failure
@@ -173,6 +176,7 @@ public:
         const std::vector<std::string>& inputNames,
         const std::vector<int>& offsets,
         const ComponentId& placementId,
+        const std::string& dimsFromStream = {},
         const ComponentId& providedId = ComponentId(),
         const std::map<std::string, std::string>& metadata = {});
 
@@ -226,12 +230,16 @@ public:
     /// Add a FIFO forward operation
     /// @param name Operation name
     /// @param sourceId Source FIFO ID
+    /// @param dimsFromStream Symbol name for dims_from_stream on .cons() (empty = omit)
+    /// @param dimsToStream Symbol name for dims_to_stream on .forward() (empty = omit)
     /// @param providedId Optional provided ID for the component
     /// @param metadata Additional metadata
     /// @return ComponentId on success, errors on failure
     HlirResult<ComponentId> addFifoForward(
         const std::string& name,
         const ComponentId& sourceId,
+        const std::string& dimsFromStream = {},
+        const std::string& dimsToStream = {},
         const ComponentId& providedId = ComponentId(),
         const std::map<std::string, std::string>& metadata = {});
 

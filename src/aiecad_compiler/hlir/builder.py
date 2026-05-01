@@ -433,6 +433,8 @@ class ProgramBuilder:
         if isinstance(placement, str):
             placement = self.program.tiles.get(placement, placement)
 
+        dims_to_stream = metadata.pop("dims_to_stream", None) or None
+
         split_op = SplitOperation(
             name=name,
             source=source,
@@ -441,6 +443,7 @@ class ProgramBuilder:
             output_names=output_names,
             offsets=offsets,
             placement=placement,
+            dims_to_stream=dims_to_stream,
             metadata=metadata
         )
 
@@ -497,6 +500,8 @@ class ProgramBuilder:
         if isinstance(placement, str):
             placement = self.program.tiles.get(placement, placement)
 
+        dims_from_stream = metadata.pop("dims_from_stream", None) or None
+
         join_op = JoinOperation(
             name=name,
             dest=dest,
@@ -505,6 +510,7 @@ class ProgramBuilder:
             input_names=input_names,
             offsets=offsets,
             placement=placement,
+            dims_from_stream=dims_from_stream,
             metadata=metadata
         )
 
@@ -555,10 +561,15 @@ class ProgramBuilder:
         if isinstance(placement, str):
             placement = self.program.tiles.get(placement, placement)
 
+        dims_to_stream = metadata.pop("dims_to_stream", None) or None
+        dims_from_stream = metadata.pop("dims_from_stream", None) or None
+
         forward_op = ForwardOperation(
             name=name,
             source=source,
             placement=placement,
+            dims_to_stream=dims_to_stream,
+            dims_from_stream=dims_from_stream,
             metadata=metadata
         )
 
@@ -700,6 +711,13 @@ class ProgramBuilder:
         elif name in self.program.symbols:
             name_key = ('tap', name)
             existing_id = self._name_index.get(name_key, "")
+            # Fallback: scan _id_map if _name_index lost the entry (e.g. after partial reset)
+            if not existing_id:
+                for cid, (ctype, comp) in self._id_map.items():
+                    if ctype == 'tap' and getattr(comp, 'name', None) == name:
+                        existing_id = cid
+                        self._name_index[name_key] = cid  # repair index
+                        break
             return BuilderResult.duplicate(name, 'tap', existing_id)
         
         # Create TensorAccessPattern
@@ -1203,7 +1221,7 @@ def _remove_component(builder: ProgramBuilder, comp_id: str) -> BuilderResult:
 
     # Remove from program
     component_name = getattr(component, 'name', None)
-    if comp_type in ['constant', 'tensor_type', 'symbol', 'fifo_split', 'fifo_join', 'fifo_forward', 'tiler2d'] and component_name in builder.program.symbols:
+    if comp_type in ['constant', 'tensor_type', 'symbol', 'fifo_split', 'fifo_join', 'fifo_forward', 'tiler2d', 'tap'] and component_name in builder.program.symbols:
         del builder.program.symbols[component_name]
     elif comp_type == 'tile' and component_name in builder.program.tiles:
         del builder.program.tiles[component_name]

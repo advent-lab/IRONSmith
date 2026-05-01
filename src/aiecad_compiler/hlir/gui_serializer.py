@@ -409,6 +409,10 @@ class GUIXMLSerializer:
         forward_elem.set('source', self._safe_fifo_var(source_name))
         if forward_op.placement is not None:
             forward_elem.set('placement', f"Tile({forward_op.placement.x}, {forward_op.placement.y})")
+        if forward_op.dims_to_stream:
+            forward_elem.set('dims_to_stream', forward_op.dims_to_stream)
+        if forward_op.dims_from_stream:
+            forward_elem.set('dims_from_stream', forward_op.dims_from_stream)
         forward_elem.tail = '\n'
 
     def _add_gui_split_operation(self, parent: Element, split_op: SplitOperation):
@@ -450,6 +454,9 @@ class GUIXMLSerializer:
             offsets_elem.text = ', '.join(str(o) for o in split_op.offsets)
             offsets_elem.tail = '\n'
 
+        if split_op.dims_to_stream:
+            split_elem.set('dims_to_stream', split_op.dims_to_stream)
+
     def _add_gui_join_operation(self, parent: Element, join_op: JoinOperation):
         """Add join operation in GUI XML format."""
         join_elem = SubElement(parent, 'ObjectFifoJoin')
@@ -488,6 +495,9 @@ class GUIXMLSerializer:
             offsets_elem = SubElement(join_elem, 'offsets')
             offsets_elem.text = ', '.join(str(o) for o in join_op.offsets)
             offsets_elem.tail = '\n'
+
+        if join_op.dims_from_stream:
+            join_elem.set('dims_from_stream', join_op.dims_from_stream)
 
     def _add_gui_worker(self, parent: Element, worker: Worker):
         """Add Worker in GUI XML format."""
@@ -622,6 +632,9 @@ class GUIXMLSerializer:
             fill_elem.set('tap_var', fill_op.tap.name)
         elif fill_op.tap is not None:
             fill_elem.set('tap_type', 'tap')
+            tap_name = getattr(fill_op.tap, 'name', None)
+            if tap_name:
+                fill_elem.set('tap_var', tap_name)
 
         fill_elem.text = '\n'
         fill_elem.tail = '\n'
@@ -666,6 +679,9 @@ class GUIXMLSerializer:
             drain_elem.set('tap_var', drain_op.tap.name)
         elif drain_op.tap is not None:
             drain_elem.set('tap_type', 'tap')
+            tap_name = getattr(drain_op.tap, 'name', None)
+            if tap_name:
+                drain_elem.set('tap_var', tap_name)
 
         drain_elem.text = '\n'
         drain_elem.tail = '\n'

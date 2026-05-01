@@ -7,6 +7,7 @@
 
 #include <QtCore/QHash>
 #include <QtCore/QJsonObject>
+#include <QtCore/QRegularExpression>
 #include <QtCore/QSet>
 #include <QtCore/QUuid>
 
@@ -221,6 +222,35 @@ Utils::Result SymbolsController::createTensorAccessPattern(QString* outId)
     symbol.kind = SymbolKind::TensorAccessPattern;
     symbol.name = uniqueNameForBase(QStringLiteral("tap"));
     symbol.tap = {};
+
+    QVector<SymbolRecord> nextSymbols = m_symbols;
+    nextSymbols.push_back(symbol);
+
+    const Utils::Result validateResult = validateSymbols(nextSymbols);
+    if (!validateResult)
+        return validateResult;
+
+    const Utils::Result persistResult = persistSymbols(nextSymbols);
+    if (!persistResult)
+        return persistResult;
+
+    replaceSymbols(std::move(nextSymbols));
+    setSelectedSymbolId(symbol.id);
+    if (outId)
+        *outId = symbol.id;
+    return Utils::Result::success();
+}
+
+Utils::Result SymbolsController::createLayoutDims(QString* outId)
+{
+    if (!hasActiveDocument())
+        return Utils::Result::failure(QStringLiteral("Open a design before creating symbols."));
+
+    SymbolRecord symbol;
+    symbol.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    symbol.kind = SymbolKind::LayoutDims;
+    symbol.name = uniqueNameForBase(QStringLiteral("layout_dims"));
+    symbol.layoutDims.entries = {LayoutDimsEntry{QStringLiteral("1"), QStringLiteral("1")}};
 
     QVector<SymbolRecord> nextSymbols = m_symbols;
     nextSymbols.push_back(symbol);
@@ -468,14 +498,33 @@ Utils::Result SymbolsController::validateSymbols(const QVector<SymbolRecord>& sy
                 continue;
             }
 
-            if (!constantValuesByName.contains(token)) {
-                return Utils::Result::failure(QStringLiteral("Type '%1' references unknown constant '%2'.")
-                                                  .arg(symbol.name, token));
+            // Simple identifier: direct constant lookup with positivity check.
+            if (isValidSymbolIdentifier(token)) {
+                if (!constantValuesByName.contains(token)) {
+                    return Utils::Result::failure(QStringLiteral("Type '%1' references unknown constant '%2'.")
+                                                      .arg(symbol.name, token));
+                }
+                if (constantValuesByName.value(token) <= 0) {
+                    return Utils::Result::failure(QStringLiteral("Constant '%1' must be positive when used as a dimension.")
+                                                      .arg(token));
+                }
+                continue;
             }
 
-            if (constantValuesByName.value(token) <= 0) {
-                return Utils::Result::failure(QStringLiteral("Constant '%1' must be positive when used as a dimension.")
-                                                  .arg(token));
+            // Arithmetic expression (e.g. "M * K"): validate every identifier present.
+            static const QRegularExpression kIdentRe(QStringLiteral("[A-Za-z_][A-Za-z0-9_]*"));
+            static const QRegularExpression kValidExprChars(QStringLiteral("^[A-Za-z0-9_\\s\\+\\-\\*\\/\\(\\)]+$"));
+            if (!kValidExprChars.match(token).hasMatch()) {
+                return Utils::Result::failure(QStringLiteral("Type '%1' has an invalid dimension expression '%2'.")
+                                                  .arg(symbol.name, token));
+            }
+            auto it = kIdentRe.globalMatch(token);
+            while (it.hasNext()) {
+                const QString ident = it.next().captured();
+                if (!constantValuesByName.contains(ident)) {
+                    return Utils::Result::failure(QStringLiteral("Type '%1' references unknown constant '%2'.")
+                                                      .arg(symbol.name, ident));
+                }
             }
         }
     }

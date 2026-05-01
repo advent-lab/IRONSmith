@@ -232,7 +232,12 @@ connectedFifosForTile(const Canvas::CanvasBlock* block,
             if (!blockA || blockA->isLinkHub())
                 continue; // hubs handled in passes 1 & 2
             const auto& cfg = wire->objectFifo().value();
-            result.append({cfg.name, cfg.depth, /*isInput=*/true});
+            // For direct forward wires use hubName (the forward result name), not the source name.
+            const QString name =
+                (cfg.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward
+                 && !cfg.hubName.trimmed().isEmpty())
+                ? cfg.hubName.trimmed() : cfg.name;
+            result.append({name, cfg.depth, /*isInput=*/true});
         } else {
             const auto* blockB = dynamic_cast<const Canvas::CanvasBlock*>(
                 document->findItem(epB.attached->itemId));

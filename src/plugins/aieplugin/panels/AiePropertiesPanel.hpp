@@ -159,6 +159,16 @@ private:
     QPointer<QLabel>    m_hubDepthValue;
     QPointer<QLabel>    m_hubValueTypeValue;
     QPointer<QLabel>    m_hubDimensionsValue;
+    // dims_to_stream (shown for Split/Broadcast), dims_from_stream (shown for Join/Broadcast)
+    QPointer<QLabel>    m_hubDimsToLabel;
+    QPointer<QLineEdit> m_hubDimsToStreamEdit;
+    QPointer<QLabel>    m_hubDimsFromLabel;
+    QPointer<QLineEdit> m_hubDimsFromStreamEdit;
+    // Split/join overrides (hidden for broadcasts)
+    QPointer<QLabel>    m_hubBranchTypeLabel;
+    QPointer<QLineEdit> m_hubBranchTypeEdit;   // branch type symbol name override
+    QPointer<QLabel>    m_hubOffsetsEditLabel;
+    QPointer<QLineEdit> m_hubOffsetsEdit;      // comma-separated offsets override
 
     QPointer<QGroupBox> m_fifoGroup;
     QPointer<QLabel>    m_fifoWireIdValue;
@@ -167,6 +177,11 @@ private:
     QPointer<QComboBox> m_fifoSymbolCombo;
     QPointer<QComboBox> m_fifoTypeCombo;
     QPointer<QLineEdit> m_fifoDimensionsEdit;
+    // Forward-wire dims fields (shown only when the selected wire is a Forward operation)
+    QPointer<QLabel>    m_fwdDimsFromLabel;
+    QPointer<QLineEdit> m_fwdDimsFromStreamEdit;
+    QPointer<QLabel>    m_fwdDimsToLabel;
+    QPointer<QLineEdit> m_fwdDimsToStreamEdit;
 
     QPointer<QGroupBox> m_ddrTransferGroup;
     QPointer<QLabel>    m_ddrTransferModeValue;
@@ -189,10 +204,12 @@ private:
 
     QPointer<QGroupBox>      m_armWireGroup;
     QPointer<QLineEdit>      m_armFifoEdit;   // typed FIFO name for arm wire
+    QPointer<QLineEdit>      m_armTapEdit;    // optional TAP symbol name for arm wire
 
     QPointer<QGroupBox>      m_directDdrWireGroup;
     QPointer<QLabel>         m_directDdrParamValue; // read-only display of paramName (Input/Output)
     QPointer<QLineEdit>      m_directDdrFifoEdit;   // target FIFO name for direct DDR↔SHIM wire
+    QPointer<QLineEdit>      m_directDdrTapEdit;    // optional TAP symbol name
     Canvas::ObjectId         m_directDdrWireId{};
 
     QPointer<QGroupBox>       m_coreFnGroup;

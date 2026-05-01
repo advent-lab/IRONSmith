@@ -33,6 +33,9 @@ const QString kTensorDimsKey = u"tensorDims"_s;
 const QString kTileDimsKey = u"tileDims"_s;
 const QString kTileCountsKey = u"tileCounts"_s;
 const QString kPatternRepeatKey = u"patternRepeat"_s;
+const QString kDimsEntriesKey   = u"dims_entries"_s;
+const QString kDimsCountKey     = u"count"_s;
+const QString kDimsStrideKey    = u"stride"_s;
 
 const QString kSchemaValue = u"aie.symbols/1"_s;
 constexpr int kSchemaVersionValue = 1;
@@ -47,6 +50,8 @@ QString kindKey(SymbolKind kind)
             return u"type"_s;
         case SymbolKind::TensorAccessPattern:
             return u"tap"_s;
+        case SymbolKind::LayoutDims:
+            return u"dims"_s;
     }
 
     return u"constant"_s;
@@ -65,6 +70,10 @@ bool parseKind(const QString& text, SymbolKind& outKind)
     }
     if (normalized == u"tap"_s || normalized == u"tensoraccesspattern"_s) {
         outKind = SymbolKind::TensorAccessPattern;
+        return true;
+    }
+    if (normalized == u"dims"_s || normalized == u"layoutdims"_s) {
+        outKind = SymbolKind::LayoutDims;
         return true;
     }
     return false;
@@ -109,6 +118,8 @@ QString symbolKindDisplayName(SymbolKind kind)
             return QStringLiteral("Type");
         case SymbolKind::TensorAccessPattern:
             return QStringLiteral("TAP");
+        case SymbolKind::LayoutDims:
+            return QStringLiteral("Dims");
     }
 
     return QStringLiteral("Constant");
@@ -139,12 +150,39 @@ QString tensorAccessPatternSummary(const TensorAccessPatternSymbolData& tapData)
         .arg(intVectorSummary(tapData.sizes), intVectorSummary(tapData.strides));
 }
 
+QString layoutDimsPythonExpr(const LayoutDimsSymbolData& dimsData)
+{
+    if (dimsData.entries.isEmpty())
+        return QStringLiteral("[]");
+    QStringList items;
+    items.reserve(dimsData.entries.size());
+    for (const LayoutDimsEntry& e : dimsData.entries) {
+        const QString c = e.count.trimmed().isEmpty()  ? QStringLiteral("0") : e.count.trimmed();
+        const QString s = e.stride.trimmed().isEmpty() ? QStringLiteral("0") : e.stride.trimmed();
+        items.push_back(QStringLiteral("(%1, %2)").arg(c, s));
+    }
+    return QStringLiteral("[%1]").arg(items.join(QStringLiteral(", ")));
+}
+
+QString layoutDimsSummary(const LayoutDimsSymbolData& dimsData)
+{
+    const int n = dimsData.entries.size();
+    return QStringLiteral("%1 level%2").arg(n).arg(n == 1 ? QString() : QStringLiteral("s"));
+}
+
+QString layoutDimsPreview(const QString& name, const LayoutDimsSymbolData& dimsData)
+{
+    return QStringLiteral("%1 = %2").arg(name.trimmed(), layoutDimsPythonExpr(dimsData));
+}
+
 QString symbolSummary(const SymbolRecord& symbol)
 {
     if (symbol.kind == SymbolKind::Constant)
         return QString::number(symbol.constant.value);
     if (symbol.kind == SymbolKind::TypeAbstraction)
         return typeAbstractionSummary(symbol.type);
+    if (symbol.kind == SymbolKind::LayoutDims)
+        return layoutDimsSummary(symbol.layoutDims);
     return tensorAccessPatternSummary(symbol.tap);
 }
 
@@ -182,6 +220,8 @@ QString symbolPreview(const SymbolRecord& symbol)
         return QStringLiteral("%1 = %2").arg(symbol.name.trimmed()).arg(symbol.constant.value);
     if (symbol.kind == SymbolKind::TypeAbstraction)
         return typeAbstractionPreview(symbol.name, symbol.type);
+    if (symbol.kind == SymbolKind::LayoutDims)
+        return layoutDimsPreview(symbol.name, symbol.layoutDims);
     return tensorAccessPatternPreview(symbol.name, symbol.tap);
 }
 
@@ -244,6 +284,15 @@ QJsonObject serializeSymbolsMetadata(const QVector<SymbolRecord>& symbols)
 
         if (symbol.kind == SymbolKind::Constant) {
             entry.insert(kValueKey, static_cast<qint64>(symbol.constant.value));
+        } else if (symbol.kind == SymbolKind::LayoutDims) {
+            QJsonArray dimsArray;
+            for (const LayoutDimsEntry& e : symbol.layoutDims.entries) {
+                QJsonObject entryObj;
+                entryObj.insert(kDimsCountKey,  e.count.trimmed());
+                entryObj.insert(kDimsStrideKey, e.stride.trimmed());
+                dimsArray.push_back(entryObj);
+            }
+            entry.insert(kDimsEntriesKey, dimsArray);
         } else if (symbol.kind == SymbolKind::TypeAbstraction) {
             QJsonArray shape;
             for (const QString& token : symbol.type.shapeTokens)
@@ -328,6 +377,17 @@ Utils::Result parseSymbolsMetadata(const QJsonObject& metadata, QVector<SymbolRe
                                                   .arg(symbol.name));
 
             symbol.constant.value = static_cast<qint64>(valueToken.toDouble());
+        } else if (symbol.kind == SymbolKind::LayoutDims) {
+            const QJsonArray dimsArray = entry.value(kDimsEntriesKey).toArray();
+            for (const QJsonValue& v : dimsArray) {
+                if (!v.isObject())
+                    continue;
+                const QJsonObject obj = v.toObject();
+                LayoutDimsEntry e;
+                e.count  = obj.value(kDimsCountKey).toString().trimmed();
+                e.stride = obj.value(kDimsStrideKey).toString().trimmed();
+                symbol.layoutDims.entries.push_back(e);
+            }
         } else if (symbol.kind == SymbolKind::TypeAbstraction) {
             const QJsonArray shape = entry.value(kShapeKey).toArray();
             if (shape.isEmpty()) {

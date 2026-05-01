@@ -42,6 +42,7 @@ public:
     Utils::Result createConstant(QString* outId = nullptr);
     Utils::Result createTypeAbstraction(QString* outId = nullptr);
     Utils::Result createTensorAccessPattern(QString* outId = nullptr);
+    Utils::Result createLayoutDims(QString* outId = nullptr);
     Utils::Result updateSymbol(const SymbolRecord& updatedSymbol);
     Utils::Result removeSymbol(const QString& id);
 

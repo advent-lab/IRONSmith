@@ -531,13 +531,13 @@ static bool testAddActivateExample() {
         std::map<std::string, std::string> splitMetaA_col2 = {{"context", "L2_L1"}, {"data", "A"}, {"column", "2"}};
         std::map<std::string, std::string> splitMetaA_col3 = {{"context", "L2_L1"}, {"data", "A"}, {"column", "3"}};
         auto splitA_col0 = bridge.addFifoSplit("split_a_col0", *of_in_a_col0, 2, *workerChunkTy,
-            {"MEM_L2_L1_A1_col0", "MEM_L2_L1_A2_col0"}, {0, 16}, *mem0, hlir::ComponentId(), splitMetaA_col0);
+            {"MEM_L2_L1_A1_col0", "MEM_L2_L1_A2_col0"}, {0, 16}, *mem0, {}, hlir::ComponentId(), splitMetaA_col0);
         auto splitA_col1 = bridge.addFifoSplit("split_a_col1", *of_in_a_col1, 2, *workerChunkTy,
-            {"MEM_L2_L1_A3_col1", "MEM_L2_L1_A4_col1"}, {0, 16}, *mem1, hlir::ComponentId(), splitMetaA_col1);
+            {"MEM_L2_L1_A3_col1", "MEM_L2_L1_A4_col1"}, {0, 16}, *mem1, {}, hlir::ComponentId(), splitMetaA_col1);
         auto splitA_col2 = bridge.addFifoSplit("split_a_col2", *of_in_a_col2, 2, *workerChunkTy,
-            {"MEM_L2_L1_A5_col2", "MEM_L2_L1_A6_col2"}, {0, 16}, *mem2, hlir::ComponentId(), splitMetaA_col2);
+            {"MEM_L2_L1_A5_col2", "MEM_L2_L1_A6_col2"}, {0, 16}, *mem2, {}, hlir::ComponentId(), splitMetaA_col2);
         auto splitA_col3 = bridge.addFifoSplit("split_a_col3", *of_in_a_col3, 2, *workerChunkTy,
-            {"MEM_L2_L1_A7_col3", "MEM_L2_L1_A8_col3"}, {0, 16}, *mem3, hlir::ComponentId(), splitMetaA_col3);
+            {"MEM_L2_L1_A7_col3", "MEM_L2_L1_A8_col3"}, {0, 16}, *mem3, {}, hlir::ComponentId(), splitMetaA_col3);
         if (!splitA_col0 || !splitA_col1 || !splitA_col2 || !splitA_col3) {
             std::cerr << "FAILED\n";
             if (splitA_col0.error().size() > 0) std::cerr << "    " << splitA_col0.error()[0].message << "\n";
@@ -552,13 +552,13 @@ static bool testAddActivateExample() {
         std::map<std::string, std::string> splitMetaB_col2 = {{"context", "L2_L1"}, {"data", "B"}, {"column", "2"}};
         std::map<std::string, std::string> splitMetaB_col3 = {{"context", "L2_L1"}, {"data", "B"}, {"column", "3"}};
         auto splitB_col0 = bridge.addFifoSplit("split_b_col0", *of_in_b_col0, 2, *workerChunkTy,
-            {"MEM_L2_L1_B1_col0", "MEM_L2_L1_B2_col0"}, {0, 16}, *mem0, hlir::ComponentId(), splitMetaB_col0);
+            {"MEM_L2_L1_B1_col0", "MEM_L2_L1_B2_col0"}, {0, 16}, *mem0, {}, hlir::ComponentId(), splitMetaB_col0);
         auto splitB_col1 = bridge.addFifoSplit("split_b_col1", *of_in_b_col1, 2, *workerChunkTy,
-            {"MEM_L2_L1_B3_col1", "MEM_L2_L1_B4_col1"}, {0, 16}, *mem1, hlir::ComponentId(), splitMetaB_col1);
+            {"MEM_L2_L1_B3_col1", "MEM_L2_L1_B4_col1"}, {0, 16}, *mem1, {}, hlir::ComponentId(), splitMetaB_col1);
         auto splitB_col2 = bridge.addFifoSplit("split_b_col2", *of_in_b_col2, 2, *workerChunkTy,
-            {"MEM_L2_L1_B5_col2", "MEM_L2_L1_B6_col2"}, {0, 16}, *mem2, hlir::ComponentId(), splitMetaB_col2);
+            {"MEM_L2_L1_B5_col2", "MEM_L2_L1_B6_col2"}, {0, 16}, *mem2, {}, hlir::ComponentId(), splitMetaB_col2);
         auto splitB_col3 = bridge.addFifoSplit("split_b_col3", *of_in_b_col3, 2, *workerChunkTy,
-            {"MEM_L2_L1_B7_col3", "MEM_L2_L1_B8_col3"}, {0, 16}, *mem3, hlir::ComponentId(), splitMetaB_col3);
+            {"MEM_L2_L1_B7_col3", "MEM_L2_L1_B8_col3"}, {0, 16}, *mem3, {}, hlir::ComponentId(), splitMetaB_col3);
         if (!splitB_col0 || !splitB_col1 || !splitB_col2 || !splitB_col3) {
             std::cerr << "FAILED\n";
             return false;
@@ -606,13 +606,13 @@ static bool testAddActivateExample() {
         std::map<std::string, std::string> joinMetaD_col2 = {{"context", "L1_L2"}, {"data", "D"}, {"column", "2"}};
         std::map<std::string, std::string> joinMetaD_col3 = {{"context", "L1_L2"}, {"data", "D"}, {"column", "3"}};
         auto joinD_col0 = bridge.addFifoJoin("join_d_col0", *of_out_d_col0, 2, *workerChunkTy,
-            {"MEM_L1_L2_D1_col0", "MEM_L1_L2_D2_col0"}, {0, 16}, *mem0, hlir::ComponentId(), joinMetaD_col0);
+            {"MEM_L1_L2_D1_col0", "MEM_L1_L2_D2_col0"}, {0, 16}, *mem0, {}, hlir::ComponentId(), joinMetaD_col0);
         auto joinD_col1 = bridge.addFifoJoin("join_d_col1", *of_out_d_col1, 2, *workerChunkTy,
-            {"MEM_L1_L2_D3_col1", "MEM_L1_L2_D4_col1"}, {0, 16}, *mem1, hlir::ComponentId(), joinMetaD_col1);
+            {"MEM_L1_L2_D3_col1", "MEM_L1_L2_D4_col1"}, {0, 16}, *mem1, {}, hlir::ComponentId(), joinMetaD_col1);
         auto joinD_col2 = bridge.addFifoJoin("join_d_col2", *of_out_d_col2, 2, *workerChunkTy,
-            {"MEM_L1_L2_D5_col2", "MEM_L1_L2_D6_col2"}, {0, 16}, *mem2, hlir::ComponentId(), joinMetaD_col2);
+            {"MEM_L1_L2_D5_col2", "MEM_L1_L2_D6_col2"}, {0, 16}, *mem2, {}, hlir::ComponentId(), joinMetaD_col2);
         auto joinD_col3 = bridge.addFifoJoin("join_d_col3", *of_out_d_col3, 2, *workerChunkTy,
-            {"MEM_L1_L2_D7_col3", "MEM_L1_L2_D8_col3"}, {0, 16}, *mem3, hlir::ComponentId(), joinMetaD_col3);
+            {"MEM_L1_L2_D7_col3", "MEM_L1_L2_D8_col3"}, {0, 16}, *mem3, {}, hlir::ComponentId(), joinMetaD_col3);
         if (!joinD_col0 || !joinD_col1 || !joinD_col2 || !joinD_col3) {
             std::cerr << "FAILED\n";
             if (joinD_col0.error().size() > 0) std::cerr << "    " << joinD_col0.error()[0].message << "\n";
@@ -1055,7 +1055,7 @@ static bool testVectorExpExample() {
         std::map<std::string, std::string> splitMetaA = {{"context", "L2_L1"}, {"data", "A"}, {"column", "0"}};
         auto splitA = bridge.addFifoSplit("split_a_col0", *of_in_a, 4, *tileTy,
             {"MEM_L2_L1_A1_col0", "MEM_L2_L1_A2_col0", "MEM_L2_L1_A3_col0", "MEM_L2_L1_A4_col0"},
-            {0, 1024, 2048, 3072}, *mem0, hlir::ComponentId(), splitMetaA);
+            {0, 1024, 2048, 3072}, *mem0, {}, hlir::ComponentId(), splitMetaA);
         if (!splitA) {
             std::cerr << "FAILED\n";
             if (splitA.error().size() > 0) std::cerr << "    " << splitA.error()[0].message << "\n";
@@ -1068,7 +1068,7 @@ static bool testVectorExpExample() {
         std::map<std::string, std::string> joinMetaC = {{"context", "L1_L2"}, {"data", "C"}, {"column", "0"}};
         auto joinC = bridge.addFifoJoin("join_c_col0", *of_out_c, 4, *tileTy,
             {"MEM_L1_L2_C1_col0", "MEM_L1_L2_C2_col0", "MEM_L1_L2_C3_col0", "MEM_L1_L2_C4_col0"},
-            {0, 1024, 2048, 3072}, *mem0, hlir::ComponentId(), joinMetaC);
+            {0, 1024, 2048, 3072}, *mem0, {}, hlir::ComponentId(), joinMetaC);
         if (!joinC) {
             std::cerr << "FAILED\n";
             if (joinC.error().size() > 0) std::cerr << "    " << joinC.error()[0].message << "\n";
@@ -1361,7 +1361,7 @@ static bool testVectorVectorMulExample() {
         std::map<std::string, std::string> splitMetaA = {{"context", "L2_L1"}, {"data", "A"}, {"column", "0"}};
         auto splitA = bridge.addFifoSplit("split_a", *of_in_a, 4, *tileTy,
             {"split_a_0", "split_a_1", "split_a_2", "split_a_3"},
-            {0, 1024, 2048, 3072}, *mem0, hlir::ComponentId(), splitMetaA);
+            {0, 1024, 2048, 3072}, *mem0, {}, hlir::ComponentId(), splitMetaA);
         if (!splitA) {
             std::cerr << "FAILED\n";
             if (splitA.error().size() > 0) std::cerr << "    " << splitA.error()[0].message << "\n";
@@ -1374,7 +1374,7 @@ static bool testVectorVectorMulExample() {
         std::map<std::string, std::string> splitMetaB = {{"context", "L2_L1"}, {"data", "B"}, {"column", "1"}};
         auto splitB = bridge.addFifoSplit("split_b", *of_in_b, 4, *tileTy,
             {"split_b_0", "split_b_1", "split_b_2", "split_b_3"},
-            {0, 1024, 2048, 3072}, *mem1, hlir::ComponentId(), splitMetaB);
+            {0, 1024, 2048, 3072}, *mem1, {}, hlir::ComponentId(), splitMetaB);
         if (!splitB) {
             std::cerr << "FAILED\n";
             if (splitB.error().size() > 0) std::cerr << "    " << splitB.error()[0].message << "\n";
@@ -1387,7 +1387,7 @@ static bool testVectorVectorMulExample() {
         std::map<std::string, std::string> joinMetaC = {{"context", "L1_L2"}, {"data", "C"}, {"column", "2"}};
         auto joinC = bridge.addFifoJoin("join_c", *of_out_c, 4, *tileTy,
             {"join_c_0", "join_c_1", "join_c_2", "join_c_3"},
-            {0, 1024, 2048, 3072}, *mem2, hlir::ComponentId(), joinMetaC);
+            {0, 1024, 2048, 3072}, *mem2, {}, hlir::ComponentId(), joinMetaC);
         if (!joinC) {
             std::cerr << "FAILED\n";
             if (joinC.error().size() > 0) std::cerr << "    " << joinC.error()[0].message << "\n";
@@ -1716,7 +1716,7 @@ static bool testMatrixVectorMulExample() {
             {"context", "L2_L1"}, {"data", "A"}, {"column", "0"}};
         auto splitA = bridge.addFifoSplit("a_fifos", *of_in_a, 4, *inATy,
             {"a_fifos_0", "a_fifos_1", "a_fifos_2", "a_fifos_3"},
-            {0, 1024, 2048, 3072}, *mem0, hlir::ComponentId(), splitMetaA);
+            {0, 1024, 2048, 3072}, *mem0, {}, hlir::ComponentId(), splitMetaA);
         if (!splitA) {
             std::cerr << "FAILED\n";
             if (splitA.error().size() > 0) std::cerr << "    " << splitA.error()[0].message << "\n";
@@ -1727,7 +1727,7 @@ static bool testMatrixVectorMulExample() {
         // Step 8: Forward B at mem(1,1) (broadcast to all 4 compute tiles)
         std::cout << "  [8/15] Adding forward B at mem(1,1)... ";
         std::map<std::string, std::string> fwdMetaB = {{"placement", "mem1"}};
-        auto b_fwd = bridge.addFifoForward("B_fwd", *of_in_b, hlir::ComponentId(), fwdMetaB);
+        auto b_fwd = bridge.addFifoForward("B_fwd", *of_in_b, {}, {}, hlir::ComponentId(), fwdMetaB);
         if (!b_fwd) {
             std::cerr << "FAILED\n";
             if (b_fwd.error().size() > 0) std::cerr << "    " << b_fwd.error()[0].message << "\n";
@@ -1742,7 +1742,7 @@ static bool testMatrixVectorMulExample() {
             {"context", "L1_L2"}, {"data", "C"}, {"column", "2"}};
         auto joinC = bridge.addFifoJoin("c_fifos", *of_out_c, 4, *outCTy,
             {"c_fifos_0", "c_fifos_1", "c_fifos_2", "c_fifos_3"},
-            {0, 32, 64, 96}, *mem2, hlir::ComponentId(), joinMetaC);
+            {0, 32, 64, 96}, *mem2, {}, hlir::ComponentId(), joinMetaC);
         if (!joinC) {
             std::cerr << "FAILED\n";
             if (joinC.error().size() > 0) std::cerr << "    " << joinC.error()[0].message << "\n";
@@ -2050,8 +2050,8 @@ static bool testDualPathForwardExample() {
 
         // Forward FIFOs — out3→out5 and out4→out6 placed on mem tile (0,1)
         std::map<std::string, std::string> fwdMeta = {{"placement", "mem0"}};
-        auto out5 = bridge.addFifoForward("out5", *out3, hlir::ComponentId(), fwdMeta);
-        auto out6 = bridge.addFifoForward("out6", *out4, hlir::ComponentId(), fwdMeta);
+        auto out5 = bridge.addFifoForward("out5", *out3, {}, {}, hlir::ComponentId(), fwdMeta);
+        auto out6 = bridge.addFifoForward("out6", *out4, {}, {}, hlir::ComponentId(), fwdMeta);
 
         // External kernel — copies two input buffers into two output buffers
         auto copy2_kernel = bridge.addExternalKernel(

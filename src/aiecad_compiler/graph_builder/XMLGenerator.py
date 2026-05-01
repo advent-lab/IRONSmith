@@ -236,7 +236,8 @@ class MethodChainBuilder:
                          output_type: str, output_names: List[str],
                          placement: str, attrs: Dict[str, str],
                          source_type_divisor: int = 1,
-                         explicit_offsets: Optional[List[str]] = None) -> etree.Element:
+                         explicit_offsets: Optional[List[str]] = None,
+                         dims_to_stream: Optional[str] = None) -> etree.Element:
         """
         Build <ObjectFifo> element with .cons().split() method chain.
 
@@ -306,13 +307,22 @@ class MethodChainBuilder:
         # kwarg: placement
         self._add_placement_kwarg(method_split, placement)
 
+        # kwarg: dims_to_stream — list of N references to the same dims symbol
+        if dims_to_stream:
+            kwarg_dims = etree.SubElement(method_split, "kwarg", name="dims_to_stream")
+            list_elem = etree.SubElement(kwarg_dims, "list")
+            for _ in range(num_outputs):
+                const_elem = etree.SubElement(list_elem, "const")
+                const_elem.text = dims_to_stream
+
         return obj_fifo
 
     def build_join_chain(self, dest_name: str, num_inputs: int,
                         input_type: str, input_names: List[str],
                         placement: str, attrs: Dict[str, str],
                         dest_type_divisor: int = 1,
-                        explicit_offsets: Optional[List[str]] = None) -> etree.Element:
+                        explicit_offsets: Optional[List[str]] = None,
+                        dims_from_stream: Optional[str] = None) -> etree.Element:
         """
         Build <ObjectFifo> element with .prod().join() method chain.
 
@@ -378,6 +388,14 @@ class MethodChainBuilder:
                 const_divisor.text = str(total_divisor)
                 const_i = etree.SubElement(offset_expr, "const")
                 const_i.text = str(i)
+
+        # kwarg: dims_from_stream — list of N references to the same dims symbol
+        if dims_from_stream:
+            kwarg_dims = etree.SubElement(method_join, "kwarg", name="dims_from_stream")
+            list_elem = etree.SubElement(kwarg_dims, "list")
+            for _ in range(num_inputs):
+                const_elem = etree.SubElement(list_elem, "const")
+                const_elem.text = dims_from_stream
 
         return obj_fifo
 
@@ -1143,6 +1161,7 @@ class XMLTransformer:
         num_outputs = int(simple_split.find("num_outputs").text.strip())
         generic_output_type = simple_split.find("output_type").text.strip()
         placement = simple_split.find("placement").text.strip()
+        dims_to_stream = simple_split.get("dims_to_stream", "")
         attrs = dict(simple_split.attrib)
 
         # Get expanded source name
@@ -1178,7 +1197,8 @@ class XMLTransformer:
         obj_fifo = self.method_builder.build_split_chain(
             expanded_source, num_outputs, specific_output_type, output_names, placement, attrs,
             source_type_divisor=source_type_divisor,
-            explicit_offsets=explicit_offsets
+            explicit_offsets=explicit_offsets,
+            dims_to_stream=dims_to_stream or None,
         )
         obj_fifo.set("name", split_name)
 
@@ -1192,6 +1212,7 @@ class XMLTransformer:
         num_inputs = int(simple_join.find("num_inputs").text.strip())
         generic_input_type = simple_join.find("input_type").text.strip()
         placement = simple_join.find("placement").text.strip()
+        dims_from_stream = simple_join.get("dims_from_stream", "")
         attrs = dict(simple_join.attrib)
 
         # Get expanded dest name
@@ -1227,7 +1248,8 @@ class XMLTransformer:
         obj_fifo = self.method_builder.build_join_chain(
             expanded_dest, num_inputs, specific_input_type, input_names, placement, attrs,
             dest_type_divisor=dest_type_divisor,
-            explicit_offsets=explicit_offsets
+            explicit_offsets=explicit_offsets,
+            dims_from_stream=dims_from_stream or None,
         )
         obj_fifo.set("name", join_name)
 
@@ -1238,11 +1260,13 @@ class XMLTransformer:
         """Transform ObjectFifoForward to method chain form: of_out = of_in.cons().forward()"""
         simple_name = simple_forward.get("name")
         source_name = simple_forward.get("source")
+        dims_from_stream = simple_forward.get("dims_from_stream", "")
+        dims_to_stream = simple_forward.get("dims_to_stream", "")
 
         # Get expanded source name
         expanded_source = self.objectfifo_names.get(source_name, source_name)
 
-        # Build method chain: source.cons().forward()
+        # Build method chain: source.cons(dims_from_stream=X).forward(dims_to_stream=Y, placement=Tile(x, y))
         obj_fifo = etree.Element("ObjectFifo")
         source_elem = etree.SubElement(obj_fifo, "source")
         method_chain = etree.SubElement(source_elem, "method_chain")
@@ -1251,11 +1275,13 @@ class XMLTransformer:
         base = etree.SubElement(method_chain, "base")
         var = etree.SubElement(base, "var", ref=expanded_source)
 
-        # Call: .cons()
+        # Call: .cons(dims_from_stream=<value>) — kwarg only present when dims_from_stream is set
         call_cons = etree.SubElement(method_chain, "call")
         method_cons = etree.SubElement(call_cons, "method", name="cons")
+        if dims_from_stream:
+            etree.SubElement(call_cons, "kwarg", name="dims_from_stream", value=dims_from_stream)
 
-        # Call: .forward(placement=Tile(x, y))
+        # Call: .forward(placement=Tile(x, y), dims_to_stream=<value>)
         call_forward = etree.SubElement(method_chain, "call")
         method_forward = etree.SubElement(call_forward, "method", name="forward")
 
@@ -1272,6 +1298,10 @@ class XMLTransformer:
                 arg_y = etree.SubElement(constructor, "arg")
                 const_y = etree.SubElement(arg_y, "const")
                 const_y.text = match.group(2)
+
+        # Add dims_to_stream kwarg on .forward() if present
+        if dims_to_stream:
+            etree.SubElement(call_forward, "kwarg", name="dims_to_stream", value=dims_to_stream)
 
         # Set the name to match simple name
         obj_fifo.set("name", simple_name)
@@ -1480,9 +1510,9 @@ class XMLTransformer:
             kwarg_source = etree.SubElement(args, "kwarg", name="source")
             var = etree.SubElement(kwarg_source, "var", ref=source)
 
-            # tap — either a TensorTiler2D variable reference or inline TAP constructor
+            # tap — variable reference (tiler2d or named tap) or inline TAP constructor
             kwarg_tap = etree.SubElement(args, "kwarg", name="tap")
-            if tap_type == "tiler2d" and tap_var:
+            if tap_var:
                 var_ref = etree.SubElement(kwarg_tap, "var", ref=tap_var)
             else:
                 self._build_tensor_access_pattern(kwarg_tap, data_ref, column)
@@ -1566,9 +1596,9 @@ class XMLTransformer:
             if wait is not None:
                 kwarg_wait = etree.SubElement(args, "kwarg", name="wait", value=wait.text.strip().capitalize())
 
-            # tap — either a TensorTiler2D variable reference or inline TAP constructor
+            # tap — variable reference (tiler2d or named tap) or inline TAP constructor
             kwarg_tap = etree.SubElement(args, "kwarg", name="tap")
-            if tap_type == "tiler2d" and tap_var:
+            if tap_var:
                 var_ref = etree.SubElement(kwarg_tap, "var", ref=tap_var)
             else:
                 self._build_tensor_access_pattern(kwarg_tap, data_ref, column)

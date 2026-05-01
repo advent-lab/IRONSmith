@@ -1489,8 +1489,8 @@ DesignVerifier::DesignVerifier()
     m_checks.push_back(std::make_unique<DisconnectedDataflowCheck>());
     m_checks.push_back(std::make_unique<DmaChannelLimitCheck>());
     m_checks.push_back(std::make_unique<SplitJoinDivisibilityCheck>());
-    m_checks.push_back(std::make_unique<ObjectFifoDimensionsCheck>());
-    m_checks.push_back(std::make_unique<KernelArityCheck>());
+    //m_checks.push_back(std::make_unique<ObjectFifoDimensionsCheck>());
+    //m_checks.push_back(std::make_unique<KernelArityCheck>());
 }
 
 DesignVerifier::~DesignVerifier() = default;

@@ -52,6 +52,7 @@ private:
     void buildEditorPages();
     void rebuildDimensionEditors(int rank);
     void rebuildTapPatternEditors();
+    void rebuildDimsEntryEditors();
     void bindController();
     void refreshPanelState();
     void refreshSelection();
@@ -63,21 +64,26 @@ private:
     void requestConstantCommit();
     void requestTypeCommit();
     void requestTapCommit();
+    void requestDimsCommit();
     void flushPendingCommit();
 
     void commitConstantEdits();
     void commitTypeEdits();
     void commitTapEdits();
+    void commitDimsEdits();
     void deleteSelectedSymbol();
     void addTapPatternRow();
     void moveTapPatternRow(int row, int delta);
     void removeTapPatternRow(int row);
+    void addDimsEntryRow();
+    void removeDimsEntryRow(int row);
 
     QString selectedSymbolIdFromView() const;
     QString currentEditorName() const;
     QString currentConstantPreview() const;
     QString currentTypePreview() const;
     QString currentTapPreview() const;
+    QString currentDimsPreview() const;
 
     QPointer<SymbolsController> m_controller;
     QPointer<Utils::SidebarPanelFrame> m_frame;
@@ -86,6 +92,7 @@ private:
     QPointer<QPushButton> m_addConstantButton;
     QPointer<QPushButton> m_addTypeButton;
     QPointer<QPushButton> m_addTapButton;
+    QPointer<QPushButton> m_addDimsButton;
     QPointer<QPushButton> m_deleteButton;
     QPointer<QComboBox> m_filterCombo;
     QPointer<QTableView> m_tableView;
@@ -131,12 +138,23 @@ private:
     QVector<QPointer<QToolButton>> m_tapMoveUpButtons;
     QVector<QPointer<QToolButton>> m_tapMoveDownButtons;
     QVector<QPointer<QToolButton>> m_tapRemoveButtons;
+    // Layout dims editor
+    QPointer<QWidget>      m_dimsEditorPage;
+    QPointer<QLineEdit>    m_dimsNameEdit;
+    QPointer<QWidget>      m_dimsEntriesHost;
+    QPointer<QGridLayout>  m_dimsEntriesGrid;
+    QPointer<QPushButton>  m_dimsAddEntryButton;
+    QPointer<QLabel>       m_dimsPreviewLabel;
+    QVector<QPointer<QLineEdit>>   m_dimsCountEdits;
+    QVector<QPointer<QLineEdit>>   m_dimsStrideEdits;
+    QVector<QPointer<QPushButton>> m_dimsRemoveButtons;
 
     enum class PendingCommitKind : uint8_t {
         None,
         Constant,
         Type,
-        Tap
+        Tap,
+        Dims
     };
 
     QTimer m_commitTimer;

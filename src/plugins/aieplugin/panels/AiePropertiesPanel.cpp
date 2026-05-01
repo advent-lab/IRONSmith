@@ -686,21 +686,50 @@ void AiePropertiesPanel::buildUi()
     auto* hubValueTypeValue = makeHubValueLabel();
     auto* hubDimensionsValue = makeHubValueLabel();
 
+    // dims_to_stream (split) and dims_from_stream (join) — hidden by default
+    auto* hubDimsToLabel = makeHubKeyLabel(QStringLiteral("dims_to_stream"));
+    auto* hubDimsToStreamEdit = new QLineEdit(hubPivotGroup);
+    hubDimsToStreamEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    hubDimsToStreamEdit->setPlaceholderText(QStringLiteral("e.g. activation_layout_dims"));
+    auto* hubDimsFromLabel = makeHubKeyLabel(QStringLiteral("dims_from_stream"));
+    auto* hubDimsFromStreamEdit = new QLineEdit(hubPivotGroup);
+    hubDimsFromStreamEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    hubDimsFromStreamEdit->setPlaceholderText(QStringLiteral("e.g. tiled_c_to_rowmajor_dims"));
+    auto* hubBranchTypeLabel = makeHubKeyLabel(QStringLiteral("Branch Type"));
+    auto* hubBranchTypeEdit = new QLineEdit(hubPivotGroup);
+    hubBranchTypeEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    hubBranchTypeEdit->setPlaceholderText(QStringLiteral("e.g. activation_tile_type"));
+    auto* hubOffsetsEditLabel = makeHubKeyLabel(QStringLiteral("Offsets"));
+    auto* hubOffsetsEdit = new QLineEdit(hubPivotGroup);
+    hubOffsetsEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    hubOffsetsEdit->setPlaceholderText(QStringLiteral("auto  (e.g. 0, 1024, 2048, 3072)"));
+
     hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Name")),       hubPivotNameEdit);
     hubPivotForm->addRow(hubPivotFifoLabel,                              hubPivotFifoEdit);
     hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Branches")),   hubBranchesValue);
-    hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Offsets")),    hubOffsetsValue);
     hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Depth")),      hubDepthValue);
     hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Value Type")), hubValueTypeValue);
     hubPivotForm->addRow(makeHubKeyLabel(QStringLiteral("Dimensions")), hubDimensionsValue);
+    hubPivotForm->addRow(hubBranchTypeLabel,                             hubBranchTypeEdit);
+    hubPivotForm->addRow(hubOffsetsEditLabel,                            hubOffsetsEdit);
+    hubPivotForm->addRow(hubDimsToLabel,                                 hubDimsToStreamEdit);
+    hubPivotForm->addRow(hubDimsFromLabel,                               hubDimsFromStreamEdit);
 
-    m_hubPivotGroup      = hubPivotGroup;
-    m_hubPivotNameEdit   = hubPivotNameEdit;
-    m_hubPivotFifoLabel  = hubPivotFifoLabel;
-    m_hubPivotFifoEdit   = hubPivotFifoEdit;
-    m_hubBranchesValue   = hubBranchesValue;
-    m_hubOffsetsValue    = hubOffsetsValue;
-    m_hubDepthValue      = hubDepthValue;
+    m_hubPivotGroup          = hubPivotGroup;
+    m_hubPivotNameEdit       = hubPivotNameEdit;
+    m_hubPivotFifoLabel      = hubPivotFifoLabel;
+    m_hubPivotFifoEdit       = hubPivotFifoEdit;
+    m_hubBranchesValue       = hubBranchesValue;
+    m_hubOffsetsValue        = hubOffsetsValue;
+    m_hubDepthValue          = hubDepthValue;
+    m_hubDimsToLabel         = hubDimsToLabel;
+    m_hubDimsToStreamEdit    = hubDimsToStreamEdit;
+    m_hubDimsFromLabel       = hubDimsFromLabel;
+    m_hubDimsFromStreamEdit  = hubDimsFromStreamEdit;
+    m_hubBranchTypeLabel     = hubBranchTypeLabel;
+    m_hubBranchTypeEdit      = hubBranchTypeEdit;
+    m_hubOffsetsEditLabel    = hubOffsetsEditLabel;
+    m_hubOffsetsEdit         = hubOffsetsEdit;
     m_hubValueTypeValue  = hubValueTypeValue;
     m_hubDimensionsValue = hubDimensionsValue;
 
@@ -746,20 +775,36 @@ void AiePropertiesPanel::buildUi()
     auto* fifoDimensionsEdit = new QLineEdit(fifoGroup);
     fifoDimensionsEdit->setObjectName(QStringLiteral("AiePropertiesField"));
 
+    // Forward-wire dims rows (hidden by default; shown when a Forward wire is selected)
+    auto* fwdDimsFromLabel = makeFifoKeyLabel(QStringLiteral("dims_from_stream"));
+    auto* fwdDimsFromStreamEdit = new QLineEdit(fifoGroup);
+    fwdDimsFromStreamEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    fwdDimsFromStreamEdit->setPlaceholderText(QStringLiteral("e.g. tiled_c_to_rowmajor_dims"));
+    auto* fwdDimsToLabel = makeFifoKeyLabel(QStringLiteral("dims_to_stream"));
+    auto* fwdDimsToStreamEdit = new QLineEdit(fifoGroup);
+    fwdDimsToStreamEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    fwdDimsToStreamEdit->setPlaceholderText(QStringLiteral("e.g. activation_layout_dims"));
+
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Wire ID")),    fifoWireIdValue);
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Name")),       fifoNameEdit);
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Depth")),      fifoDepthSpin);
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Symbol")),     fifoSymbolCombo);
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Value Type")), fifoTypeCombo);
     fifoForm->addRow(makeFifoKeyLabel(QStringLiteral("Dimensions")), fifoDimensionsEdit);
+    fifoForm->addRow(fwdDimsFromLabel,                               fwdDimsFromStreamEdit);
+    fifoForm->addRow(fwdDimsToLabel,                                 fwdDimsToStreamEdit);
 
-    m_fifoGroup          = fifoGroup;
-    m_fifoWireIdValue    = fifoWireIdValue;
-    m_fifoNameEdit       = fifoNameEdit;
-    m_fifoDepthSpin      = fifoDepthSpin;
-    m_fifoSymbolCombo    = fifoSymbolCombo;
-    m_fifoTypeCombo      = fifoTypeCombo;
-    m_fifoDimensionsEdit = fifoDimensionsEdit;
+    m_fifoGroup              = fifoGroup;
+    m_fifoWireIdValue        = fifoWireIdValue;
+    m_fifoNameEdit           = fifoNameEdit;
+    m_fifoDepthSpin          = fifoDepthSpin;
+    m_fifoSymbolCombo        = fifoSymbolCombo;
+    m_fifoTypeCombo          = fifoTypeCombo;
+    m_fifoDimensionsEdit     = fifoDimensionsEdit;
+    m_fwdDimsFromLabel       = fwdDimsFromLabel;
+    m_fwdDimsFromStreamEdit  = fwdDimsFromStreamEdit;
+    m_fwdDimsToLabel         = fwdDimsToLabel;
+    m_fwdDimsToStreamEdit    = fwdDimsToStreamEdit;
 
     auto* ddrTransferGroup = new QGroupBox(QStringLiteral("DDR Transfer"), fieldsHost);
     ddrTransferGroup->setObjectName(QStringLiteral("AiePropertiesSectionCard"));
@@ -974,13 +1019,22 @@ void AiePropertiesPanel::buildUi()
     auto* armFifoEdit = new QLineEdit(armWireGroup);
     armFifoEdit->setObjectName(QStringLiteral("AiePropertiesField"));
     armFifoEdit->setPlaceholderText(QStringLiteral("e.g. inA1"));
+    auto* armTapEdit = new QLineEdit(armWireGroup);
+    armTapEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    armTapEdit->setPlaceholderText(QStringLiteral("e.g. tap_act"));
     {
         auto* lbl = new QLabel(QStringLiteral("Target FIFO"), armWireGroup);
         lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
         armWireForm->addRow(lbl, armFifoEdit);
     }
+    {
+        auto* lbl = new QLabel(QStringLiteral("TAP"), armWireGroup);
+        lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+        armWireForm->addRow(lbl, armTapEdit);
+    }
     m_armWireGroup = armWireGroup;
     m_armFifoEdit  = armFifoEdit;
+    m_armTapEdit   = armTapEdit;
 
     // --- Direct DDR Wire group (DDR↔SHIM without a hub) ---
     auto* directDdrWireGroup = new QGroupBox(QStringLiteral("Direct DDR Wire"), fieldsHost);
@@ -997,6 +1051,9 @@ void AiePropertiesPanel::buildUi()
     auto* directDdrFifoEdit = new QLineEdit(directDdrWireGroup);
     directDdrFifoEdit->setObjectName(QStringLiteral("AiePropertiesField"));
     directDdrFifoEdit->setPlaceholderText(QStringLiteral("e.g. weights_col0_fifo"));
+    auto* directDdrTapEdit = new QLineEdit(directDdrWireGroup);
+    directDdrTapEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+    directDdrTapEdit->setPlaceholderText(QStringLiteral("e.g. tap_act"));
     {
         auto* lbl = new QLabel(QStringLiteral("Buffer"), directDdrWireGroup);
         lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
@@ -1007,9 +1064,15 @@ void AiePropertiesPanel::buildUi()
         lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
         directDdrWireForm->addRow(lbl, directDdrFifoEdit);
     }
+    {
+        auto* lbl = new QLabel(QStringLiteral("TAP"), directDdrWireGroup);
+        lbl->setObjectName(QStringLiteral("AiePropertiesKeyLabel"));
+        directDdrWireForm->addRow(lbl, directDdrTapEdit);
+    }
     m_directDdrWireGroup  = directDdrWireGroup;
     m_directDdrParamValue = directDdrParamValue;
     m_directDdrFifoEdit   = directDdrFifoEdit;
+    m_directDdrTapEdit    = directDdrTapEdit;
 
     // --- Core Function group (compute kernel tiles only) ---
     auto* coreFnGroup = new QGroupBox(QStringLiteral("Core Function"), fieldsHost);
@@ -1160,6 +1223,14 @@ void AiePropertiesPanel::buildUi()
             this, &AiePropertiesPanel::applyHubPivotProperties);
     connect(hubPivotFifoEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyHubPivotProperties);
+    connect(hubDimsToStreamEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyHubPivotProperties);
+    connect(hubDimsFromStreamEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyHubPivotProperties);
+    connect(hubBranchTypeEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyHubPivotProperties);
+    connect(hubOffsetsEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyHubPivotProperties);
 
     connect(fifoNameEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyFifoAnnotation);
@@ -1170,6 +1241,10 @@ void AiePropertiesPanel::buildUi()
     connect(fifoTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int) { applyFifoAnnotation(); });
     connect(fifoDimensionsEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyFifoAnnotation);
+    connect(fwdDimsFromStreamEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyFifoAnnotation);
+    connect(fwdDimsToStreamEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyFifoAnnotation);
     connect(ddrTransferTapCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int) { applyDdrTransferHubTap(); });
@@ -1210,8 +1285,12 @@ void AiePropertiesPanel::buildUi()
 
     connect(armFifoEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyArmWireEntry);
+    connect(armTapEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyArmWireEntry);
 
     connect(directDdrFifoEdit, &QLineEdit::editingFinished,
+            this, &AiePropertiesPanel::applyDirectDdrFifo);
+    connect(directDdrTapEdit, &QLineEdit::editingFinished,
             this, &AiePropertiesPanel::applyDirectDdrFifo);
 
     connect(coreFnModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -1577,8 +1656,25 @@ void AiePropertiesPanel::showSelectionState(SelectionKind kind,
         m_argListGroup->setVisible(showTile && m_tileIsKernelTile);
     if (m_hubPivotGroup)
         m_hubPivotGroup->setVisible(showHubPivot);
+    if (!showHubPivot) {
+        if (m_hubDimsToLabel)        m_hubDimsToLabel->setVisible(false);
+        if (m_hubDimsToStreamEdit)   m_hubDimsToStreamEdit->setVisible(false);
+        if (m_hubDimsFromLabel)      m_hubDimsFromLabel->setVisible(false);
+        if (m_hubDimsFromStreamEdit) m_hubDimsFromStreamEdit->setVisible(false);
+        if (m_hubBranchTypeLabel)    m_hubBranchTypeLabel->setVisible(false);
+        if (m_hubBranchTypeEdit)     m_hubBranchTypeEdit->setVisible(false);
+        if (m_hubOffsetsEditLabel)   m_hubOffsetsEditLabel->setVisible(false);
+        if (m_hubOffsetsEdit)        m_hubOffsetsEdit->setVisible(false);
+    }
     if (m_fifoGroup)
         m_fifoGroup->setVisible(showFifo);
+    // Dims rows are toggled per-wire in refreshSelection; hide them when fifo group is hidden.
+    if (!showFifo) {
+        if (m_fwdDimsFromLabel)      m_fwdDimsFromLabel->setVisible(false);
+        if (m_fwdDimsFromStreamEdit) m_fwdDimsFromStreamEdit->setVisible(false);
+        if (m_fwdDimsToLabel)        m_fwdDimsToLabel->setVisible(false);
+        if (m_fwdDimsToStreamEdit)   m_fwdDimsToStreamEdit->setVisible(false);
+    }
     if (m_ddrTransferGroup)
         m_ddrTransferGroup->setVisible(showDdrTransferHub);
     if (m_ddrGroup)
@@ -1885,6 +1981,11 @@ void AiePropertiesPanel::refreshSelection()
                         ? wire->fillDrain()->fifoName : QString{};
                     m_armFifoEdit->setText(cur);
                 }
+                if (m_armTapEdit) {
+                    const QString cur = (wire->hasFillDrain() && wire->fillDrain()->tapSymbolRef)
+                        ? *wire->fillDrain()->tapSymbolRef : QString{};
+                    m_armTapEdit->setText(cur);
+                }
                 m_updatingUi = false;
                 showSelectionState(SelectionKind::ArmWire,
                                    QStringLiteral("Arm wire selected"),
@@ -1907,6 +2008,11 @@ void AiePropertiesPanel::refreshSelection()
                     const QString cur = wire->hasFillDrain()
                         ? wire->fillDrain()->fifoName : QString{};
                     m_directDdrFifoEdit->setText(cur);
+                }
+                if (m_directDdrTapEdit) {
+                    const QString cur = (wire->hasFillDrain() && wire->fillDrain()->tapSymbolRef)
+                        ? *wire->fillDrain()->tapSymbolRef : QString{};
+                    m_directDdrTapEdit->setText(cur);
                 }
                 m_updatingUi = false;
                 showSelectionState(SelectionKind::DirectDdrWire,
@@ -2000,6 +2106,33 @@ void AiePropertiesPanel::refreshSelection()
                     : QStringLiteral("Destination FIFO"));
             if (m_hubPivotNameEdit)
                 m_hubPivotNameEdit->setText(fifo.hubName);
+
+            // dims_to_stream: shown for splits and broadcasts (MM2S reformat)
+            const bool showDimsTo = isSplit || isBroadcast;
+            if (m_hubDimsToLabel)      m_hubDimsToLabel->setVisible(showDimsTo);
+            if (m_hubDimsToStreamEdit) {
+                m_hubDimsToStreamEdit->setVisible(showDimsTo);
+                if (showDimsTo) m_hubDimsToStreamEdit->setText(fifo.dimsToStream);
+            }
+            // dims_from_stream: shown for joins and broadcasts (S2MM reformat)
+            const bool showDimsFrom = !isSplit;
+            if (m_hubDimsFromLabel)      m_hubDimsFromLabel->setVisible(showDimsFrom);
+            if (m_hubDimsFromStreamEdit) {
+                m_hubDimsFromStreamEdit->setVisible(showDimsFrom);
+                if (showDimsFrom) m_hubDimsFromStreamEdit->setText(fifo.dimsFromStream);
+            }
+            // Branch Type and Offsets overrides: only meaningful for split/join, not broadcast
+            const bool showOverrides = !isBroadcast;
+            if (m_hubBranchTypeLabel)  m_hubBranchTypeLabel->setVisible(showOverrides);
+            if (m_hubBranchTypeEdit) {
+                m_hubBranchTypeEdit->setVisible(showOverrides);
+                if (showOverrides) m_hubBranchTypeEdit->setText(fifo.branchTypeSymbol);
+            }
+            if (m_hubOffsetsEditLabel) m_hubOffsetsEditLabel->setVisible(showOverrides);
+            if (m_hubOffsetsEdit) {
+                m_hubOffsetsEdit->setVisible(showOverrides);
+                if (showOverrides) m_hubOffsetsEdit->setText(fifo.offsetsOverride);
+            }
             if (m_hubPivotFifoEdit)
                 m_hubPivotFifoEdit->setText(fifo.name);
             if (m_hubBranchesValue)
@@ -2059,6 +2192,14 @@ void AiePropertiesPanel::refreshSelection()
             m_fifoDimensionsEdit->setEnabled(!usingSymbol);
             m_fifoDimensionsEdit->setText(fifo.type.dimensions);
         }
+
+        // dims_from_stream / dims_to_stream — only visible for Forward wires
+        const bool isForward = (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward);
+        if (m_fwdDimsFromLabel)      m_fwdDimsFromLabel->setVisible(isForward);
+        if (m_fwdDimsFromStreamEdit) { m_fwdDimsFromStreamEdit->setVisible(isForward); m_fwdDimsFromStreamEdit->setText(fifo.dimsFromStream); }
+        if (m_fwdDimsToLabel)        m_fwdDimsToLabel->setVisible(isForward);
+        if (m_fwdDimsToStreamEdit)   { m_fwdDimsToStreamEdit->setVisible(isForward); m_fwdDimsToStreamEdit->setText(fifo.dimsToStream); }
+
         m_effectiveFifoWireId = wire->id();
         m_updatingUi = false;
 
@@ -2879,6 +3020,23 @@ void AiePropertiesPanel::applyHubPivotProperties()
     config.hubName = m_hubPivotNameEdit->text().trimmed();
     config.name    = m_hubPivotFifoEdit->text().trimmed();
 
+    const bool isSplit     = (config.operation == Canvas::CanvasWire::ObjectFifoOperation::Split);
+    const bool isBroadcast = (config.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward);
+    if (isSplit || isBroadcast) {
+        if (m_hubDimsToStreamEdit)
+            config.dimsToStream = m_hubDimsToStreamEdit->text().trimmed();
+    }
+    if (!isSplit) {
+        if (m_hubDimsFromStreamEdit)
+            config.dimsFromStream = m_hubDimsFromStreamEdit->text().trimmed();
+    }
+    if (!isBroadcast) {
+        if (m_hubBranchTypeEdit)
+            config.branchTypeSymbol = m_hubBranchTypeEdit->text().trimmed();
+        if (m_hubOffsetsEdit)
+            config.offsetsOverride = m_hubOffsetsEdit->text().trimmed();
+    }
+
     wire->setObjectFifo(config);
     m_document->notifyChanged();
 }
@@ -2906,7 +3064,7 @@ void AiePropertiesPanel::applyFifoAnnotation()
             for (const auto& sym : m_symbolsController->symbols()) {
                 if (sym.name == symName && sym.kind == SymbolKind::TypeAbstraction) {
                     config.type.dimensions = sym.type.shapeTokens.join(u'x');
-                    config.type.valueType  = sym.type.dtype;
+                    config.type.valueType  = canonicalObjectFifoValueType(sym.type.dtype);
                     break;
                 }
             }
@@ -2915,6 +3073,14 @@ void AiePropertiesPanel::applyFifoAnnotation()
         config.type.symbolRef  = std::nullopt;
         config.type.valueType  = m_fifoTypeCombo ? m_fifoTypeCombo->currentText().trimmed().toLower() : config.type.valueType;
         config.type.dimensions = m_fifoDimensionsEdit ? m_fifoDimensionsEdit->text().trimmed() : config.type.dimensions;
+    }
+
+    // Save dims_from_stream / dims_to_stream for Forward wires
+    if (config.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward) {
+        if (m_fwdDimsFromStreamEdit)
+            config.dimsFromStream = m_fwdDimsFromStreamEdit->text().trimmed();
+        if (m_fwdDimsToStreamEdit)
+            config.dimsToStream = m_fwdDimsToStreamEdit->text().trimmed();
     }
 
     wire->setObjectFifo(config);
@@ -3325,6 +3491,10 @@ void AiePropertiesPanel::applyArmWireEntry()
         }
     }
     fd.fifoName = typed;
+    if (m_armTapEdit) {
+        const QString tap = m_armTapEdit->text().trimmed();
+        fd.tapSymbolRef = tap.isEmpty() ? std::nullopt : std::optional<QString>(tap);
+    }
 
     armWire->setFillDrain(fd);
 
@@ -3365,6 +3535,10 @@ void AiePropertiesPanel::applyDirectDdrFifo()
         fd.isFill = isFill;
     }
     fd.fifoName = typed;
+    if (m_directDdrTapEdit) {
+        const QString tap = m_directDdrTapEdit->text().trimmed();
+        fd.tapSymbolRef = tap.isEmpty() ? std::nullopt : std::optional<QString>(tap);
+    }
 
     wire->setFillDrain(fd);
 

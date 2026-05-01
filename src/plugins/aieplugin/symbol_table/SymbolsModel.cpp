@@ -150,6 +150,8 @@ bool SymbolsFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex& sour
         && kind != SymbolKind::TensorAccessPattern) {
         return false;
     }
+    if (m_filterKind == SymbolFilterKind::LayoutDims && kind != SymbolKind::LayoutDims)
+        return false;
 
     if (m_searchText.isEmpty())
         return true;
