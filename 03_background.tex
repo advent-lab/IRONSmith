@@ -1,0 +1,10 @@
+\section{Background} \label{sec:background}
+\vspace{-3mm}
+
+
+The AMD Ryzen AI NPU is built on the XDNA architecture: a spatial array of Shim tiles (DDR interface), Memory tiles (on-chip buffer storage), and Compute tiles (VLIW vector processors), connected exclusively through statically configured ObjectFifo buffers whose depths, types, and DMA channel counts must be resolved at design time. IRON Python~\cite{iron2025} programs this hardware by declaring ObjectFifos between tiles, defining runtime sequences that fill and drain DDR tensors through shim DMA engines, and implementing Compute tile Worker functions whose acquire/kernel-call/release loops must exactly match the declared ObjectFifo element types - meaning even a moderately complex design requires manually coordinating dozens of interdependent FIFOs, split/join patterns, and worker configurations.
+%across hundreds of lines of code.
+
+The fundamental challenge is that IRON Python expresses an inherently spatial programming model - a graph of tiles, FIFOs, and data movements - as a sequential text file, requiring the programmer to mentally track tile connectivity, hardware requirements, and dataflow across hundreds of lines of code. Structural errors such as disconnected FIFOs, DMA channel oversubscription, or kernel argument mismatches produce compiler errors that are difficult to diagnose without a visual representation of the design. IRONSmith eliminates this mismatch by making the spatial programming model directly visual, and catches the most common structural errors before code generation.
+
+\vspace{-1mm}

@@ -1,0 +1,10 @@
+\section{Related Work} \label{sec:related_work}
+\vspace{-3mm}
+
+The mlir-aie project~\cite{mliraie} provides the open-source compiler infrastructure and the AMD IRON tutorial~\cite{iron2025}, which teach the programming model rather than lowering its barrier. AMD's Riallto~\cite{riallto} was the closest prior accessibility effort, offering Jupyter notebook tutorials for the spatial programming model, but was discontinued and never provided a visual canvas, design verification, or automated code generation. IRONSmith directly addresses the gap Riallto left.
+
+
+Graphical programming has well-established precedent for lowering hardware entry barriers: Balid and Abdulwahed~\cite{balid2013} showed LabVIEW-based dataflow programming reduced FPGA development lifecycles by up to $5\times$, while Kuon et al.~\cite{kuon2014} and Winzker and Schwandt~\cite{winzker2019} demonstrated measurable student learning improvements with visual hardware tools. Commercial tools such as Matlab Simulink~\cite{simulink}, VisualApplets~\cite{visualapplets}, and AMD Vivado Block Design~\cite{vivado} apply this paradigm to FPGAs. For GPUs, NVIDIA Nsight~\cite{nsight} provides execution visualization but no design entry canvas. AMD Vitis~\cite{vitis} visualizes AI Engine mapping for Versal devices but requires C++ kernel authoring. No existing tool provides a visual design canvas for AMD Ryzen AI NPU programming. Ragan-Kelley et al.'s Halide~\cite{halide2013} established the principle of separating algorithm description from lowering and scheduling - a principle IRONSmith extends to the NPU domain, with the IRONSmith backend pipeline handling all scope, ordering, and dependency management automatically.
+
+% INSERT COMPARISON TABLE HERE
+\vspace{-3mm}

@@ -1,0 +1,49 @@
+\section{Demonstration} \label{sec:methodology}
+\vspace{-3mm}
+
+\subsection{Benchmark Suite}
+\vspace{-3mm}
+
+We evaluate IRONSmith across three dimensions: correctness (proper execution of generated IRON Python), expressiveness (IRON dataflow patterns represented), and productivity (efficiency of design implementation). We developed seven benchmark designs of increasing complexity, each built visually in IRONSmith and executed successfully on the AMD Ryzen AI NPU (Table~\ref{tab:benchmarks}), progressing from a single-tile passthrough through element-wise vector operations to dense linear algebra with split/join and broadcast patterns.
+All seven benchmarks generated correct IRON Python that executed on the hardware NPU without modification. The benchmark suite exercises every major ObjectFifo pattern supported by the IRON Python model.
+
+\vspace{-2mm}
+\begin{table}[h]
+\centering
+\caption{IRONSmith benchmark suite executed on AMD Ryzen AI NPU.}
+\label{tab:benchmarks}
+\small
+\begin{tabular}{lccccl}
+\hline
+\textbf{Benchmark} & \textbf{Shim} & \textbf{Mem} & \textbf{Compute} & \textbf{FIFOs} & \textbf{Capabilities Demonstrated} \\
+\hline
+Passthrough   & 1 & 0 & 1  & 2  & ObjectFifo, linear fill/drain \\
+Vector Exp    & 1 & 1 & 1  & 2  & Kernel selection, single worker \\
+Vec-Vec Add   & 1 & 1 & 4  & 10 & Split/Join mem tile, multiple workers \\
+Vec-Vec Mul   & 2 & 2 & 8  & 20 & Multi-shim, multi-column runtime \\
+GEMV          & 2 & 2 & 8  & 24 & Broadcast, matrix/vector tiling \\
+GEAM          & 4 & 4 & 16 & 60 & Dual matrix inputs, 16 tiles \\
+GEMM          & 4 & 4 & 16 & 60 & Accum.\ in-place, custom core body, TAPs \\
+\hline
+MLP           & 4 & 4 & 16 & 42 & Tensor manipulation (\texttt{dims\_from/to\_stream}) \\
+\hline
+\end{tabular}
+\vspace{-3mm}
+\end{table}
+
+\subsection{MLP Neural Network: Complex Use Case}
+\vspace{-3mm}
+
+To demonstrate IRONSmith's capability for complex, multi-layer ML designs, we implemented a complete Multi-Layer Perceptron (MLP) using the visual canvas. The MLP consists of 4 layers: 3 hidden layers each performing a 64$\times$64 matrix multiply followed by a ReLU activation, and one output layer performing a 64$\times$64 matrix multiply followed by a Softmax activation. All weight matrices are 64$\times$64 BFloat16 values (4096 elements per matrix), and the design maps onto 16 AMD AI Engine Compute tiles. The network is designed entirely within IRONSmith's canvas, with layers connected sequentially by dataflow wires and kernels assigned from the pre-built library.
+
+% INSERT MLP CANVAS SCREENSHOT HERE
+\vspace{-2mm}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/mlp_canvas.png}
+\caption{IRONSmith canvas view of the MLP design, showing 3 ReLU activation layers and one output layer with 4 broadcast weight matrices.}
+\label{fig:mlp}
+\end{figure}
+
+Figure~\ref{fig:mlp} shows the complete MLP canvas: 16 Compute tiles with 42 inter-tile FIFOs, 4 weight broadcast connections fanning out from DDR to each tile column, and inter-layer activation connections passing through memory tiles for tensor manipulation. The design passes all structural verification checks and generates correct IRON Python that executes on the AMD Ryzen AI NPU - a design that would require approximately 200 lines of manually coordinated IRON Python code, produced here without writing any.
+\vspace{-2mm}

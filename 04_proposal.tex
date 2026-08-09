@@ -1,0 +1,45 @@
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/gui_overview.png}
+\caption{Annotated IRONSmith GUI overview showing the AI Engine tile grid canvas (center), FIFO wire connected tiles, kernel library (left), properties panel (right), data movement patterns (red), generated code panel (blue), symbol table (yellow), and output log (green).}
+\label{fig:gui}
+\end{figure}
+\vspace{-2mm}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{figures/workflow_diagram.png}
+\caption{IRONSmith design workflow}
+\label{fig:workflow}
+\vspace{-4mm}
+\end{figure}
+
+\section{IRONSmith} \label{sec:proposal}
+\vspace{-3mm}
+
+IRONSmith addresses the NPU programming barrier by replacing the text-based IRON Python workflow with a visual, interactive canvas (Figure \ref{fig:gui}). Users design NPU dataflow applications visually on a canvas and then generate executable IRON Python without writing a single line of code.  
+IRONSmith is built on a microkernel plugin architecture in which a lightweight Core System manages the application lifecycle while modular plugins - Canvas, Project Explorer, Code Editor, etc. - contribute functionality through a central ExtensionSystem service registry, allowing new visual features or backend targets to be added without modifying the core.
+IRONSmith is architected with scalability in mind - there is a frontend (the visual user-facing canvas) and a backend (the compiler that lowers the visual design into code).
+
+% INSERT ARCHITECTURE DIAGRAM HERE
+
+Building a design in IRONSmith follows a fixed seven-step workflow (Figure~\ref{fig:workflow}): users \textit{define symbols} in the Symbol Table, \textit{link dataflow} by wiring runtime, FIFOs, and other patterns between the canvas tiles, \textit{assign kernels} to each compute tile from the Kernel Selection Library, and \textit{adjust properties} - FIFO parameters, runtime sequences, worker functions, etc. - through the properties panel. Once the design is complete, users trigger \textit{structural verification}, then \textit{code generation}, producing executable IRON Python ready for \textit{NPU execution} on the AMD Ryzen AI NPU.
+
+\vspace{-2mm}
+\subsection{Canvas and Visual Design Layer}
+\vspace{-3mm}
+
+The canvas presents the AMD AI Engine tile grid as an interactive layout where users connect tiles with typed wires representing the full set of dataflow patterns: ObjectFifo (tile-to-tile), Split/Join (sub-FIFO memory tile access), Broadcast (one-to-many), and Forward (pass-through). A context-sensitive Properties Panel exposes all underlying parameters - FIFO depth, element type, dimensions, DDR sizes, Tensor Access Patterns, Kernel assignments, and Worker acquire/call/release sequences - through structured form fields. A Symbol Table registers named constants and type abstractions for consistent reuse across the design. A searchable kernel library sourced from mlir-aie~\cite{mliraie} lets users assign pre-built ML kernels (GEMM, ReLU, CONV2D, Softmax, etc.) per compute tile. Custom user-defined kernels can also be assigned to tiles through the GUI.
+Designs are persisted automatically to a \texttt{document.json} bundle on every change.
+
+\vspace{-2mm}
+\subsection{Design Verification and Code Generation}
+\vspace{-3mm}
+
+Before generating code, IRONSmith runs structural checks catching the most common IRON Python error classes: invalid runtime I/O configuration, disconnected dataflow, DMA channel limit violations, and kernel argument mismatches - each producing an actionable output log message rather than a cryptic compiler failure.
+
+The IRONSmith backend takes the \texttt{document.json} (the auto-saved persistent canvas representation) and instantiates a High-Level Intermediate Representation (HLIR): an in-memory builder API that constructs typed component objects for each tile, FIFO, kernel assignment, and runtime sequence in the design. The HLIR is then lowered through a staged pipeline - to a \texttt{.xml} file representation, then a semantically directed graph, and finally a complete, executable IRON Python file - with each stage resolving interdependencies, inferring missing values, enforcing IRON coding conventions, and determining the correct import set automatically.
+
+% INSERT DESIGN LOWERING PIPELINE FIGURE HERE
+\vspace{-2mm}
