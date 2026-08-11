@@ -4,13 +4,13 @@
 \subsection{Benchmark Suite}
 \vspace{-3mm}
 
-We evaluate IRONSmith across three dimensions: correctness (proper execution of generated IRON Python), expressiveness (IRON dataflow patterns represented), and productivity (efficiency of design implementation). We developed seven benchmark designs of increasing complexity, each built visually in IRONSmith and executed successfully on the AMD Ryzen AI NPU (Table~\ref{tab:benchmarks}), progressing from a single-tile passthrough through element-wise vector operations to dense linear algebra with split/join and broadcast patterns.
-All seven benchmarks generated correct IRON Python that executed on the hardware NPU without modification. The benchmark suite exercises every major ObjectFifo pattern supported by the IRON Python model.
+We evaluate IRONSmith across two dimensions: correctness (proper execution of generated IRON Python), and expressiveness (coverage of IRON dataflow patterns). We developed seven benchmark designs of increasing dataflow and computation complexity, each built visually in IRONSmith and executed on the AMD Ryzen AI NPU (Table~\ref{tab:benchmarks}).
+All benchmarks generated IRON Python with structurally equivalent tile mappings and outputs verified to have identical performance against reference implementations in the mlir-aie library~\cite{mliraie}.  The benchmark suite exercises every major IRON dataflow pattern.
 
 \vspace{-2mm}
 \begin{table}[h]
 \centering
-\caption{IRONSmith benchmark suite executed on AMD Ryzen AI NPU.}
+\caption{IRONSmith benchmark suite executed on AMD Ryzen AI NPU (XDNA architecture).}
 \label{tab:benchmarks}
 \small
 \begin{tabular}{lccccl}
@@ -21,15 +21,16 @@ Passthrough   & 1 & 0 & 1  & 2  & ObjectFifo, linear fill/drain \\
 Vector Exp    & 1 & 1 & 1  & 2  & Kernel selection, single worker \\
 Vec-Vec Add   & 1 & 1 & 4  & 10 & Split/Join mem tile, multiple workers \\
 Vec-Vec Mul   & 2 & 2 & 8  & 20 & Multi-shim, multi-column runtime \\
-GEMV          & 2 & 2 & 8  & 24 & Broadcast, matrix/vector tiling \\
+GEMV          & 2 & 2 & 8  & 24 & Broadcast, Forward, matrix/vector tiling \\
 GEAM          & 4 & 4 & 16 & 60 & Dual matrix inputs, 16 tiles \\
 GEMM          & 4 & 4 & 16 & 60 & Accum.\ in-place, custom core body, TAPs \\
 \hline
 MLP           & 4 & 4 & 16 & 42 & Tensor manipulation (\texttt{dims\_from/to\_stream}) \\
 \hline
 \end{tabular}
-\vspace{-3mm}
+\vspace{-5mm}
 \end{table}
+\vspace{-1mm}
 
 \subsection{MLP Neural Network: Complex Use Case}
 \vspace{-3mm}
