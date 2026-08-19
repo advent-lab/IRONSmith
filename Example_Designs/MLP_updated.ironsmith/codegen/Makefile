@@ -49,21 +49,21 @@ $(MM_OBJ): kernels/mm.cc | $(BUILD_DIR)
 	cd $(BUILD_DIR) && \
 	$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/mm.cc -o mm.o
 
-$(RELU_OBJ): kernels/relu.cc | $(BUILD_DIR)
-	cd $(BUILD_DIR) && \
-	$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/relu.cc -o relu.o
-
 $(GEMM_BF16_OBJ): kernels/gemm_bf16.cpp | $(BUILD_DIR)
 	cd $(BUILD_DIR) && \
 	$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/gemm_bf16.cpp -o gemm_bf16.o
 
-$(ZERO_OBJ): kernels/zero.cc | $(BUILD_DIR)
+$(RELU_OBJ): kernels/relu.cc | $(BUILD_DIR)
 	cd $(BUILD_DIR) && \
-	$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/zero.cc -o zero.o
+	$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/relu.cc -o relu.o
 
 $(SOFTMAX_OBJ): kernels/softmax.cc | $(BUILD_DIR)
 	cd $(BUILD_DIR) && \
 	$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/softmax.cc -o softmax.o
+
+$(ZERO_OBJ): kernels/zero.cc | $(BUILD_DIR)
+	cd $(BUILD_DIR) && \
+	$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/zero.cc -o zero.o
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
