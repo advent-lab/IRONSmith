@@ -380,9 +380,9 @@ class XMLSerializer:
             string_elem = SubElement(list_elem, 'string')
             string_elem.text = f'"{name}"'
 
-        # placement kwarg
+        # tile kwarg
         place_kwarg = SubElement(kwargs_elem, 'kwarg')
-        place_kwarg.set('name', 'placement')
+        place_kwarg.set('name', 'tile')
         const_elem = SubElement(place_kwarg, 'constructor')
         const_elem.set('name', 'Tile')
         args_elem = SubElement(const_elem, 'args')
@@ -432,9 +432,9 @@ class XMLSerializer:
             string_elem = SubElement(list_elem, 'string')
             string_elem.text = f'"{name}"'
 
-        # placement kwarg
+        # tile kwarg
         place_kwarg = SubElement(kwargs_elem, 'kwarg')
-        place_kwarg.set('name', 'placement')
+        place_kwarg.set('name', 'tile')
         const_elem = SubElement(place_kwarg, 'constructor')
         const_elem.set('name', 'Tile')
         args_elem = SubElement(const_elem, 'args')
@@ -587,9 +587,9 @@ class XMLSerializer:
 
         kwargs_elem = SubElement(op_elem, 'kwargs')
 
-        # placement kwarg
+        # tile kwarg
         place_kwarg = SubElement(kwargs_elem, 'kwarg')
-        place_kwarg.set('name', 'placement')
+        place_kwarg.set('name', 'tile')
         const_elem = SubElement(place_kwarg, 'constructor')
         const_elem.set('name', 'Tile')
         args_elem = SubElement(const_elem, 'args')
@@ -631,9 +631,9 @@ class XMLSerializer:
 
         kwargs_elem = SubElement(op_elem, 'kwargs')
 
-        # placement kwarg
+        # tile kwarg
         place_kwarg = SubElement(kwargs_elem, 'kwarg')
-        place_kwarg.set('name', 'placement')
+        place_kwarg.set('name', 'tile')
         const_elem = SubElement(place_kwarg, 'constructor')
         const_elem.set('name', 'Tile')
         args_elem = SubElement(const_elem, 'args')

@@ -309,7 +309,7 @@
                   <string>MEM_L2_L1_A4_col0</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>0</const>
@@ -335,7 +335,7 @@
           </call>
           <call>
             <method name="forward"/>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>1</const>
@@ -376,7 +376,7 @@
                   <string>MEM_L1_L2_C12_col2</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>2</const>
@@ -691,7 +691,7 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -718,7 +718,7 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>1</const>
@@ -745,7 +745,7 @@
             <method ref="rt" name="drain"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>2</const>
@@ -892,7 +892,7 @@
           <call>
             <function ref="iron.arange">
               <arg>
-                <var>n_fifo_elems</var>
+                <var>n_fifo_elems * A_elem_size</var>
               </arg>
               <kwarg name="dtype">
                 <var>np.int16</var>
@@ -910,7 +910,7 @@
           <call>
             <function ref="iron.arange">
               <arg>
-                <var>n_fifo_elems</var>
+                <var>K</var>
               </arg>
               <kwarg name="dtype">
                 <var>np.int16</var>
@@ -928,7 +928,7 @@
           <call>
             <function ref="iron.zeros">
               <arg>
-                <var>n_fifo_elems</var>
+                <var>M</var>
               </arg>
               <kwarg name="dtype">
                 <var>np.int32</var>
@@ -940,6 +940,10 @@
           </call>
         </source>
       </Assign>
+      <RawLine>inputA.data[:] = inputA.data[:] % 128</RawLine>
+      <RawLine>inputA._sync_to_device()</RawLine>
+      <RawLine>inputB.data[:] = inputB.data[:] % 128</RawLine>
+      <RawLine>inputB._sync_to_device()</RawLine>
       <Call>
         <function ref="matrix_vector_mul_test_jit">
           <arg>
@@ -953,6 +957,9 @@
           </arg>
         </function>
       </Call>
+      <RawLine>print(f"inputA[:8] = {inputA.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"inputB[:8] = {inputB.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"outputC[:8] = {outputC.numpy()[:8]}")</RawLine>
     </body>
   </Function>
   <EntryPoint>

@@ -5,9 +5,8 @@ import numpy as np
 from ml_dtypes import bfloat16
 
 from aie.iron import Program, Runtime, Worker, ObjectFifo
-from aie.iron.placers import SequentialPlacer
 from aie.iron.device.tile import AnyComputeTile
-from aie.iron import ExternalFunction, jit
+from aie.iron import ExternalFunction, jit, In, Out, InOut, CompileTime
 from aie.iron.dataflow import ObjectFifoLink
 from aie.iron.device import Tile
 from aie.iron.device import NPU1Col1, NPU2Col1, XCVC1902
@@ -16,11 +15,8 @@ import aie.iron as iron
 from aie.helpers.taplib import TensorAccessPattern
 
 
-@iron.jit(is_placed=False)
-def passthrough_test_jit(inputA, outputC):
-    # Constants
-    N = 4096
-
+@iron.jit
+def passthrough_test_jit(inputA: In, outputC: Out, *, N: CompileTime[int]):
     # Tensor Types
     vector_ty = np.ndarray[(N,), np.dtype[np.int32]]
     line_ty = np.ndarray[(N // 4,), np.dtype[np.int32]]
@@ -34,25 +30,33 @@ def passthrough_test_jit(inputA, outputC):
     Workers = []
 
     # Runtime
-    rt = Runtime()
-    with rt.sequence(vector_ty, vector_ty) as (inputa_in, outputc_out):
+    def sequence(inputa_in, outputc_out, in_h, out):
         # Fills
-        rt.fill(of_in.prod(), inputa_in, placement=Tile(0, 0))
+        in_h.fill(inputa_in)
         # Drains
-        rt.drain(of_out.cons(), outputc_out, wait=True, placement=Tile(0, 0))
+        out.drain(outputc_out, wait=True)
+
+    rt = Runtime(sequence, [
+        vector_ty,
+        vector_ty,
+        of_in.prod(tile=Tile(0, 0)),
+        of_out.cons(tile=Tile(0, 0)),
+    ])
 
     # Program
-    my_program = Program(iron.get_current_device(), rt)
+    my_program = Program(iron.get_current_device(), rt, workers=Workers)
 
-    # Placement
-    return my_program.resolve_program(SequentialPlacer())
+    return my_program.resolve_program()
 
 
 def main():
     N = 4096
     inputA = iron.arange(N, dtype=np.int32, device="npu")
     outputC = iron.zeros(N, dtype=np.int32, device="npu")
-    passthrough_test_jit(inputA, outputC)
+    passthrough_test_jit(inputA, outputC, N=N)
+    print(f"inputA[:8] = {inputA.numpy()[:8]}")
+    print(f"outputC[:8] = {outputC.numpy()[:8]}")
+    print("PASS: outputC matches inputA" if np.array_equal(outputC.numpy(), inputA.numpy()) else "FAIL: outputC does not match inputA")
 
 
 

@@ -265,7 +265,7 @@
                   <string>MEM_L2_L1_A4_col0</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>0</const>
@@ -315,7 +315,7 @@
                   <string>MEM_L2_L1_B8_col1</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>1</const>
@@ -357,7 +357,7 @@
                   <string>MEM_L1_L2_C12_col2</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>2</const>
@@ -673,16 +673,16 @@
       <context>
         <call>
           <method ref="rt" name="sequence">
-            <arg type_ref="memtile_ty"/>
-            <arg type_ref="memtile_ty"/>
-            <arg type_ref="memtile_ty"/>
+            <arg type_ref="data_ty"/>
+            <arg type_ref="data_ty"/>
+            <arg type_ref="data_ty"/>
           </method>
         </call>
       </context>
       <bindings>
-        <bind name="inputa_in" type_ref="memtile_ty"/>
-        <bind name="inputb_in" type_ref="memtile_ty"/>
-        <bind name="outputc_out" type_ref="memtile_ty"/>
+        <bind name="inputa_in" type_ref="data_ty"/>
+        <bind name="inputb_in" type_ref="data_ty"/>
+        <bind name="outputc_out" type_ref="data_ty"/>
       </bindings>
       <body>
         <Operation name="start">
@@ -708,7 +708,7 @@
             <arg>
               <var ref="inputa_in"/>
             </arg>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -733,7 +733,7 @@
             <arg>
               <var ref="inputb_in"/>
             </arg>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -759,7 +759,7 @@
               <var ref="outputc_out"/>
             </arg>
             <kwarg name="wait" value="True"/>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>1</const>
@@ -804,9 +804,9 @@
   </DataFlow>
   <Function name="vector_vector_mul_test_jit" decorator="iron.jit">
     <parameters>
-      <param name="inputA" type_ref="memtile_ty"/>
-      <param name="inputB" type_ref="memtile_ty"/>
-      <param name="outputC" type_ref="memtile_ty"/>
+      <param name="inputA" type_ref="data_ty"/>
+      <param name="inputB" type_ref="data_ty"/>
+      <param name="outputC" type_ref="data_ty"/>
     </parameters>
     <attributes>
       <kwarg name="is_placed" value="False"/>
@@ -897,6 +897,12 @@
           </arg>
         </function>
       </Call>
+      <RawLine>print(f"inputA[:8] = {inputA.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"inputB[:8] = {inputB.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"outputC[:8] = {outputC.numpy()[:8]}")</RawLine>
+      <RawLine>expected = inputA.numpy().astype(np.float32) * inputB.numpy().astype(np.float32)</RawLine>
+      <RawLine>print(f"expected[:8] = {expected[:8]}")</RawLine>
+      <RawLine>print("PASS: outputC matches inputA * inputB" if np.allclose(outputC.numpy().astype(np.float32), expected, atol=1e-1, rtol=1e-1) else "FAIL: outputC does not match inputA * inputB")</RawLine>
     </body>
   </Function>
   <EntryPoint>

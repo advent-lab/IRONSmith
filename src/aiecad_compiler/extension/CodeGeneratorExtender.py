@@ -12,9 +12,37 @@ Example:
 
 from __future__ import annotations
 import json
+import os
 from pathlib import Path
 from typing import Dict, Type, Optional, List
 import networkx as nx
+
+
+#: Shared mlir-aie checkout every generated design is tested against. All
+#: users run generated IRON scripts against this one environment, so this is
+#: a fixed fallback rather than a `~`-relative guess - `~` would expand
+#: against whatever machine/OS IRONSmith's codegen happens to run on, which
+#: is not necessarily the (always-Linux) machine the generated script runs
+#: on.
+DEFAULT_MLIR_AIE_ROOT = "/home/mliraie/mlir-aie"
+
+
+def mlir_aie_root() -> str:
+    """Root of the mlir-aie checkout used to resolve ExternalFunction
+    kernels that live in mlir-aie's own ``aie_kernels`` library (e.g.
+    ``aie_kernels/aie2/add.cc``).
+
+    Checked via the ``IRONSMITH_MLIR_AIE_DIR`` env var first (mirrors the
+    ``IRONSMITH_BUILTIN_KERNELS_DIR`` convention used for IRONSmith's own
+    vendored kernels), falling back to the shared test environment at
+    ``DEFAULT_MLIR_AIE_ROOT``.
+
+    Generated scripts run under the mlir-aie toolchain (Linux), so the
+    result always uses forward slashes regardless of the OS IRONSmith's
+    codegen happens to run on.
+    """
+    env_root = os.environ.get("IRONSMITH_MLIR_AIE_DIR") or DEFAULT_MLIR_AIE_ROOT
+    return os.path.expanduser(env_root).replace('\\', '/').rstrip('/')
 
 
 # ----------------------------------------------------------------------
@@ -87,6 +115,64 @@ class ExternalFunctionCodeGen(CodeGenExtension):
                 return self._get_node_attr(kw_id, 'value')
         return None
 
+    def _resolve_source_file(self, source_file: str) -> str:
+        """Resolve any path under an ``mlir-aie`` checkout (kernels,
+        runtime libs, etc.) to the same subpath under the configured shared
+        mlir-aie root, so generated scripts don't depend on which machine -
+        or which other machine's absolute path got baked into the design -
+        they happen to be run from.
+
+        Matches an explicit ``mlir-aie/`` path segment first (e.g. a stray
+        absolute path from a different machine's checkout), falling back to
+        a bare ``aie_kernels/`` segment for paths that reference mlir-aie's
+        kernel library without naming the checkout itself (e.g. a relative
+        ``../../../aie_kernels/aie2/add.cc``). Paths matching neither
+        (custom, user-authored kernels) are returned unchanged.
+        """
+        normalized = source_file.replace('\\', '/').rstrip('/')
+        idx = normalized.find('mlir-aie/')
+        if idx != -1:
+            tail = normalized[idx + len('mlir-aie/'):]
+            return f"{mlir_aie_root()}/{tail}" if tail else mlir_aie_root()
+        idx = normalized.find('aie_kernels/')
+        if idx != -1:
+            return f"{mlir_aie_root()}/{normalized[idx:]}"
+        return source_file
+
+    def _kernel_include_dir(self, resolved_source_file: str) -> Optional[str]:
+        """Directory to add via -I so a kernel's relative #includes (e.g.
+        ``#include "../aie_kernel_utils.h"``) resolve regardless of the
+        compiler's working directory during the Peano build step."""
+        normalized = resolved_source_file.replace('\\', '/')
+        if 'aie_kernels/' not in normalized:
+            return None
+        return normalized.rsplit('/', 1)[0]
+
+    def _needs_lut_companion(self, resolved_source_file: str) -> bool:
+        """Whether this kernel needs aie_runtime_lib's lut_based_ops.cpp
+        compiled alongside it.
+
+        Kernels like bf16_exp/gelu/silu/softmax/swiglu #include
+        <lut_based_ops.h>, which only *declares* helpers such as
+        getExpBf16() - the backing LUT array data (exp_ilut_ab etc.) is
+        defined in lut_based_ops.cpp itself, so it must be part of the same
+        compile, not just discoverable via include_dirs (mirrors how
+        mlir-aie's own aie.iron.kernels.activation._create_lut_kernel
+        builds these kernels, via a combined source_string rather than
+        source_file - see generate()).
+
+        Detected by checking IRONSmith's own vendored copy of the kernel
+        (matched by filename) for the ``lut_based_ops.h`` include, since
+        that's always available locally regardless of the target mlir-aie
+        checkout.
+        """
+        basename = resolved_source_file.replace('\\', '/').rsplit('/', 1)[-1]
+        vendored = Path(__file__).resolve().parents[3] / "resources" / "kernels" / "aie_kernels" / "aie2" / basename
+        try:
+            return 'lut_based_ops.h' in vendored.read_text()
+        except OSError:
+            return False
+
     def _load_iron_signature(self, node_id: str) -> Optional[dict]:
         """Load iron_signature from the kernel's kernel.json, or None."""
         source_file = self._get_source_file(node_id)
@@ -148,24 +234,56 @@ class ExternalFunctionCodeGen(CodeGenExtension):
 
         # ---- Single-kernel mode → ExternalFunction ----
         source_file = self._get_source_file(node_id) or ''
+        if source_file:
+            source_file = self._resolve_source_file(source_file)
+
         kwargs: List[str] = []
         kwargs.append(f'name="{func_name}"')
-        if source_file:
+
+        # Kernels that need aie_runtime_lib's LUT data (bf16_exp, gelu,
+        # silu, softmax, swiglu, ...) can't use source_file alone - the
+        # header only declares the helper, the LUT arrays are defined in
+        # lut_based_ops.cpp, so it has to be part of the same compile.
+        # Combine them into one source_string, exactly like mlir-aie's own
+        # kernel factories do.
+        if source_file and self._needs_lut_companion(source_file):
+            lut_cpp = f"{mlir_aie_root()}/aie_runtime_lib/AIE2/lut_based_ops.cpp"
+            source_string = f'#include \\"{source_file}\\"\\n#include \\"{lut_cpp}\\"\\n'
+            kwargs.append(f'source_string="{source_string}"')
+        elif source_file:
             kwargs.append(f'source_file="{source_file}"')
+
         kwargs.append(f'arg_types={arg_types_str}')
 
-        # include_dirs from graph kwarg
+        # include_dirs from graph kwarg. Entries under mlir-aie's own
+        # aie_kernels library are resolved against the configured root too,
+        # same as source_file, so a design authored on one machine still
+        # builds on another.
+        dirs: List[str] = []
         for kw_id in self._get_children(node_id, 'has_kwarg'):
             if self._get_node_attr(kw_id, 'name') == 'include_dirs':
                 value_nodes = self._get_children(kw_id, 'contains')
                 for v_id in value_nodes:
                     if self._get_node_attr(v_id, 'kind') == 'List':
                         dirs = [
-                            f'"{self._get_node_attr(item_id, "label").strip(chr(34) + chr(39))}"'
+                            self._resolve_source_file(
+                                self._get_node_attr(item_id, "label").strip(chr(34) + chr(39))
+                            )
                             for item_id in self._get_children(v_id, 'contains')
                         ]
-                        if dirs:
-                            kwargs.append(f"include_dirs=[{', '.join(dirs)}]")
+
+        # Kernels from mlir-aie's aie_kernels library reference sibling
+        # headers with relative includes (e.g. "../aie_kernel_utils.h").
+        # Peano compiles from a cache directory, not the kernel's own
+        # directory, so that resolves only with an explicit -I here.
+        if source_file:
+            kernel_dir = self._kernel_include_dir(source_file)
+            if kernel_dir and kernel_dir not in dirs:
+                dirs.append(kernel_dir)
+
+        if dirs:
+            dirs_str = ", ".join(f'"{d}"' for d in dirs)
+            kwargs.append(f"include_dirs=[{dirs_str}]")
 
         kwargs_str = ", ".join(kwargs)
         return f"{var_name} = ExternalFunction(\n        {kwargs_str}\n    )"
@@ -382,7 +500,7 @@ class WorkerCodeGen(CodeGenExtension):
         if args_str:
             parts.append(f"fn_args=[{args_str}]")
         if placement_str:
-            parts.append(f"placement={placement_str}")
+            parts.append(f"tile={placement_str}")
         
         kwargs_str = ", ".join([p for p in parts if p])
         return f"{name} = Worker({kwargs_str})"

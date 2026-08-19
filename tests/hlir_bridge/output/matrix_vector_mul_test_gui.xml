@@ -224,15 +224,22 @@
             <Assign name="n_fifo_elems" value="rows_per_core * K_div_k"/>
             <Assign name="A_elem_size" value="n_cores * m * k"/>
             <Tensor name="inputA">
-                <init>iron.arange(n_fifo_elems, dtype=np.int16, device="npu")</init>
+                <init>iron.arange(n_fifo_elems * A_elem_size, dtype=np.int16, device="npu")</init>
             </Tensor>
             <Tensor name="inputB">
-                <init>iron.arange(n_fifo_elems, dtype=np.int16, device="npu")</init>
+                <init>iron.arange(K, dtype=np.int16, device="npu")</init>
             </Tensor>
             <Tensor name="outputC">
-                <init>iron.zeros(n_fifo_elems, dtype=np.int32, device="npu")</init>
+                <init>iron.zeros(M, dtype=np.int32, device="npu")</init>
             </Tensor>
+            <RawLine>inputA.data[:] = inputA.data[:] % 128</RawLine>
+            <RawLine>inputA._sync_to_device()</RawLine>
+            <RawLine>inputB.data[:] = inputB.data[:] % 128</RawLine>
+            <RawLine>inputB._sync_to_device()</RawLine>
             <Call function="jit_function" args="inputA, inputB, outputC"/>
+            <RawLine>print(f"inputA[:8] = {inputA.numpy()[:8]}")</RawLine>
+            <RawLine>print(f"inputB[:8] = {inputB.numpy()[:8]}")</RawLine>
+            <RawLine>print(f"outputC[:8] = {outputC.numpy()[:8]}")</RawLine>
         </body>
     </Function>
     <EntryPoint>

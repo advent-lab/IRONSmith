@@ -141,6 +141,13 @@
                 <init>iron.zeros(N, dtype=np.int32, device="npu")</init>
             </Tensor>
             <Call function="jit_function" args="inputA, inputB, outputA, outputB"/>
+            <RawLine>print(f"inputA[:8] = {inputA.numpy()[:8]}")</RawLine>
+            <RawLine>print(f"inputB[:8] = {inputB.numpy()[:8]}")</RawLine>
+            <RawLine>print(f"outputA[:8] = {outputA.numpy()[:8]}")</RawLine>
+            <RawLine>print(f"outputB[:8] = {outputB.numpy()[:8]}")</RawLine>
+            <RawLine>okA = np.array_equal(outputA.numpy(), inputA.numpy())</RawLine>
+            <RawLine>okB = np.array_equal(outputB.numpy(), inputB.numpy())</RawLine>
+            <RawLine>print("PASS: outputA matches inputA and outputB matches inputB" if (okA and okB) else f"FAIL: outputA matches inputA = {okA}, outputB matches inputB = {okB}")</RawLine>
         </body>
     </Function>
     <EntryPoint>

@@ -242,7 +242,7 @@
           </call>
           <call>
             <method name="forward"/>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -267,7 +267,7 @@
           </call>
           <call>
             <method name="forward"/>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -449,7 +449,7 @@
             <arg>
               <var ref="inputa_in"/>
             </arg>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -474,7 +474,7 @@
             <arg>
               <var ref="inputb_in"/>
             </arg>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -500,7 +500,7 @@
               <var ref="outputa_out"/>
             </arg>
             <kwarg name="wait" value="True"/>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -526,7 +526,7 @@
               <var ref="outputb_out"/>
             </arg>
             <kwarg name="wait" value="True"/>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -684,6 +684,13 @@
           </arg>
         </function>
       </Call>
+      <RawLine>print(f"inputA[:8] = {inputA.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"inputB[:8] = {inputB.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"outputA[:8] = {outputA.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"outputB[:8] = {outputB.numpy()[:8]}")</RawLine>
+      <RawLine>okA = np.array_equal(outputA.numpy(), inputA.numpy())</RawLine>
+      <RawLine>okB = np.array_equal(outputB.numpy(), inputB.numpy())</RawLine>
+      <RawLine>print("PASS: outputA matches inputA and outputB matches inputB" if (okA and okB) else f"FAIL: outputA matches inputA = {okA}, outputB matches inputB = {okB}")</RawLine>
     </body>
   </Function>
   <EntryPoint>

@@ -400,8 +400,8 @@ class MethodChainBuilder:
         return obj_fifo
 
     def _add_placement_kwarg(self, parent: etree.Element, placement: str):
-        """Add placement kwarg with Tile constructor."""
-        kwarg_placement = etree.SubElement(parent, "kwarg", name="placement")
+        """Add tile kwarg with Tile constructor."""
+        kwarg_placement = etree.SubElement(parent, "kwarg", name="tile")
         constructor = etree.SubElement(kwarg_placement, "constructor", ref="Tile")
 
         # Parse Tile(x, y)
@@ -1290,7 +1290,7 @@ class XMLTransformer:
         if placement_str:
             match = re.match(r'Tile\((\d+),\s*(\d+)\)', placement_str)
             if match:
-                kwarg_placement = etree.SubElement(call_forward, "kwarg", name="placement")
+                kwarg_placement = etree.SubElement(call_forward, "kwarg", name="tile")
                 constructor = etree.SubElement(kwarg_placement, "constructor", ref="Tile")
                 arg_x = etree.SubElement(constructor, "arg")
                 const_x = etree.SubElement(arg_x, "const")
@@ -1490,7 +1490,7 @@ class XMLTransformer:
             # Complex form with kwargs and TAP/TensorTiler2D
             # placement
             placement = simple_fill.find("placement").text.strip()
-            kwarg_placement = etree.SubElement(args, "kwarg", name="placement")
+            kwarg_placement = etree.SubElement(args, "kwarg", name="tile")
             match = re.match(r'Tile\((\d+),\s*(\d+)\)', placement)
             if match:
                 constructor = etree.SubElement(kwarg_placement, "constructor", ref="Tile")
@@ -1531,7 +1531,7 @@ class XMLTransformer:
             placement_elem = simple_fill.find("placement")
             if placement_elem is not None:
                 placement = placement_elem.text.strip()
-                kwarg_placement = etree.SubElement(args, "kwarg", name="placement")
+                kwarg_placement = etree.SubElement(args, "kwarg", name="tile")
                 match = re.match(r'Tile\((\d+),\s*(\d+)\)', placement)
                 if match:
                     constructor = etree.SubElement(kwarg_placement, "constructor", ref="Tile")
@@ -1571,7 +1571,7 @@ class XMLTransformer:
             # Complex form with kwargs and TAP/TensorTiler2D
             # placement
             placement = simple_drain.find("placement").text.strip()
-            kwarg_placement = etree.SubElement(args, "kwarg", name="placement")
+            kwarg_placement = etree.SubElement(args, "kwarg", name="tile")
             match = re.match(r'Tile\((\d+),\s*(\d+)\)', placement)
             if match:
                 constructor = etree.SubElement(kwarg_placement, "constructor", ref="Tile")
@@ -1622,7 +1622,7 @@ class XMLTransformer:
             placement_elem = simple_drain.find("placement")
             if placement_elem is not None:
                 placement = placement_elem.text.strip()
-                kwarg_placement = etree.SubElement(args, "kwarg", name="placement")
+                kwarg_placement = etree.SubElement(args, "kwarg", name="tile")
                 match = re.match(r'Tile\((\d+),\s*(\d+)\)', placement)
                 if match:
                     constructor = etree.SubElement(kwarg_placement, "constructor", ref="Tile")

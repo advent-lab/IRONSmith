@@ -107,7 +107,7 @@
             <placement>Tile(0, 5)</placement>
         </Worker>
         <Runtime name="runtime">
-            <Sequence inputs="memtile_ty, memtile_ty" as="inputa_in, outputc_out">
+            <Sequence inputs="data_ty, data_ty" as="inputa_in, outputc_out">
                 <Start>worker0, worker1, worker2, worker3</Start>
                 <Fill target="of_in_a" source="inputa_in" data_ref="inputA" column="0" use_tap="false">
                     <placement>Tile(0, 0)</placement>
@@ -126,8 +126,8 @@
     </DataFlow>
     <Function name="jit_function" decorator="iron.jit" entry="vector_exp_test_jit">
         <parameters>
-            <param name="inputA" type="memtile_ty"/>
-            <param name="outputC" type="memtile_ty"/>
+            <param name="inputA" type="data_ty"/>
+            <param name="outputC" type="data_ty"/>
         </parameters>
         <body>
             <UseDataFlow/>
@@ -143,7 +143,14 @@
             <Tensor name="outputC">
                 <init>iron.zeros(N, dtype=bfloat16, device="npu")</init>
             </Tensor>
+            <RawLine>inputA.data[:] = inputA.data[:] % 10</RawLine>
+            <RawLine>inputA._sync_to_device()</RawLine>
             <Call function="jit_function" args="inputA, outputC"/>
+            <RawLine>print(f"inputA[:8] = {inputA.numpy()[:8]}")</RawLine>
+            <RawLine>print(f"outputC[:8] = {outputC.numpy()[:8]}")</RawLine>
+            <RawLine>expected = np.exp(inputA.numpy().astype(np.float32))</RawLine>
+            <RawLine>print(f"expected[:8] = {expected[:8]}")</RawLine>
+            <RawLine>print("PASS: outputC matches exp(inputA)" if np.allclose(outputC.numpy().astype(np.float32), expected, atol=1e-1, rtol=1e-1) else "FAIL: outputC does not match exp(inputA)")</RawLine>
         </body>
     </Function>
     <EntryPoint>

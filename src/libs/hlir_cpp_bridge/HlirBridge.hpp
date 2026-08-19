@@ -443,6 +443,22 @@ public:
     /// @return Success or errors
     HlirResult<void> runtimeAddMainSize(const std::string& size);
 
+    /// Append a raw line of Python to main(), emitted after the jit-function
+    /// call (e.g. a print() or assert checking the design's output).  Call
+    /// once per line; lines are emitted in call order.
+    /// @param text Raw Python source line (no trailing newline)
+    /// @return Success or errors
+    HlirResult<void> runtimeAddMainRawLine(const std::string& text);
+
+    /// Append a raw line of Python to main(), emitted after the host
+    /// buffers are allocated/initialized but before the jit-function call
+    /// (e.g. to bound randomly/sequentially generated test data so it
+    /// doesn't overflow the kernel's dtype). Call once per line; lines are
+    /// emitted in call order.
+    /// @param text Raw Python source line (no trailing newline)
+    /// @return Success or errors
+    HlirResult<void> runtimeAddMainSetupLine(const std::string& text);
+
     /// Add worker to runtime for StartWorkers
     /// @param workerId Worker ID
     /// @return Success or errors

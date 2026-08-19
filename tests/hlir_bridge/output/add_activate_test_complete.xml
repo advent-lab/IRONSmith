@@ -582,7 +582,7 @@
                   <string>MEM_L2_L1_A2_col0</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>0</const>
@@ -626,7 +626,7 @@
                   <string>MEM_L2_L1_A4_col1</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>1</const>
@@ -670,7 +670,7 @@
                   <string>MEM_L2_L1_A6_col2</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>2</const>
@@ -714,7 +714,7 @@
                   <string>MEM_L2_L1_A8_col3</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>3</const>
@@ -758,7 +758,7 @@
                   <string>MEM_L2_L1_B2_col0</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>0</const>
@@ -802,7 +802,7 @@
                   <string>MEM_L2_L1_B4_col1</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>1</const>
@@ -846,7 +846,7 @@
                   <string>MEM_L2_L1_B6_col2</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>2</const>
@@ -890,7 +890,7 @@
                   <string>MEM_L2_L1_B8_col3</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>3</const>
@@ -928,7 +928,7 @@
                   <string>MEM_L1_L2_D2_col0</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>0</const>
@@ -972,7 +972,7 @@
                   <string>MEM_L1_L2_D4_col1</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>1</const>
@@ -1016,7 +1016,7 @@
                   <string>MEM_L1_L2_D6_col2</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>2</const>
@@ -1060,7 +1060,7 @@
                   <string>MEM_L1_L2_D8_col3</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>3</const>
@@ -1993,7 +1993,7 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -2062,7 +2062,7 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>1</const>
@@ -2131,7 +2131,7 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>2</const>
@@ -2200,7 +2200,7 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>3</const>
@@ -2269,7 +2269,7 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -2338,7 +2338,7 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>1</const>
@@ -2407,7 +2407,7 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>2</const>
@@ -2476,7 +2476,7 @@
             <method ref="rt" name="fill"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>3</const>
@@ -2545,7 +2545,7 @@
             <method ref="rt" name="drain"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -2615,7 +2615,7 @@
             <method ref="rt" name="drain"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>1</const>
@@ -2685,7 +2685,7 @@
             <method ref="rt" name="drain"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>2</const>
@@ -2755,7 +2755,7 @@
             <method ref="rt" name="drain"/>
           </target>
           <args>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>3</const>
@@ -2946,6 +2946,12 @@
           </arg>
         </function>
       </Call>
+      <RawLine>print(f"A[:8] = {A.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"B[:8] = {B.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"D[:8] = {D.numpy()[:8]}")</RawLine>
+      <RawLine>expected = np.maximum(A.numpy().astype(np.float32) + B.numpy().astype(np.float32), 0)</RawLine>
+      <RawLine>print(f"expected[:8] = {expected[:8]}")</RawLine>
+      <RawLine>print("PASS: D matches relu(A + B)" if np.allclose(D.numpy().astype(np.float32), expected, atol=1e-2) else "FAIL: D does not match relu(A + B)")</RawLine>
     </body>
   </Function>
   <EntryPoint>
