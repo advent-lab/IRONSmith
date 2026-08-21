@@ -2032,6 +2032,12 @@ void AiePropertiesPanel::refreshSelection()
                                fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward);
 
         if (isPivot) {
+            // Remember which wire these fields came from — whether the user selected the
+            // pivot wire directly or a hub block that got redirected to it above — so
+            // applyHubPivotProperties() commits back to the same wire instead of trying
+            // (and failing) to re-derive it from the live canvas selection.
+            m_hubPivotWireId = wire->id();
+
             const bool isSplit    = (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Split);
             const bool isBroadcast = (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward);
 
@@ -3012,8 +3018,13 @@ void AiePropertiesPanel::applyHubPivotProperties()
     if (m_updatingUi || !m_document || !m_hubPivotNameEdit || !m_hubPivotFifoEdit)
         return;
 
-    auto* wire = selectedFifoWire();
-    if (!wire)
+    // Use the wire refreshSelection() actually populated these fields from — not
+    // selectedFifoWire(), which re-derives the target from the live canvas selection.
+    // That's wrong when a hub block (rather than its pivot wire) is selected: the block's
+    // ObjectId doesn't dynamic_cast to CanvasWire, so selectedFifoWire() silently returns
+    // null and the edit was discarded, appearing to "revert" once the field lost focus.
+    auto* wire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(m_hubPivotWireId));
+    if (!wire || !wire->hasObjectFifo())
         return;
 
     Canvas::CanvasWire::ObjectFifoConfig config = wire->objectFifo().value();

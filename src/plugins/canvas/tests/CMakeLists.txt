@@ -21,4 +21,5 @@ ironsmith_define_tests(
         CanvasWireStyleTests.cpp
         CanvasDocumentServiceTests.cpp
         CanvasGridHostTests.cpp
+        CanvasWireRoutingOccupancyTests.cpp
 )

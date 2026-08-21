@@ -226,6 +226,12 @@ private:
     bool m_tileIsKernelTile = false; // set in refreshSelection(), used by showSelectionState()
     Canvas::ObjectId m_armWireId{};      // currently-selected arm wire
     Canvas::ObjectId m_ddrPivotWireId{}; // currently-selected DDR pivot wire
+    // The hub-pivot wire being edited — set in refreshSelection() to whichever wire was
+    // resolved (either the pivot wire itself, or the one found via findPivotWireForHub()
+    // when a hub block is selected instead), so applyHubPivotProperties() commits to the
+    // same wire the fields were populated from rather than re-deriving it from the live
+    // canvas selection (which is the hub block, not the wire, when the block is selected).
+    Canvas::ObjectId m_hubPivotWireId{};
     Canvas::ObjectId m_ddrTapWireId{};   // wire whose TAP is being edited
     bool m_updatingUi = false;
     bool m_updatingObjectFifoTable = false;

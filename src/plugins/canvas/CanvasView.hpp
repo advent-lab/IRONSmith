@@ -80,6 +80,7 @@ public:
     void clearHoveredStereotype();
 	void setHoveredEdge(ObjectId itemId, PortSide side, const QPointF& anchorScene);
 	void clearHoveredEdge();
+	void invalidateWireGeometryCache();
 	void setMarqueeRect(const QRectF& sceneRect);
 	void clearMarqueeRect();
     void setWireAnnotationVisibilityMode(WireAnnotationVisibilityMode mode);

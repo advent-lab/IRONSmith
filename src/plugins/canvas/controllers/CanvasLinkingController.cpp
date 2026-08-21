@@ -71,6 +71,35 @@ bool isDdrBlock(const CanvasDocument* doc, ObjectId itemId)
     return block && block->specId().trimmed() == QStringLiteral("ddr");
 }
 
+// Nudges a proposed hub center off any block it would otherwise land on/inside (e.g. a
+// compute tile), by searching outward ring-by-ring on the fabric grid for the nearest spot
+// where the hub's footprint doesn't intersect another block's keepout rect. Falls back to
+// the original center if no clear spot is found within range.
+QPointF findUnblockedHubCenter(const CanvasDocument& doc, const QPointF& initialCenter,
+                               double size, double step)
+{
+    const QRectF initialRect(initialCenter.x() - size * 0.5, initialCenter.y() - size * 0.5, size, size);
+    if (step <= 0.0 || !doc.isRectBlocked(initialRect))
+        return initialCenter;
+
+    constexpr int kMaxRingRadius = 32;
+    for (int r = 1; r <= kMaxRingRadius; ++r) {
+        for (int dy = -r; dy <= r; ++dy) {
+            for (int dx = -r; dx <= r; ++dx) {
+                const int adx = dx < 0 ? -dx : dx;
+                const int ady = dy < 0 ? -dy : dy;
+                if (std::max(adx, ady) != r)
+                    continue; // only the ring perimeter; interior already checked at smaller r
+                const QPointF candidate(initialCenter.x() + dx * step, initialCenter.y() + dy * step);
+                const QRectF candidateRect(candidate.x() - size * 0.5, candidate.y() - size * 0.5, size, size);
+                if (!doc.isRectBlocked(candidateRect))
+                    return candidate;
+            }
+        }
+    }
+    return initialCenter;
+}
+
 struct DirectedLinkPorts final {
     PortRef producer;
     PortRef consumer;
@@ -633,6 +662,8 @@ bool CanvasLinkingController::createHubAndWires(const QPointF& scenePos, const P
     const double step = m_doc->fabric().config().step;
     if (step > 0.0)
         hubCenter = Support::snapPointToGrid(hubCenter, step);
+
+    hubCenter = findUnblockedHubCenter(*m_doc, hubCenter, size, step);
 
     const QPointF topLeft(hubCenter.x() - size * 0.5, hubCenter.y() - size * 0.5);
     auto hub = std::make_unique<CanvasBlock>(QRectF(topLeft, QSizeF(size, size)), true, QString());

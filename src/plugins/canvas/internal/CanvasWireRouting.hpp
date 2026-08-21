@@ -23,7 +23,45 @@ struct CoordBounds final {
     int maxY = 0;
 };
 
-class WireRouter final
+// A unit fabric-grid edge: the cell at (x,y) stepping toward +x (dir=0) or +y (dir=1).
+// Used to track which wires have already claimed which grid edges during a routing
+// pass, so later wires can be steered toward a free parallel lane instead of overlapping.
+struct EdgeKey final {
+    int x = 0;
+    int y = 0;
+    int dir = 0;
+};
+
+struct EdgeKeyHash final {
+    size_t operator()(const EdgeKey& key) const noexcept
+    {
+        size_t h1 = std::hash<int>{}(key.x);
+        size_t h2 = std::hash<int>{}(key.y);
+        size_t h3 = std::hash<int>{}(key.dir);
+        h1 ^= h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
+        h1 ^= h3 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
+        return h1;
+    }
+};
+
+struct EdgeKeyEq final {
+    bool operator()(const EdgeKey& a, const EdgeKey& b) const noexcept
+    {
+        return a.x == b.x && a.y == b.y && a.dir == b.dir;
+    }
+};
+
+using EdgeOccupancy = std::unordered_map<EdgeKey, int, EdgeKeyHash, EdgeKeyEq>;
+
+// Expands (possibly non-unit-adjacent, e.g. post-smoothPath) axis-aligned coordinate runs
+// into unit edges and increments their occupancy count. Non-axis-aligned consecutive pairs
+// (can occur at raw port-anchor endpoints) are skipped rather than treated as an error.
+CANVAS_EXPORT void addPathEdges(EdgeOccupancy& occupancy, const std::vector<FabricCoord>& coords);
+
+// Occupancy count for the single unit-adjacent edge between two adjacent cells.
+CANVAS_EXPORT int edgeOccupancyCount(const EdgeOccupancy& occupancy, const FabricCoord& a, const FabricCoord& b);
+
+class CANVAS_EXPORT WireRouter final
 {
 public:
     explicit WireRouter(const CanvasRenderContext& ctx);
@@ -130,6 +168,13 @@ private:
     int stepCost(int prevDir, int nextDir) const;
     std::array<int, 4> orderedDirs(int currentDir) const;
     QPoint dirDelta(int dir) const;
+
+    // Soft cost (not a hard block) for stepping across an edge another wire already
+    // claimed this pass, read from m_ctx.wireEdgeOccupancy when present. Zero when no
+    // occupancy map is set (e.g. hit-testing, or routing outside the pre-pass).
+    static constexpr int kOccupancyPenalty = 6;
+    int occupancyPenalty(const FabricCoord& a, const FabricCoord& b) const;
+    int pathOccupancyCount(const std::vector<FabricCoord>& path) const;
 
     const CanvasRenderContext& m_ctx;
 };

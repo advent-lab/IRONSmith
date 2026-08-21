@@ -6,6 +6,8 @@
 #include "canvas/CanvasDocument.hpp"
 #include "canvas/CanvasView.hpp"
 #include "canvas/CanvasWire.hpp"
+#include "canvas/internal/CanvasWireRouting.hpp"
+#include "canvas/utils/CanvasGeometry.hpp"
 
 #include <algorithm>
 
@@ -16,7 +18,8 @@ CanvasRenderContext buildRenderContext(const CanvasDocument* doc,
                                        double zoom,
                                        const RenderContextSelection& selection,
                                        const RenderContextPortState& ports,
-                                       const RenderContextAnnotationState& annotations)
+                                       const RenderContextAnnotationState& annotations,
+                                       bool computeWirePaths)
 {
     CanvasRenderContext ctx;
     ctx.zoom = zoom;
@@ -25,6 +28,8 @@ CanvasRenderContext buildRenderContext(const CanvasDocument* doc,
     ctx.isSelectedUser = selection.user;
     ctx.hasHoveredItem = selection.hasHoveredItem;
     ctx.hoveredItem = selection.hoveredItem;
+    ctx.isHubHighlighted = selection.isHubHighlighted;
+    ctx.isHubHighlightedUser = selection.user;
 
     if (doc) {
         ctx.computePortTerminal = &CanvasDocument::computePortTerminalThunk;
@@ -72,6 +77,39 @@ CanvasRenderContext buildRenderContext(const CanvasDocument* doc,
                     && !cfg.hubName.trimmed().isEmpty()
                     && !cfg.name.trimmed().isEmpty())
                 ctx.joinTargetFifoNames.insert(cfg.name.trimmed());
+        }
+    }
+
+    // Sequential, document-order pre-pass: route every wire once, each wire penalized
+    // (not hard-blocked) by edges wires earlier in this same pass already claimed, so
+    // overlapping wires prefer a free parallel lane when one exists and only actually
+    // overlap when tiles leave no room. Hub-trunk arm wires (the auto routeOverride set
+    // by the shared-trunk feature) are exempted from *receiving* the penalty — their
+    // overlap with siblings on the trunk is intentional — but still contribute their
+    // claimed edges so unrelated wires steer around a hub's trunk when possible.
+    if (computeWirePaths && doc && ctx.fabricStep > 0.0) {
+        Internal::EdgeOccupancy occupancy;
+
+        // Bounds derived only from each wire's own endpoints, not the live viewport —
+        // otherwise the occupancy outcome (and everything routed after a given wire in
+        // this pass) would shift as the user scrolls or zooms.
+        CanvasRenderContext occCtx = ctx;
+        occCtx.visibleSceneRect = QRectF();
+
+        for (const auto& item : doc->items()) {
+            const auto* wire = dynamic_cast<const CanvasWire*>(item.get());
+            if (!wire)
+                continue;
+
+            occCtx.wireEdgeOccupancy = wire->hasRouteOverride() ? nullptr : &occupancy;
+            const std::vector<QPointF> path = wire->resolvedPathScene(occCtx);
+            ctx.resolvedWirePaths.insert(wire->id(), path);
+
+            std::vector<FabricCoord> coords;
+            coords.reserve(path.size());
+            for (const auto& pt : path)
+                coords.push_back(toFabricCoord(pt, ctx.fabricStep));
+            Internal::addPathEdges(occupancy, coords);
         }
     }
 

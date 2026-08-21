@@ -12,6 +12,7 @@
 #include "canvas/CanvasPorts.hpp"
 #include "canvas/CanvasSymbolContent.hpp"
 #include "canvas/CanvasWire.hpp"
+#include "canvas/utils/CanvasGeometry.hpp"
 #include "canvas/utils/CanvasLinkHubStyle.hpp"
 #include "hlir_cpp_bridge/HlirBridge.hpp"
 #include "code_gen_bridge/CodeGenBridge.hpp"
@@ -29,6 +30,7 @@
 #include <QtCore/QTextStream>
 #include <QtCore/QThread>
 
+#include <cmath>
 #include <filesystem>
 #include <unordered_set>
 
@@ -609,6 +611,20 @@ void HlirSyncService::syncSplitsAndJoins()
         return &list.first();
     };
 
+    // Pre-scan: collect hub names already assigned to any wire, so newly created hubs never
+    // get assigned a name that collides with one persisted earlier — hub blocks are processed
+    // below in document/z-order, which does not necessarily match the order names were
+    // originally handed out in, so a positional counter alone can re-mint an existing name.
+    QSet<QString> usedHubNames;
+    for (const auto& scanItem : items) {
+        auto* scanWire = dynamic_cast<Canvas::CanvasWire*>(scanItem.get());
+        if (!scanWire || !scanWire->hasObjectFifo())
+            continue;
+        const QString hubName = scanWire->objectFifo().value().hubName.trimmed();
+        if (!hubName.isEmpty())
+            usedHubNames.insert(hubName);
+    }
+
     // Process each hub block (split, join, or broadcast). Sequential counters provide stable names.
     int splitIdx = 0;
     int joinIdx  = 0;
@@ -628,9 +644,13 @@ void HlirSyncService::syncSplitsAndJoins()
         Canvas::CanvasWire* pivotWire     = nullptr;
         Canvas::CanvasBlock* pivotBlock   = nullptr;
         Canvas::PortRole     pivotRole    = Canvas::PortRole::Dynamic;
+        Canvas::PortId       pivotHubPortId;
+        Canvas::PortId       pivotFarPortId;
 
         // arm entries: hub-port-id paired with the wire
         QList<QPair<Canvas::PortId, Canvas::CanvasWire*>> armWires;
+        // hub-port-id -> (far block, far port), for arm trunk-route computation below.
+        QHash<Canvas::PortId, QPair<Canvas::CanvasBlock*, Canvas::PortId>> armFar;
 
         for (const auto& wItem : items) {
             auto* wire = dynamic_cast<Canvas::CanvasWire*>(wItem.get());
@@ -653,20 +673,82 @@ void HlirSyncService::syncSplitsAndJoins()
                     m_document->findItem(epA.attached->itemId));
                 if (!blkA || blkA->isLinkHub())
                     continue;
-                pivotWire  = wire;
-                pivotBlock = blkA;
-                pivotRole  = portRoles.value(epB.attached->portId, Canvas::PortRole::Dynamic);
+                pivotWire      = wire;
+                pivotBlock     = blkA;
+                pivotRole      = portRoles.value(epB.attached->portId, Canvas::PortRole::Dynamic);
+                pivotHubPortId = epB.attached->portId;
+                pivotFarPortId = epA.attached->portId;
             } else { // aIsHub
                 // Hub at A → arm wire (split output or join input).
                 auto* blkB = dynamic_cast<Canvas::CanvasBlock*>(
                     m_document->findItem(epB.attached->itemId));
-                if (blkB && !blkB->isLinkHub())
+                if (blkB && !blkB->isLinkHub()) {
                     armWires.append({epA.attached->portId, wire});
+                    armFar[epA.attached->portId] = {blkB, epB.attached->portId};
+                }
             }
         }
 
         if (!pivotWire || !pivotBlock || armWires.isEmpty())
             continue;
+
+        // Rules 1 & 2: the hub's root (pivot) port always exits the bottom; branch (arm)
+        // ports always exit the top — regardless of which side the connected tile physically
+        // sits on. Reapplied every sync pass so hubs created before this rule existed (or
+        // reconnected since) get corrected too.
+        {
+            const QPointF hubCenter = hubBlock->boundsScene().center();
+            const auto horizontalT = [&](const QPointF& targetScene) {
+                const QPointF d = targetScene - hubCenter;
+                const double len = std::hypot(d.x(), d.y());
+                return (len > 1e-6) ? (d.x() / len + 1.0) * 0.5 : 0.5;
+            };
+            hubBlock->updatePort(pivotHubPortId, Canvas::PortSide::Bottom,
+                                 horizontalT(pivotBlock->portAnchorScene(pivotFarPortId)));
+            for (const auto& pair : armWires) {
+                const auto far = armFar.value(pair.first);
+                const QPointF farAnchor = far.first ? far.first->portAnchorScene(far.second) : hubCenter;
+                hubBlock->updatePort(pair.first, Canvas::PortSide::Top, horizontalT(farAnchor));
+            }
+        }
+
+        // Rule 3: branch arms leaving the same hub should overlap on a shared vertical trunk
+        // immediately above the hub (matching their now-forced Top-side exit) rather than
+        // diverging straight away, only splitting apart once they need to head to different
+        // tiles. Implemented as a routeOverride via-point per arm wire, computed fresh each
+        // sync but only applied to wires that don't already carry a route override — so a
+        // manual drag-to-reroute by the user is never clobbered.
+        if (armWires.size() >= 2) {
+            const double step = m_document->fabric().config().step;
+            if (step > 0.0) {
+                const QPointF hubCenterScene = hubBlock->boundsScene().center();
+                const Canvas::FabricCoord hubCenterCoord =
+                    Canvas::Support::toFabricCoord(hubCenterScene, step);
+                constexpr int kTrunkSteps = 3; // grid steps above the hub center
+                const Canvas::FabricCoord trunkCoord{hubCenterCoord.x, hubCenterCoord.y - kTrunkSteps};
+
+                for (const auto& pair : armWires) {
+                    Canvas::CanvasWire* armWire = pair.second;
+                    if (!armWire || armWire->hasRouteOverride())
+                        continue;
+                    const auto far = armFar.value(pair.first);
+                    if (!far.first)
+                        continue;
+
+                    QPointF hubAnchor, hubBorder, hubFabric;
+                    QPointF farAnchor, farBorder, farFabric;
+                    if (!m_document->computePortTerminal(hubBlock->id(), pair.first,
+                                                         hubAnchor, hubBorder, hubFabric) ||
+                        !m_document->computePortTerminal(far.first->id(), far.second,
+                                                         farAnchor, farBorder, farFabric))
+                        continue;
+
+                    const Canvas::FabricCoord hubCoord = Canvas::Support::toFabricCoord(hubFabric, step);
+                    const Canvas::FabricCoord farCoord = Canvas::Support::toFabricCoord(farFabric, step);
+                    armWire->setRouteOverride({hubCoord, trunkCoord, farCoord});
+                }
+            }
+        }
 
         const hlir::ComponentId placementTileId = m_tileMap.value(pivotBlock->id());
         if (placementTileId.empty())
@@ -694,13 +776,17 @@ void HlirSyncService::syncSplitsAndJoins()
 
             // Assign hub name and write operation to the pivot wire immediately so the annotation
             // shows "BCAST: bcast1, ..." even before a source FIFO is connected.
-            ++bcastIdx;
             const QString existingBcastName = (pivotWire->hasObjectFifo())
                 ? pivotWire->objectFifo().value().hubName.trimmed()
                 : QString();
-            const QString bcastName = existingBcastName.isEmpty()
-                ? QStringLiteral("bcast") + QString::number(bcastIdx)
-                : existingBcastName;
+            QString bcastName = existingBcastName;
+            if (bcastName.isEmpty()) {
+                do {
+                    ++bcastIdx;
+                    bcastName = QStringLiteral("bcast") + QString::number(bcastIdx);
+                } while (usedHubNames.contains(bcastName));
+                usedHubNames.insert(bcastName);
+            }
             {
                 Canvas::CanvasWire::ObjectFifoConfig cfg =
                     pivotWire->hasObjectFifo() ? pivotWire->objectFifo().value()
@@ -789,13 +875,17 @@ void HlirSyncService::syncSplitsAndJoins()
 
             // Assign hub name and write operation to the pivot wire immediately so the annotation
             // shows "SPLIT: split1, ..." even before a source FIFO is connected.
-            ++splitIdx;
             const QString existingSplitName = (pivotWire->hasObjectFifo())
                 ? pivotWire->objectFifo().value().hubName.trimmed()
                 : QString();
-            const QString splitName = existingSplitName.isEmpty()
-                ? QStringLiteral("split") + QString::number(splitIdx)
-                : existingSplitName;
+            QString splitName = existingSplitName;
+            if (splitName.isEmpty()) {
+                do {
+                    ++splitIdx;
+                    splitName = QStringLiteral("split") + QString::number(splitIdx);
+                } while (usedHubNames.contains(splitName));
+                usedHubNames.insert(splitName);
+            }
             {
                 Canvas::CanvasWire::ObjectFifoConfig cfg =
                     pivotWire->hasObjectFifo() ? pivotWire->objectFifo().value()
@@ -952,13 +1042,17 @@ void HlirSyncService::syncSplitsAndJoins()
 
             // Assign hub name and write operation to the pivot wire immediately so the annotation
             // shows "JOIN: join1, ..." even before a dest FIFO is connected.
-            ++joinIdx;
             const QString existingJoinName = (pivotWire->hasObjectFifo())
                 ? pivotWire->objectFifo().value().hubName.trimmed()
                 : QString();
-            const QString joinName = existingJoinName.isEmpty()
-                ? QStringLiteral("join") + QString::number(joinIdx)
-                : existingJoinName;
+            QString joinName = existingJoinName;
+            if (joinName.isEmpty()) {
+                do {
+                    ++joinIdx;
+                    joinName = QStringLiteral("join") + QString::number(joinIdx);
+                } while (usedHubNames.contains(joinName));
+                usedHubNames.insert(joinName);
+            }
             {
                 Canvas::CanvasWire::ObjectFifoConfig cfg =
                     pivotWire->hasObjectFifo() ? pivotWire->objectFifo().value()

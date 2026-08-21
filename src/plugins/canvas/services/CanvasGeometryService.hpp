@@ -7,6 +7,7 @@
 #include "canvas/CanvasTypes.hpp"
 
 #include <QtCore/QPointF>
+#include <QtCore/QRectF>
 
 namespace Canvas {
 class CanvasDocument;
@@ -18,6 +19,9 @@ class CANVAS_EXPORT CanvasGeometryService final
 {
 public:
     static bool isFabricPointBlocked(const CanvasDocument& doc, const FabricCoord& coord);
+
+    // True if any fabric-blocking item's keepout rect intersects sceneRect.
+    static bool isRectBlocked(const CanvasDocument& doc, const QRectF& sceneRect);
 
     static bool computePortTerminal(const CanvasDocument& doc,
                                     ObjectId itemId,

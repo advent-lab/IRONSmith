@@ -362,7 +362,7 @@ void CanvasStyle::drawWirePath(QPainter& p,
     const double base = 2.0 / clamped(zoom, 0.25, 8.0);
     const double penW = clamped(base, 0.5, 3.0);
 
-    QColor c(selected ? Constants::kBlockSelectionColor : Constants::kWireColor);
+    QColor c(selected ? Constants::kWireHighlightColor : Constants::kWireColor);
     QPen pen(c);
     pen.setWidthF(penW);
     pen.setCapStyle(Qt::RoundCap);
@@ -418,7 +418,7 @@ void CanvasStyle::drawWirePathColored(QPainter& p,
     const double base = 2.0 / clamped(zoom, 0.25, 8.0);
     const double penW = clamped(base, 0.5, 3.0);
 
-    QColor c(selected ? Constants::kBlockSelectionColor : color);
+    QColor c(selected ? Constants::kWireHighlightColor : color);
     QPen pen(c);
     pen.setWidthF(penW);
     pen.setCapStyle(Qt::RoundCap);

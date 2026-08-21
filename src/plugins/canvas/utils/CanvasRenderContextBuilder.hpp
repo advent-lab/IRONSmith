@@ -20,6 +20,8 @@ struct RenderContextSelection final {
 
     bool hasHoveredItem = false;
     ObjectId hoveredItem{};
+
+    CanvasRenderContext::IsHubHighlightedFn isHubHighlighted = nullptr;
 };
 
 struct RenderContextPortState final {
@@ -41,12 +43,19 @@ struct RenderContextAnnotationState final {
     bool wireAnnotationsScaleWithZoom = true;
 };
 
+// `computeWirePaths` runs the document-order wire-overlap-avoidance pre-pass, filling
+// the returned context's `resolvedWirePaths`. Callers that repaint far more often than
+// the document actually changes (i.e. CanvasScene's main paint path) should cache the
+// result themselves, keyed on CanvasDocument::changed(), and pass false to skip
+// redundantly rerouting every wire in the document on every call. Defaults to true so
+// existing (infrequent — hit-testing, drag, context menu) callers are unaffected.
 CanvasRenderContext buildRenderContext(const CanvasDocument* doc,
                                        const QRectF& visibleSceneRect,
                                        double zoom,
                                        const RenderContextSelection& selection = RenderContextSelection{},
                                        const RenderContextPortState& ports = RenderContextPortState{},
-                                       const RenderContextAnnotationState& annotations = RenderContextAnnotationState{});
+                                       const RenderContextAnnotationState& annotations = RenderContextAnnotationState{},
+                                       bool computeWirePaths = true);
 
 QRectF computeVisibleSceneRect(const CanvasView& view);
 

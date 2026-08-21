@@ -466,12 +466,18 @@ void CanvasWire::draw(QPainter& p, const CanvasRenderContext& ctx) const
 
     const std::vector<QPointF> route = resolvedPathScene(ctx);
 
+    bool highlight = ctx.selected(id());
+    if (!highlight && m_a.attached.has_value())
+        highlight = ctx.hubHighlighted(m_a.attached->itemId);
+    if (!highlight && m_b.attached.has_value())
+        highlight = ctx.hubHighlighted(m_b.attached->itemId);
+
     if (m_hasColorOverride) {
         CanvasStyle::drawWirePathColored(p, aAnchor, aBorder, aFabric, bFabric, bBorder, bAnchor, route,
-                                         m_colorOverride, ctx.zoom, ctx.selected(id()), m_arrowPolicy);
+                                         m_colorOverride, ctx.zoom, highlight, m_arrowPolicy);
     } else {
         CanvasStyle::drawWirePath(p, aAnchor, aBorder, aFabric, bFabric, bBorder, bAnchor, route,
-                                  ctx.zoom, ctx.selected(id()), m_arrowPolicy);
+                                  ctx.zoom, highlight, m_arrowPolicy);
     }
 
 }
@@ -609,6 +615,9 @@ bool CanvasWire::attachesTo(ObjectId itemId) const
 
 std::vector<QPointF> CanvasWire::resolvedPathScene(const CanvasRenderContext& ctx) const
 {
+    if (const auto it = ctx.resolvedWirePaths.constFind(id()); it != ctx.resolvedWirePaths.constEnd())
+        return it.value();
+
     const EndpointPositions endpoints = resolveEndpoints(*this, ctx);
     const Internal::WireRouter router(ctx);
     const double step = ctx.fabricStep;

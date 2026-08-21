@@ -42,6 +42,17 @@ bool CanvasGeometryService::isFabricPointBlocked(const CanvasDocument& doc, cons
     return false;
 }
 
+bool CanvasGeometryService::isRectBlocked(const CanvasDocument& doc, const QRectF& sceneRect)
+{
+    for (const auto& it : doc.items()) {
+        if (!it || !it->blocksFabric())
+            continue;
+        if (it->keepoutSceneRect().intersects(sceneRect))
+            return true;
+    }
+    return false;
+}
+
 bool CanvasGeometryService::computePortTerminal(const CanvasDocument& doc,
                                                 ObjectId itemId,
                                                 PortId portId,
