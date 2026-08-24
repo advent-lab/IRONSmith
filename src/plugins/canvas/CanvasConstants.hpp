@@ -56,6 +56,7 @@ inline constexpr double kBlockLabelPadY = 4.0 * kWorldScale;
 inline constexpr double kBlockStereotypePointSize = 8.0 * kWorldScale;
 inline constexpr double kBlockStereotypeOffsetY = 2.0 * kWorldScale;
 inline constexpr char kBlockStereotypeColor[] = "#88919A";
+inline constexpr double kBlockCoordPointSize = 7.0 * kWorldScale;
 inline constexpr char kBlockStereotypeLinkColor[] = "#4A90E2";
 inline constexpr double kPortHitRadiusPx = 8.0;
 inline constexpr double kEdgeHoverRadiusPx = 14.0;

@@ -875,6 +875,10 @@ class XMLTransformer:
                 string_elem = etree.SubElement(include_list, "string")
                 string_elem.text = dir_elem.text.strip() if dir_elem.text else ""
 
+        # compile_flags is intentionally NOT read from the GUI XML here - it's
+        # a property of the selected kernel (kernel.json), looked up and
+        # emitted automatically by CodeGeneratorExtender, not wired per-design.
+
     def _transform_core_function(self, simple_func: etree.Element, parent: etree.Element):
         """Transform CoreFunction with full body, including optional loop wrapper."""
         name = simple_func.get("name")

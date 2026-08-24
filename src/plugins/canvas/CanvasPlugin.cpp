@@ -70,8 +70,6 @@ private:
     void setCanvasActionsEnabled(bool enabled);
     void applyZoom(CanvasView* view, double factor);
     void zoomToFit(CanvasView* view, CanvasDocument* doc);
-    void clearWireOverrides(CanvasDocument* doc);
-    void setWireArrows(CanvasDocument* doc, bool enabled);
 
 	    QPointer<CanvasHostImpl> m_host;
 	    QPointer<CanvasGridHostImpl> m_gridHost;
@@ -93,10 +91,6 @@ private:
         QPointer<QAction> linkCollect;
         QPointer<QAction> linkFifo;
         QPointer<QAction> linkForwardFifo;
-
-        QPointer<QAction> autoRoute;
-        QPointer<QAction> clearOverrides;
-        QPointer<QAction> wireArrows;
 
         QPointer<QAction> zoomIn;
         QPointer<QAction> zoomOut;
@@ -215,10 +209,6 @@ void CanvasPlugin::connectRibbonActions(Core::IUiHost* uiHost)
     m_actions.linkCollect = findMenuActionById(m_actions.ddrTransfersMenu,
                                                Core::Constants::CANVAS_LINK_COLLECT_ITEMID);
 
-    m_actions.autoRoute = fetch(Core::Constants::RIBBON_TAB_HOME_WIRES_GROUP, Core::Constants::CANVAS_WIRE_AUTO_ROUTE_ITEMID);
-    m_actions.clearOverrides = fetch(Core::Constants::RIBBON_TAB_HOME_WIRES_GROUP, Core::Constants::CANVAS_WIRE_CLEAR_OVERRIDES_ITEMID);
-    m_actions.wireArrows = fetch(Core::Constants::RIBBON_TAB_HOME_WIRES_GROUP, Core::Constants::CANVAS_WIRE_TOGGLE_ARROWS_ITEMID);
-
     m_actions.zoomIn = fetch(Core::Constants::RIBBON_TAB_HOME_VIEW_GROUP, Core::Constants::CANVAS_VIEW_ZOOM_IN_ITEMID);
     m_actions.zoomOut = fetch(Core::Constants::RIBBON_TAB_HOME_VIEW_GROUP, Core::Constants::CANVAS_VIEW_ZOOM_OUT_ITEMID);
     m_actions.zoomFit = fetch(Core::Constants::RIBBON_TAB_HOME_VIEW_GROUP, Core::Constants::CANVAS_VIEW_ZOOM_FIT_ITEMID);
@@ -268,22 +258,6 @@ void CanvasPlugin::connectRibbonActions(Core::IUiHost* uiHost)
         connect(action, &QAction::triggered, this, [controller, linkMode]() {
             controller->setLinkingMode(linkMode);
             controller->setMode(CanvasController::Mode::Linking);
-        });
-    }
-
-    if (m_actions.autoRoute) {
-        connect(m_actions.autoRoute, &QAction::triggered, this, [this, doc]() {
-            clearWireOverrides(doc);
-        });
-    }
-    if (m_actions.clearOverrides) {
-        connect(m_actions.clearOverrides, &QAction::triggered, this, [this, doc]() {
-            clearWireOverrides(doc);
-        });
-    }
-    if (m_actions.wireArrows) {
-        connect(m_actions.wireArrows, &QAction::toggled, this, [this, doc](bool enabled) {
-            setWireArrows(doc, enabled);
         });
     }
 
@@ -372,9 +346,6 @@ void CanvasPlugin::setCanvasActionsEnabled(bool enabled)
     setEnabled(m_actions.linkCollect);
     setEnabled(m_actions.linkFifo);
     setEnabled(m_actions.linkForwardFifo);
-    setEnabled(m_actions.autoRoute);
-    setEnabled(m_actions.clearOverrides);
-    setEnabled(m_actions.wireArrows);
     setEnabled(m_actions.zoomIn);
     setEnabled(m_actions.zoomOut);
     setEnabled(m_actions.zoomFit);
@@ -439,67 +410,6 @@ void CanvasPlugin::zoomToFit(CanvasView* view, CanvasDocument* doc)
     view->setZoom(targetZoom);
     view->setPan(pan);
     view->setDisplayZoomBaseline(targetZoom);
-}
-
-void CanvasPlugin::clearWireOverrides(CanvasDocument* doc)
-{
-    if (!doc)
-        return;
-
-    bool changed = false;
-    for (const auto& it : doc->items()) {
-        auto* wire = dynamic_cast<CanvasWire*>(it.get());
-        if (!wire || !wire->hasRouteOverride())
-            continue;
-        wire->clearRouteOverride();
-        changed = true;
-    }
-
-    if (changed)
-        doc->notifyChanged();
-}
-
-void CanvasPlugin::setWireArrows(CanvasDocument* doc, bool enabled)
-{
-    if (!doc)
-        return;
-
-    bool changed = false;
-    for (const auto& it : doc->items()) {
-        auto* wire = dynamic_cast<CanvasWire*>(it.get());
-        if (!wire)
-            continue;
-
-        WireArrowPolicy next = WireArrowPolicy::None;
-        if (enabled) {
-            CanvasPort aMeta;
-            CanvasPort bMeta;
-            const auto& a = wire->a();
-            const auto& b = wire->b();
-            if (a.attached.has_value() && b.attached.has_value() &&
-                doc->getPort(a.attached->itemId, a.attached->portId, aMeta) &&
-                doc->getPort(b.attached->itemId, b.attached->portId, bMeta)) {
-                const bool aConsumer = aMeta.role == PortRole::Consumer;
-                const bool bConsumer = bMeta.role == PortRole::Consumer;
-                if (aConsumer && !bConsumer)
-                    next = WireArrowPolicy::Start;
-                else if (bConsumer && !aConsumer)
-                    next = WireArrowPolicy::End;
-                else
-                    next = wire->arrowPolicy();
-            } else {
-                next = wire->arrowPolicy();
-            }
-        }
-
-        if (wire->arrowPolicy() != next) {
-            wire->setArrowPolicy(next);
-            changed = true;
-        }
-    }
-
-    if (changed)
-        doc->notifyChanged();
 }
 
 } // Canvas::Internal

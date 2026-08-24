@@ -141,6 +141,7 @@ private:
     QPointer<QLabel> m_tileSpecIdValue;
     QPointer<QLabel> m_tileBoundsValue;
     QPointer<QLineEdit> m_tileLabelEdit;
+    QPointer<QLabel> m_tileCoordLabel; // device-grid "(col, row)", shown next to the label field
     QPointer<QWidget> m_tileKernelRow;
     QPointer<QLabel> m_tileKernelRowLabel;
     QHBoxLayout* m_kernelChipsLayout = nullptr; // layout inside m_tileKernelRow; not owned via QPointer

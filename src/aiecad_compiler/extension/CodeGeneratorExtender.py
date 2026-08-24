@@ -173,19 +173,45 @@ class ExternalFunctionCodeGen(CodeGenExtension):
         except OSError:
             return False
 
-    def _load_iron_signature(self, node_id: str) -> Optional[dict]:
-        """Load iron_signature from the kernel's kernel.json, or None."""
-        source_file = self._get_source_file(node_id)
-        if not source_file:
+    def _load_kernel_json(self, node_id: str) -> Optional[dict]:
+        """Load the kernel's kernel.json from IRONSmith's local kernel
+        catalog (resources/kernels/<func_name>/kernel.json), keyed by the
+        kernel's function name rather than derived from source_file.
+
+        source_file often needs to point at the shared mlir-aie checkout
+        (e.g. /home/mliraie/mlir-aie/aie_kernels/aie2/mm.cc) so generated
+        scripts run in that environment - that directory has no kernel.json
+        of its own, so metadata like compile_flags/iron_signature must be
+        looked up from our own catalog independently of wherever
+        source_file ends up pointing.
+        """
+        func_name = self._func_name(node_id)
+        if not func_name:
             return None
-        kj_path = Path(source_file).parent / 'kernel.json'
+        kj_path = Path(__file__).resolve().parents[3] / "resources" / "kernels" / func_name / 'kernel.json'
         if not kj_path.is_file():
             return None
         try:
             with open(kj_path) as f:
-                return json.load(f).get('iron_signature')
+                return json.load(f)
         except Exception:
             return None
+
+    def _load_iron_signature(self, node_id: str) -> Optional[dict]:
+        """Load iron_signature from the kernel's kernel.json, or None."""
+        kj = self._load_kernel_json(node_id)
+        return kj.get('iron_signature') if kj else None
+
+    def _load_compile_flags(self, node_id: str) -> List[str]:
+        """Load compile_flags from the kernel's kernel.json, or [].
+
+        compile_flags is a property of the *kernel* (e.g. -DDIM_M=64
+        -Di16_i32_ONLY for mm.cc's templated combos macro), not something
+        wired per-design on the canvas - so it always comes from kernel.json
+        and is emitted with every ExternalFunction that selects this kernel.
+        """
+        kj = self._load_kernel_json(node_id)
+        return (kj.get('compile_flags', []) if kj else []) or []
 
     def _graph_arg_types(self, node_id: str) -> List[str]:
         """Extract arg_types list from the graph node kwargs (fallback)."""
@@ -222,18 +248,39 @@ class ExternalFunctionCodeGen(CodeGenExtension):
         func_name = self._func_name(node_id)              # e.g. matmul_i16_i16
 
         iron_sig = self._load_iron_signature(node_id)
-        arg_types = (iron_sig.get('arg_types', []) if iron_sig
-                     else self._graph_arg_types(node_id))
-        arg_types_str = f"[{', '.join(arg_types)}]" if arg_types else "[]"
+        graph_arg_types = self._graph_arg_types(node_id)
 
         # ---- Multi-kernel mode → Kernel API ----
+        # The archive is a precompiled .a with a fixed ABI, so its arg_types
+        # must match the archive's actual signature - kernel.json's
+        # iron_signature is authoritative here, not the graph wiring.
         if getattr(self.generator, '_use_kernel_api', False) and iron_sig:
             archive = iron_sig.get('archive', '')
             archive_var = Path(archive).stem + '_archive' if archive else '"<unknown_archive>"'
+            arg_types = iron_sig.get('arg_types', []) or graph_arg_types
+            arg_types_str = f"[{', '.join(arg_types)}]" if arg_types else "[]"
             return f'{var_name} = Kernel("{func_name}", {archive_var}, {arg_types_str})'
 
         # ---- Single-kernel mode → ExternalFunction ----
-        source_file = self._get_source_file(node_id) or ''
+        # Compiling from source_file means the actual shape/dtype is whatever
+        # the user wired on the canvas (a_tile_ty, b_tile_ty, ...), which may
+        # differ per-design from kernel.json's generic default signature -
+        # prefer the graph wiring and only fall back to iron_signature when
+        # nothing was wired at all.
+        arg_types = graph_arg_types or (iron_sig.get('arg_types', []) if iron_sig else [])
+        arg_types_str = f"[{', '.join(arg_types)}]" if arg_types else "[]"
+
+        # source_file is also a property of the selected kernel - which real
+        # environment its source actually lives in (e.g. the shared
+        # /home/mliraie/mlir-aie checkout) - read from kernel.json when
+        # declared there, so it's emitted the same way every time this
+        # kernel is picked rather than depending on whatever path happened
+        # to get wired on the canvas. Falls back to the graph-wired value
+        # (still resolved against the shared root) for kernels that don't
+        # declare it.
+        kj = self._load_kernel_json(node_id)
+        kj_source_file = kj.get('source_file') if kj else None
+        source_file = kj_source_file or self._get_source_file(node_id) or ''
         if source_file:
             source_file = self._resolve_source_file(source_file)
 
@@ -255,22 +302,25 @@ class ExternalFunctionCodeGen(CodeGenExtension):
 
         kwargs.append(f'arg_types={arg_types_str}')
 
-        # include_dirs from graph kwarg. Entries under mlir-aie's own
-        # aie_kernels library are resolved against the configured root too,
-        # same as source_file, so a design authored on one machine still
-        # builds on another.
-        dirs: List[str] = []
-        for kw_id in self._get_children(node_id, 'has_kwarg'):
-            if self._get_node_attr(kw_id, 'name') == 'include_dirs':
-                value_nodes = self._get_children(kw_id, 'contains')
-                for v_id in value_nodes:
-                    if self._get_node_attr(v_id, 'kind') == 'List':
-                        dirs = [
-                            self._resolve_source_file(
-                                self._get_node_attr(item_id, "label").strip(chr(34) + chr(39))
-                            )
-                            for item_id in self._get_children(v_id, 'contains')
-                        ]
+        # include_dirs: same kernel.json-first precedence as source_file
+        # above, falling back to the graph kwarg (still resolved against the
+        # shared root) for kernels that don't declare it.
+        kj_include_dirs = kj.get('include_dirs') if kj else None
+        if kj_include_dirs:
+            dirs: List[str] = [self._resolve_source_file(d) for d in kj_include_dirs]
+        else:
+            dirs = []
+            for kw_id in self._get_children(node_id, 'has_kwarg'):
+                if self._get_node_attr(kw_id, 'name') == 'include_dirs':
+                    value_nodes = self._get_children(kw_id, 'contains')
+                    for v_id in value_nodes:
+                        if self._get_node_attr(v_id, 'kind') == 'List':
+                            dirs = [
+                                self._resolve_source_file(
+                                    self._get_node_attr(item_id, "label").strip(chr(34) + chr(39))
+                                )
+                                for item_id in self._get_children(v_id, 'contains')
+                            ]
 
         # Kernels from mlir-aie's aie_kernels library reference sibling
         # headers with relative includes (e.g. "../aie_kernel_utils.h").
@@ -284,6 +334,16 @@ class ExternalFunctionCodeGen(CodeGenExtension):
         if dirs:
             dirs_str = ", ".join(f'"{d}"' for d in dirs)
             kwargs.append(f"include_dirs=[{dirs_str}]")
+
+        # compile_flags is a property of the selected kernel (e.g. -DDIM_M=64
+        # -DDIM_K=64 -DDIM_N=32 -Di16_i32_ONLY for mm.cc's templated combos
+        # macro), read from kernel.json - not something wired per-design, so
+        # it's emitted automatically whenever this kernel is selected.
+        flags = self._load_compile_flags(node_id)
+
+        if flags:
+            flags_str = ", ".join(f'"{f}"' for f in flags)
+            kwargs.append(f"compile_flags=[{flags_str}]")
 
         kwargs_str = ", ".join(kwargs)
         return f"{var_name} = ExternalFunction(\n        {kwargs_str}\n    )"

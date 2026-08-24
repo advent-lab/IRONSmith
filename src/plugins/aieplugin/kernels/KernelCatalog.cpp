@@ -216,6 +216,13 @@ Utils::Result scanRoot(const KernelFileSource& source,
         rootDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::IgnoreCase);
 
     for (const QFileInfo& directory : kernelDirectories) {
+        // "aie_kernels" is a vendored copy of upstream mlir-aie's shared kernel source/header
+        // library (see resources/kernels/aie_kernels/README.md) — kernels reference it via
+        // include_dirs, it isn't a kernel itself and never has its own kernel.json, so skip it
+        // without warning rather than flagging it as a malformed kernel directory every launch.
+        if (directory.fileName().compare(QStringLiteral("aie_kernels"), Qt::CaseInsensitive) == 0)
+            continue;
+
         KernelAsset kernel;
         const Utils::Result parseResult = parseKernel(directory, source, kernel, warnings);
         if (!parseResult)

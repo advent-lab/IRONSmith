@@ -136,6 +136,27 @@ void CanvasStyle::drawBlockLabel(QPainter& p,
     p.drawText(r, Qt::AlignLeft | Qt::AlignTop, text);
 }
 
+void CanvasStyle::drawBlockCoord(QPainter& p, const QRectF& boundsScene, double zoom, const QString& text)
+{
+    Q_UNUSED(zoom);
+
+    if (text.isEmpty())
+        return;
+
+    QFont f = p.font();
+    f.setPointSizeF(Constants::kBlockCoordPointSize);
+    f.setBold(false);
+    p.setFont(f);
+
+    p.setPen(QColor(Constants::kBlockStereotypeColor));
+
+    const QRectF r = boundsScene.adjusted(Constants::kBlockLabelPadX,
+                                          Constants::kBlockLabelPadY,
+                                          -Constants::kBlockLabelPadX,
+                                          -Constants::kBlockLabelPadY);
+    p.drawText(r, Qt::AlignRight | Qt::AlignTop, text);
+}
+
 void CanvasStyle::drawBlockStereotype(QPainter& p,
                                       const QRectF& boundsScene,
                                       double zoom,

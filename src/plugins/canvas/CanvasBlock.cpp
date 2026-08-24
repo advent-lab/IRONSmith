@@ -17,6 +17,36 @@
 
 namespace Canvas {
 
+namespace {
+
+// Parses a device-grid specId ("aie2_3", "shim1_0", "mem0_1") into a "(col, row)" display
+// string. Returns empty for specIds with no coordinate suffix (e.g. "ddr", or non-tile
+// blocks whose specId doesn't follow this convention) — pure string parsing of data the
+// block already owns, not AIE-specific business logic, so it lives here rather than behind
+// a render-context thunk.
+QString tileCoordSuffix(const QString& specId)
+{
+    static const char* const kPrefixes[] = { "shim", "mem", "aie" };
+    for (const char* prefix : kPrefixes) {
+        const QLatin1StringView p{prefix};
+        if (!specId.startsWith(p))
+            continue;
+        const QString rest = specId.sliced(p.size());
+        const qsizetype underIdx = rest.indexOf(u'_');
+        if (underIdx < 0)
+            continue;
+        bool okCol = false, okRow = false;
+        const int col = rest.left(underIdx).toInt(&okCol);
+        const int row = rest.sliced(underIdx + 1).toInt(&okRow);
+        if (!okCol || !okRow)
+            continue;
+        return QStringLiteral("(%1, %2)").arg(col).arg(row);
+    }
+    return QString();
+}
+
+} // namespace
+
 bool CanvasBlock::s_globalShowPorts = true;
 
 std::unique_ptr<CanvasItem> CanvasBlock::clone() const
@@ -325,9 +355,14 @@ void CanvasBlock::draw(QPainter& p, const CanvasRenderContext& ctx) const
     const bool hasKernelChips = (kernelCount > 0) && m_content;
 
     const bool showLabel = !hasKernelChips || kernelCount < 3;
-    if (!m_label.isEmpty() && showLabel)
+    if (!m_label.isEmpty() && showLabel) {
         CanvasStyle::drawBlockLabel(p, m_boundsScene, ctx.zoom, m_label,
                                     m_hasCustomColors ? m_labelColor : QColor(Constants::kBlockTextColor));
+
+        QString specId;
+        if (ctx.itemSpecId(id(), specId))
+            CanvasStyle::drawBlockCoord(p, m_boundsScene, ctx.zoom, tileCoordSuffix(specId));
+    }
 
     if (hasKernelChips) {
         const double tileH  = m_boundsScene.height();

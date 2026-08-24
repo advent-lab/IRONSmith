@@ -67,6 +67,29 @@ protected:
     }
 };
 
+// QComboBox has the same scroll-wheel-changes-the-value footgun as
+// QSpinBox: it accepts wheel events without focus, so scrolling the panel
+// toward a control below it (e.g. the Sizes/Strides "+" button) can
+// silently flip the Format combo from TensorAccessPattern to TensorTiler2D.
+class WheelSafeComboBox final : public QComboBox
+{
+public:
+    explicit WheelSafeComboBox(QWidget* parent = nullptr)
+        : QComboBox(parent)
+    {
+    }
+
+protected:
+    void wheelEvent(QWheelEvent* event) override
+    {
+        if (!hasFocus()) {
+            event->ignore();
+            return;
+        }
+        QComboBox::wheelEvent(event);
+    }
+};
+
 QFont fixedFont()
 {
     return QFontDatabase::systemFont(QFontDatabase::FixedFont);
@@ -103,6 +126,7 @@ QSpinBox* makeTapSpinBox(QWidget* parent, int minimum, int maximum)
     spin->setRange(minimum, maximum);
     return spin;
 }
+
 
 QToolButton* makeTapPatternButton(const QString& text, QWidget* parent)
 {
@@ -452,7 +476,7 @@ void SymbolsPanel::buildEditorPages()
     dimensionsForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     dimensionsForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
-    auto* dtypeCombo = new QComboBox(typeCard);
+    auto* dtypeCombo = new WheelSafeComboBox(typeCard);
     dtypeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
     dtypeCombo->addItems(supportedSymbolDtypes());
 
@@ -503,7 +527,7 @@ void SymbolsPanel::buildEditorPages()
     tapNameForm->addRow(makeKeyLabel(QStringLiteral("Name"), tapCard), tapNameEdit);
     
     // Add format selector
-    auto* tapFormatCombo = new QComboBox(tapCard);
+    auto* tapFormatCombo = new WheelSafeComboBox(tapCard);
     tapFormatCombo->setObjectName(QStringLiteral("AiePropertiesField"));
     tapFormatCombo->addItem(QStringLiteral("TensorAccessPattern"));
     tapFormatCombo->addItem(QStringLiteral("TensorTiler2D"));
@@ -1067,7 +1091,24 @@ void SymbolsPanel::refreshEditor()
             m_tapOffsetSpin->setValue(symbol->tap.offset);
         if (m_tapShowRepetitionsCheck)
             m_tapShowRepetitionsCheck->setChecked(symbol->tap.showRepetitions);
-        rebuildTapPatternEditors();
+        // Only rebuild the pattern rows if the row count changed; otherwise
+        // just update the field values in place, same as the dimension
+        // editors above - a commit fired while typing (m_commitTimer has a
+        // 0ms interval) would otherwise destroy the very field the user is
+        // typing into and steal focus.
+        if (m_tapSizeSpins.size() != symbol->tap.sizes.size()
+            || m_tapStrideSpins.size() != symbol->tap.strides.size()) {
+            rebuildTapPatternEditors();
+        } else {
+            for (int i = 0; i < m_tapSizeSpins.size(); ++i) {
+                if (m_tapSizeSpins[i] && m_tapSizeSpins[i]->value() != symbol->tap.sizes.at(i))
+                    m_tapSizeSpins[i]->setValue(symbol->tap.sizes.at(i));
+            }
+            for (int i = 0; i < m_tapStrideSpins.size(); ++i) {
+                if (m_tapStrideSpins[i] && m_tapStrideSpins[i]->value() != symbol->tap.strides.at(i))
+                    m_tapStrideSpins[i]->setValue(symbol->tap.strides.at(i));
+            }
+        }
         
         // Update TensorTiler2D fields
         if (m_tapTiler2DArrayDimsEdit)

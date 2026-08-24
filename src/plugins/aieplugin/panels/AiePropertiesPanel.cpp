@@ -79,6 +79,31 @@ QString formatBounds(const QRectF& bounds)
         .arg(normalized.height(), 0, 'f', 1);
 }
 
+// Parses a specId ("aie0_3", "shim1_0", "mem2_1") into a "(col, row)" display string for
+// the tile name row in the properties panel. Returns empty for specIds with no device grid
+// coordinate (e.g. "ddr"). Mirrors the identical prefix/col/row parsing already duplicated
+// in DesignVerifier.cpp's parseTileSpec() and HlirSyncService::parseTileSpecId().
+QString tileCoordText(const QString& specId)
+{
+    static const char* const kPrefixes[] = { "shim", "mem", "aie" };
+    for (const char* prefix : kPrefixes) {
+        const QLatin1StringView p{prefix};
+        if (!specId.startsWith(p))
+            continue;
+        const QString rest = specId.sliced(p.size());
+        const qsizetype underIdx = rest.indexOf(u'_');
+        if (underIdx < 0)
+            continue;
+        bool okCol = false, okRow = false;
+        const int col = rest.left(underIdx).toInt(&okCol);
+        const int row = rest.sliced(underIdx + 1).toInt(&okRow);
+        if (!okCol || !okRow)
+            continue;
+        return QStringLiteral("(%1, %2)").arg(col).arg(row);
+    }
+    return QString();
+}
+
 struct FifoTypeOption final {
     QString id;
     QString name;
@@ -608,6 +633,20 @@ void AiePropertiesPanel::buildUi()
 
     auto* tileLabelEdit = new QLineEdit(tileGroup);
     tileLabelEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+
+    // Device-grid coordinate, e.g. "(2, 3)" — shown in small muted text next to the name
+    // field so a tile can be quickly identified/referenced without opening "Spec ID".
+    auto* tileCoordLabel = new QLabel(tileGroup);
+    tileCoordLabel->setObjectName(QStringLiteral("AiePropertiesCoordLabel"));
+    tileCoordLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+
+    auto* tileNameRow = new QWidget(tileGroup);
+    auto* tileNameRowLayout = new QHBoxLayout(tileNameRow);
+    tileNameRowLayout->setContentsMargins(0, 0, 0, 0);
+    tileNameRowLayout->setSpacing(6);
+    tileNameRowLayout->addWidget(tileLabelEdit, 1);
+    tileNameRowLayout->addWidget(tileCoordLabel, 0);
+
     // Kernel chips row: dynamically rebuilt in rebuildKernelChips() on every selection refresh.
     auto* kernelRow = new QWidget(tileGroup);
     auto* kernelRowLayout = new QHBoxLayout(kernelRow);
@@ -618,7 +657,7 @@ void AiePropertiesPanel::buildUi()
     tileForm->addRow(makeKeyLabel(QStringLiteral("Item ID")), tileIdValue);
     tileForm->addRow(makeKeyLabel(QStringLiteral("Spec ID")), tileSpecIdValue);
     tileForm->addRow(makeKeyLabel(QStringLiteral("Bounds")), tileBoundsValue);
-    tileForm->addRow(makeKeyLabel(QStringLiteral("Label")), tileLabelEdit);
+    tileForm->addRow(makeKeyLabel(QStringLiteral("Label")), tileNameRow);
     auto* kernelRowLabel = makeKeyLabel(QStringLiteral("Kernel"));
     tileForm->addRow(kernelRowLabel, kernelRow);
 
@@ -642,6 +681,7 @@ void AiePropertiesPanel::buildUi()
     m_tileSpecIdValue = tileSpecIdValue;
     m_tileBoundsValue = tileBoundsValue;
     m_tileLabelEdit = tileLabelEdit;
+    m_tileCoordLabel = tileCoordLabel;
     m_tileKernelRow = kernelRow;
     m_tileKernelRowLabel = kernelRowLabel;
     m_kernelChipsLayout = kernelRowLayout;
@@ -1873,6 +1913,8 @@ void AiePropertiesPanel::refreshSelection()
                 m_tileBoundsValue->setText(formatBounds(block->boundsScene()));
             if (m_tileLabelEdit)
                 m_tileLabelEdit->setText(block->label());
+            if (m_tileCoordLabel)
+                m_tileCoordLabel->setText(tileCoordText(block->specId().trimmed()));
             const bool isComputeTile = block->specId().trimmed().startsWith(u"aie");
             if (m_tileKernelRow)
                 m_tileKernelRow->setVisible(isComputeTile);
@@ -2463,7 +2505,8 @@ struct ParamInfo {
 };
 
 QList<ParamInfo> paramsForBlock(const Canvas::CanvasBlock* block,
-                                const Canvas::CanvasDocument* document)
+                                const Canvas::CanvasDocument* document,
+                                const QJsonArray& sharedFunctionLibrary = {})
 {
     using Kind = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
 
@@ -2475,13 +2518,30 @@ QList<ParamInfo> paramsForBlock(const Canvas::CanvasBlock* block,
         return result;
     }
 
-    // 2. BodyStmts JSON with params/param_roles.
+    // 2. BodyStmts JSON with params/param_roles — either the block's own body
+    //    (Mode::BodyStmts), or, for Mode::SharedRef, the referenced shared function's
+    //    body looked up from the library by name (a SharedRef block never stores its
+    //    own bodyStmtsJson, so falling through to the generic kernel/in/out defaults
+    //    below would silently ignore the shared function's real parameter names).
     if (block->hasCoreFunctionConfig()) {
         const auto& cfg = block->coreFunctionConfig();
-        if (cfg->mode == Canvas::CanvasBlock::CoreFunctionConfig::Mode::BodyStmts
-            && !cfg->bodyStmtsJson.isEmpty()) {
+        QString effectiveBodyJson;
+        if (cfg->mode == Canvas::CanvasBlock::CoreFunctionConfig::Mode::BodyStmts) {
+            effectiveBodyJson = cfg->bodyStmtsJson;
+        } else if (cfg->mode == Canvas::CanvasBlock::CoreFunctionConfig::Mode::SharedRef
+                   && !cfg->sharedFunctionName.isEmpty()) {
+            for (const auto& v : sharedFunctionLibrary) {
+                const QJsonObject entry = v.toObject();
+                if (entry.value(u"name"_s).toString().trimmed() == cfg->sharedFunctionName) {
+                    effectiveBodyJson = entry.value(u"bodyStmtsJson"_s).toString();
+                    break;
+                }
+            }
+        }
+
+        if (!effectiveBodyJson.isEmpty()) {
             const QJsonDocument jdoc =
-                QJsonDocument::fromJson(cfg->bodyStmtsJson.toUtf8());
+                QJsonDocument::fromJson(effectiveBodyJson.toUtf8());
             const QJsonObject obj   = jdoc.object();
             const QJsonArray  jparams = obj[u"params"].toArray();
             const QJsonObject jroles  = obj[u"param_roles"].toObject();
@@ -2621,7 +2681,10 @@ void AiePropertiesPanel::applyCoreFunctionBody()
             oldByParam[a.paramName] = a;
 
         block->clearCoreBodyArgs(); // bypass priority-1 in paramsForBlock
-        const QList<ParamInfo> newParams = paramsForBlock(block, m_document);
+        const QJsonArray library = (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+            ? m_canvasDocuments->activeMetadata().value(kCoreFunctionLibraryKey).toArray()
+            : QJsonArray{};
+        const QList<ParamInfo> newParams = paramsForBlock(block, m_document, library);
 
         QList<Canvas::CanvasBlock::CoreBodyArgSpec> newArgs;
         for (const auto& p : newParams) {
@@ -2854,7 +2917,10 @@ void AiePropertiesPanel::refreshArgList(Canvas::CanvasBlock* block)
     for (const auto& arg : block->coreBodyArgs())
         refByParam[arg.paramName] = arg.ref;
 
-    const QList<ParamInfo> params = paramsForBlock(block, m_document);
+    const QJsonArray library = (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+        ? m_canvasDocuments->activeMetadata().value(kCoreFunctionLibraryKey).toArray()
+        : QJsonArray{};
+    const QList<ParamInfo> params = paramsForBlock(block, m_document, library);
 
     // Per-kind counter for auto-assigning refs sequentially when no saved ref exists.
     // Starts at combo index 1 (skipping the "—" placeholder at index 0).
@@ -2952,7 +3018,10 @@ void AiePropertiesPanel::applyArgList()
     if (!block)
         return;
 
-    const QList<ParamInfo> params = paramsForBlock(block, m_document);
+    const QJsonArray library = (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+        ? m_canvasDocuments->activeMetadata().value(kCoreFunctionLibraryKey).toArray()
+        : QJsonArray{};
+    const QList<ParamInfo> params = paramsForBlock(block, m_document, library);
 
     QList<Canvas::CanvasBlock::CoreBodyArgSpec> args;
     for (int row = 0; row < m_argListTable->rowCount(); ++row) {
@@ -2982,7 +3051,10 @@ void AiePropertiesPanel::autoPopulateArgList(Canvas::CanvasBlock* block)
 
     using Kind = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
 
-    const QList<ParamInfo> params = paramsForBlock(block, m_document);
+    const QJsonArray library = (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+        ? m_canvasDocuments->activeMetadata().value(kCoreFunctionLibraryKey).toArray()
+        : QJsonArray{};
+    const QList<ParamInfo> params = paramsForBlock(block, m_document, library);
     const QStringList& kernels    = block->assignedKernels();
     const QList<TileFifoInfo> fifos = connectedFifosForTile(block, m_document);
     QStringList inputFifos, outputFifos;

@@ -1,0 +1,17 @@
+{
+  "id": "matmul_scalar_i16_i32",
+  "name": "GEMM 64x64x32 (INT16 x INT16 -> INT32, scalar)",
+  "version": "0.1.0",
+  "language": "cpp",
+  "signature": "void matmul_scalar_i16_i32(int16_t* a_in, int16_t* b_in, int32_t* c_out);",
+  "description": "Scalar (non-vectorized) INT16 x INT16 matrix multiply with INT32 accumulating output, fixed to a 64x64x32 (m x k x n) tile via compile_flags. c_out is accumulated into (not overwritten), so callers must zero it first when reducing over multiple K-tiles. Instantiated from mm.cc's combos macro.",
+  "entry": "mm.cc",
+  "files": [
+    "mm.cc",
+    "zero.cc"
+  ],
+  "tags": ["gemm", "matmul", "i16", "i32", "scalar", "aie2"],
+  "compile_flags": ["-DDIM_M=64", "-DDIM_K=64", "-DDIM_N=32", "-Di16_i32_ONLY"],
+  "source_file": "/home/mliraie/mlir-aie/aie_kernels/aie2/mm.cc",
+  "include_dirs": ["/home/mliraie/mlir-aie/aie_kernels/aie2"]
+}

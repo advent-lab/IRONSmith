@@ -1,0 +1,1519 @@
+{
+    "items": [
+        {
+            "allowMultiplePorts": true,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "209ded06-ea97-402b-984f-bed6fa7aed31",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "DDR",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+                {
+                    "id": "b128b641-67c5-4598-8394-88d5a7ae4f80",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "top",
+                    "t": 0.0384
+                },
+                {
+                    "id": "a9c5c04b-0848-4601-838b-1442260f5cf4",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "top",
+                    "t": 0.0768
+                }
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "ddr",
+            "style": {
+                "fill": "#ff0f1116",
+                "label": "#ffe6e9ef",
+                "outline": "#ffe6e9ef"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "9e30cf21-d2ea-4347-9cbe-bfd76d33708a",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "SHIM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+                {
+                    "id": "2952500e-837d-474c-b2c8-54ec9befcc6b",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "bottom",
+                    "t": 0.34782608695652173
+                },
+                {
+                    "id": "f31bdf2b-23d2-4fd6-83e1-7cb317fa637f",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "top",
+                    "t": 0.34782608695652173
+                },
+                {
+                    "id": "5afeba89-bf53-41ba-82af-570dae88d374",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "top",
+                    "t": 0.6956521739130435
+                },
+                {
+                    "id": "fde78cf6-0799-47e8-97e2-73ce79cd17be",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "bottom",
+                    "t": 0.6956521739130435
+                }
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "shim0_0",
+            "style": {
+                "fill": "#ff0e1722",
+                "label": "#ffcfe9ff",
+                "outline": "#ff58b5ff"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "0e89bee3-679e-4d48-9c80-337ae55c68fe",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "SHIM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "shim1_0",
+            "style": {
+                "fill": "#ff0e1722",
+                "label": "#ffcfe9ff",
+                "outline": "#ff58b5ff"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "3b916b89-86d5-4c10-84e4-97674b07d2cd",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "SHIM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "shim2_0",
+            "style": {
+                "fill": "#ff0e1722",
+                "label": "#ffcfe9ff",
+                "outline": "#ff58b5ff"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "b26892c9-cb28-41dd-b05f-f36892388b36",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "SHIM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "shim3_0",
+            "style": {
+                "fill": "#ff0e1722",
+                "label": "#ffcfe9ff",
+                "outline": "#ff58b5ff"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "4b532a96-9e38-435b-8dc7-eacb5ffdb552",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "MEM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+                {
+                    "id": "46a6090d-6364-4103-8809-aaef7a3dcba6",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "bottom",
+                    "t": 0.34782608695652173
+                },
+                {
+                    "id": "c2b96be4-edf3-44db-970a-c8600f59183e",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "left",
+                    "t": 0.463768115942029
+                },
+                {
+                    "id": "f65405e7-2d4d-4190-8175-8c9d6ce49f05",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "right",
+                    "t": 0.4057971014492754
+                },
+                {
+                    "id": "fb40c61d-33df-4698-a4d3-e4ba54eeb7ca",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "bottom",
+                    "t": 0.6956521739130435
+                }
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "mem0_1",
+            "style": {
+                "fill": "#ff1f1710",
+                "label": "#ffffd7a8",
+                "outline": "#fff2a14c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "4eb43c31-2107-4d09-ba63-dec111c9c564",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "MEM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "mem1_1",
+            "style": {
+                "fill": "#ff1f1710",
+                "label": "#ffffd7a8",
+                "outline": "#fff2a14c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "912ca6f2-a452-4504-a16a-591a7e3314a2",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "MEM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "mem2_1",
+            "style": {
+                "fill": "#ff1f1710",
+                "label": "#ffffd7a8",
+                "outline": "#fff2a14c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "887b2641-cece-40ac-bed8-8a1b8abfb2e2",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "MEM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "mem3_1",
+            "style": {
+                "fill": "#ff1f1710",
+                "label": "#ffffd7a8",
+                "outline": "#fff2a14c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "d7fe4945-db8f-4749-bc72-ab284755a357",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "MEM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "mem4_1",
+            "style": {
+                "fill": "#ff1f1710",
+                "label": "#ffffd7a8",
+                "outline": "#fff2a14c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "assignedKernels": [
+                "gemm_bf16"
+            ],
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "coreBodyArgs": [
+                {
+                    "kind": "kernel",
+                    "paramName": "kernel",
+                    "ref": "gemm_bf16"
+                },
+                {
+                    "kind": "fifo_in",
+                    "paramName": "in0",
+                    "ref": "split1[0]"
+                },
+                {
+                    "kind": "fifo_out",
+                    "paramName": "out0",
+                    "ref": "join1[0]"
+                }
+            ],
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "1034f1e6-59cf-4cd8-a426-5c44bf566cf2",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+                {
+                    "id": "09c4bb50-7a1c-4867-b92a-0bb9f608fc06",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "left",
+                    "t": 0.42028985507246375
+                },
+                {
+                    "id": "01eec0b2-a791-4079-84f3-9770b63c57f6",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "right",
+                    "t": 0.42028985507246375
+                }
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie0_2",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "da2cef1c-1b56-4157-815a-b26a42b622ee",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie1_2",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "e5181626-8775-463e-8c17-8343d9208f1f",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie2_2",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "852f8095-7f6b-472a-92d4-4eba189a9fa1",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie3_2",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "dc4abfc2-f0dd-4284-99ae-6c92b7f28bc3",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie4_2",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "assignedKernels": [
+                "gemm_bf16"
+            ],
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "coreBodyArgs": [
+                {
+                    "kind": "kernel",
+                    "paramName": "kernel",
+                    "ref": "gemm_bf16"
+                },
+                {
+                    "kind": "fifo_in",
+                    "paramName": "in0",
+                    "ref": "split1[1]"
+                },
+                {
+                    "kind": "fifo_out",
+                    "paramName": "out0",
+                    "ref": "join1[1]"
+                }
+            ],
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "2a6ca8b7-09b4-48bc-a1a5-346d9e7dad28",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+                {
+                    "id": "0cddcbab-9908-4cba-90d1-f94350489880",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "left",
+                    "t": 0.43478260869565216
+                },
+                {
+                    "id": "222a322e-b8d7-4d66-b9b5-a82f866aad51",
+                    "name": "",
+                    "role": "dynamic",
+                    "side": "right",
+                    "t": 0.43478260869565216
+                }
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie0_3",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "f3dabe19-aafd-4e1d-bb33-b23b2f33f242",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie1_3",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "e8ca2211-96c4-45f4-aca5-894ae196f448",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie2_3",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "45527017-e491-480e-92ab-630a51cf5250",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie3_3",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "f688ce97-c93e-407b-a5a8-69bfc0cd9dad",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie4_3",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "fd87d4f8-38a3-4648-9b6e-d337d80bfc8a",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie0_4",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "db93aa49-0b49-41b9-b297-da79c36f4dee",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie1_4",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "c884edc2-d2b3-4d6b-9805-e74d238082a1",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie2_4",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "5eb2ccf0-c153-437f-9208-2998fe2018f9",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie3_4",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "dcbcc873-7a21-4843-9027-cb17faba87fc",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie4_4",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "25741e5a-983d-4216-992a-fd558755abbb",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie0_5",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "b941379c-3f04-4a82-9728-0354ee383639",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie1_5",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "bf24d2fd-903d-4eeb-84bd-f13cd3e51e51",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie2_5",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "63505438-7d30-40ef-be75-0f7e19cee8ed",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie3_5",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "8c6b29aa-7aab-4426-b7fe-57d6852ffb93",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie4_5",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "bounds": {
+                "h": 48,
+                "w": 48,
+                "x": -24,
+                "y": 1560
+            },
+            "content": {
+                "style": {
+                    "bold": true,
+                    "pointSize": 30,
+                    "textColor": "#fff1e6ff"
+                },
+                "symbol": "S",
+                "type": "symbol"
+            },
+            "contentPadding": {
+                "b": 0,
+                "l": 0,
+                "r": 0,
+                "t": 0
+            },
+            "cornerRadius": -1,
+            "deletable": true,
+            "id": "5b3be007-cd73-4358-8d18-3e3a2e384b17",
+            "isLinkHub": true,
+            "keepoutMargin": 0,
+            "label": "",
+            "movable": true,
+            "portSnapStep": 24,
+            "ports": [
+                {
+                    "id": "48461125-9898-41b7-92b2-dde605c630af",
+                    "name": "",
+                    "role": "consumer",
+                    "side": "bottom",
+                    "t": 0.5
+                },
+                {
+                    "id": "70c9329b-90a4-48ec-95b7-4c5307f9fb09",
+                    "name": "",
+                    "role": "producer",
+                    "side": "top",
+                    "t": 0.5
+                },
+                {
+                    "id": "065371ae-deca-4644-9a3b-c9efb0bb195b",
+                    "name": "",
+                    "role": "producer",
+                    "side": "top",
+                    "t": 0.5
+                }
+            ],
+            "showPortLabels": false,
+            "showPorts": false,
+            "specId": "",
+            "style": {
+                "fill": "#ff1b1422",
+                "label": "#fff1e6ff",
+                "outline": "#ffc089ff"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "bounds": {
+                "h": 48,
+                "w": 48,
+                "x": 312,
+                "y": 1560
+            },
+            "content": {
+                "style": {
+                    "bold": true,
+                    "pointSize": 30,
+                    "textColor": "#ffffe6b8"
+                },
+                "symbol": "J",
+                "type": "symbol"
+            },
+            "contentPadding": {
+                "b": 0,
+                "l": 0,
+                "r": 0,
+                "t": 0
+            },
+            "cornerRadius": -1,
+            "deletable": true,
+            "id": "b79d387f-44ff-4d12-945b-cd34b8535914",
+            "isLinkHub": true,
+            "keepoutMargin": 0,
+            "label": "",
+            "movable": true,
+            "portSnapStep": 24,
+            "ports": [
+                {
+                    "id": "86b567b5-9851-4e75-b00c-3c5fdeb82153",
+                    "name": "",
+                    "role": "producer",
+                    "side": "bottom",
+                    "t": 0.42448730062924356
+                },
+                {
+                    "id": "20a38d02-4915-4b77-b578-7a287ac3abdc",
+                    "name": "",
+                    "role": "consumer",
+                    "side": "top",
+                    "t": 0.42448730062924356
+                },
+                {
+                    "id": "d2fa9312-204a-437a-9188-21443c8eadd3",
+                    "name": "",
+                    "role": "consumer",
+                    "side": "top",
+                    "t": 0.4763197059585934
+                }
+            ],
+            "showPortLabels": false,
+            "showPorts": false,
+            "specId": "",
+            "style": {
+                "fill": "#ff201a12",
+                "label": "#ffffe6b8",
+                "outline": "#fff2b65e"
+            },
+            "type": "block"
+        },
+        {
+            "a": {
+                "attached": {
+                    "itemId": "209ded06-ea97-402b-984f-bed6fa7aed31",
+                    "portId": "b128b641-67c5-4598-8394-88d5a7ae4f80"
+                },
+                "free": {
+                    "x": 144.33826032383615,
+                    "y": 2358.5240122042887
+                }
+            },
+            "arrowPolicy": "end",
+            "b": {
+                "attached": {
+                    "itemId": "9e30cf21-d2ea-4347-9cbe-bfd76d33708a",
+                    "portId": "2952500e-837d-474c-b2c8-54ec9befcc6b"
+                },
+                "free": {
+                    "x": 148.64175723574874,
+                    "y": 2581.5727722878355
+                }
+            },
+            "fillDrain": {
+                "fifoName": "of_1",
+                "isFill": true,
+                "mode": "vector",
+                "paramName": "A",
+                "totalDims": "256",
+                "valueType": "i32"
+            },
+            "id": "ee4aef65-7c5a-4a85-be8f-88257a2a76b4",
+            "type": "wire"
+        },
+        {
+            "a": {
+                "attached": {
+                    "itemId": "9e30cf21-d2ea-4347-9cbe-bfd76d33708a",
+                    "portId": "f31bdf2b-23d2-4fd6-83e1-7cb317fa637f"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "arrowPolicy": "end",
+            "b": {
+                "attached": {
+                    "itemId": "4b532a96-9e38-435b-8dc7-eacb5ffdb552",
+                    "portId": "46a6090d-6364-4103-8809-aaef7a3dcba6"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "id": "e9af02ee-4528-4aa1-a9b4-125d21d799ba",
+            "objectFifo": {
+                "depth": 2,
+                "dimensionMode": "vector",
+                "dimensions": "",
+                "name": "of_1",
+                "operation": "fifo",
+                "valueType": "i32"
+            },
+            "type": "wire"
+        },
+        {
+            "a": {
+                "attached": {
+                    "itemId": "4b532a96-9e38-435b-8dc7-eacb5ffdb552",
+                    "portId": "c2b96be4-edf3-44db-970a-c8600f59183e"
+                },
+                "free": {
+                    "x": 65.11398989684426,
+                    "y": 2047.8100906774703
+                }
+            },
+            "arrowPolicy": "none",
+            "b": {
+                "attached": {
+                    "itemId": "5b3be007-cd73-4358-8d18-3e3a2e384b17",
+                    "portId": "48461125-9898-41b7-92b2-dde605c630af"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "colorOverride": "#ffe55353",
+            "id": "5d472c18-fcf8-470e-af5a-3b0d2bd7bd80",
+            "objectFifo": {
+                "depth": 2,
+                "dimensionMode": "vector",
+                "dimensions": "",
+                "hubName": "split1",
+                "name": "of",
+                "operation": "split",
+                "valueType": "i32"
+            },
+            "type": "wire"
+        },
+        {
+            "a": {
+                "attached": {
+                    "itemId": "5b3be007-cd73-4358-8d18-3e3a2e384b17",
+                    "portId": "70c9329b-90a4-48ec-95b7-4c5307f9fb09"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "arrowPolicy": "end",
+            "b": {
+                "attached": {
+                    "itemId": "1034f1e6-59cf-4cd8-a426-5c44bf566cf2",
+                    "portId": "09c4bb50-7a1c-4867-b92a-0bb9f608fc06"
+                },
+                "free": {
+                    "x": 48.75895435000365,
+                    "y": 1537.1556080345367
+                }
+            },
+            "colorOverride": "#ff5ccb7a",
+            "id": "762f6a46-25fd-47b7-88f8-a9c65a4e262e",
+            "type": "wire"
+        },
+        {
+            "a": {
+                "attached": {
+                    "itemId": "5b3be007-cd73-4358-8d18-3e3a2e384b17",
+                    "portId": "065371ae-deca-4644-9a3b-c9efb0bb195b"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "arrowPolicy": "end",
+            "b": {
+                "attached": {
+                    "itemId": "2a6ca8b7-09b4-48bc-a1a5-346d9e7dad28",
+                    "portId": "0cddcbab-9908-4cba-90d1-f94350489880"
+                },
+                "free": {
+                    "x": 43.27209539227783,
+                    "y": 1087.2331735010232
+                }
+            },
+            "colorOverride": "#ff5ccb7a",
+            "id": "47137895-153e-4055-bace-c7e1b81186fd",
+            "type": "wire"
+        },
+        {
+            "a": {
+                "attached": {
+                    "itemId": "4b532a96-9e38-435b-8dc7-eacb5ffdb552",
+                    "portId": "f65405e7-2d4d-4190-8175-8c9d6ce49f05"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "arrowPolicy": "start",
+            "b": {
+                "attached": {
+                    "itemId": "b79d387f-44ff-4d12-945b-cd34b8535914",
+                    "portId": "86b567b5-9851-4e75-b00c-3c5fdeb82153"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "colorOverride": "#ff5ccb7a",
+            "id": "47ab2f73-701f-41b7-b9b7-acba47980f30",
+            "objectFifo": {
+                "depth": 2,
+                "dimensionMode": "vector",
+                "dimensions": "",
+                "hubName": "join1",
+                "name": "of",
+                "operation": "join",
+                "valueType": "i32"
+            },
+            "type": "wire"
+        },
+        {
+            "a": {
+                "attached": {
+                    "itemId": "b79d387f-44ff-4d12-945b-cd34b8535914",
+                    "portId": "20a38d02-4915-4b77-b578-7a287ac3abdc"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "arrowPolicy": "none",
+            "b": {
+                "attached": {
+                    "itemId": "1034f1e6-59cf-4cd8-a426-5c44bf566cf2",
+                    "portId": "01eec0b2-a791-4079-84f3-9770b63c57f6"
+                },
+                "free": {
+                    "x": 282.8649365463033,
+                    "y": 1535.3266550486273
+                }
+            },
+            "colorOverride": "#ffe55353",
+            "id": "b24f00a8-782f-4cd6-8377-a7c413e43e7f",
+            "type": "wire"
+        },
+        {
+            "a": {
+                "attached": {
+                    "itemId": "b79d387f-44ff-4d12-945b-cd34b8535914",
+                    "portId": "d2fa9312-204a-437a-9188-21443c8eadd3"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "arrowPolicy": "none",
+            "b": {
+                "attached": {
+                    "itemId": "2a6ca8b7-09b4-48bc-a1a5-346d9e7dad28",
+                    "portId": "222a322e-b8d7-4d66-b9b5-a82f866aad51"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "colorOverride": "#ffe55353",
+            "id": "a5efbcf3-8a05-4d78-9ce0-3ba7fd38a011",
+            "type": "wire"
+        },
+        {
+            "a": {
+                "attached": {
+                    "itemId": "4b532a96-9e38-435b-8dc7-eacb5ffdb552",
+                    "portId": "fb40c61d-33df-4698-a4d3-e4ba54eeb7ca"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "arrowPolicy": "end",
+            "b": {
+                "attached": {
+                    "itemId": "9e30cf21-d2ea-4347-9cbe-bfd76d33708a",
+                    "portId": "5afeba89-bf53-41ba-82af-570dae88d374"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "id": "cd156a4e-ee79-4c16-ab08-5b8e1333dac6",
+            "objectFifo": {
+                "depth": 2,
+                "dimensionMode": "vector",
+                "dimensions": "",
+                "name": "of_2",
+                "operation": "fifo",
+                "valueType": "i32"
+            },
+            "type": "wire"
+        },
+        {
+            "a": {
+                "attached": {
+                    "itemId": "9e30cf21-d2ea-4347-9cbe-bfd76d33708a",
+                    "portId": "fde78cf6-0799-47e8-97e2-73ce79cd17be"
+                },
+                "free": {
+                    "x": 0,
+                    "y": 0
+                }
+            },
+            "arrowPolicy": "end",
+            "b": {
+                "attached": {
+                    "itemId": "209ded06-ea97-402b-984f-bed6fa7aed31",
+                    "portId": "a9c5c04b-0848-4601-838b-1442260f5cf4"
+                },
+                "free": {
+                    "x": 212.29677784054536,
+                    "y": 2348.266122767804
+                }
+            },
+            "fillDrain": {
+                "fifoName": "of_2",
+                "isFill": false,
+                "mode": "vector",
+                "paramName": "B",
+                "totalDims": "256",
+                "valueType": "i32"
+            },
+            "id": "815ec438-969d-4d18-9500-fd6ccbb1cdbf",
+            "type": "wire"
+        }
+    ],
+    "metadata": {
+        "deviceFamily": "aie-ml",
+        "deviceId": "amd-xdna1-phoenix",
+        "panelState": {
+            "display": {
+                "showAnnotations": true,
+                "showLabels": true,
+                "showPortAnnotations": true,
+                "showPorts": true,
+                "showStereotypes": true
+            },
+            "layout": {
+                "autoCellSize": false,
+                "cellSize": 69,
+                "horizontalSpacing": 70,
+                "keepoutMargin": -1,
+                "outwardSpread": 0,
+                "verticalSpacing": 58
+            },
+            "offsets": {
+            },
+            "overrideDefaults": true,
+            "style": {
+                "fillColor": "#ff0e1b18",
+                "labelColor": "#ffb8c2cc",
+                "outlineColor": "#ff2ec27e",
+                "useCustomColors": false
+            }
+        },
+        "schema": "aie.spec/1"
+    },
+    "schemaVersion": 2,
+    "view": {
+        "pan": {
+            "x": 1665.6941081613345,
+            "y": -782.0198817373357
+        },
+        "zoom": 0.2898965258563137
+    }
+}
