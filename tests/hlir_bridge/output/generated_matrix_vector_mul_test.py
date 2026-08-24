@@ -120,7 +120,17 @@ def main():
     inputA._sync_to_device()
     inputB.data[:] = inputB.data[:] % 128
     inputB._sync_to_device()
+    inputA.data[:] = inputA.data[:] % 8
+    inputA._sync_to_device()
+    inputB.data[:] = inputB.data[:] % 8
+    inputB._sync_to_device()
+
+    print(f"inputA[:8] = {inputA.numpy()[:8]}")
+    print(f"inputB[:8] = {inputB.numpy()[:8]}")
+
     matrix_vector_mul_test_jit(inputA, inputB, outputC, M=M, K=K, m=m, k=k, n_cores=n_cores)
+
+    print(f"outputC[:8] = {outputC.numpy()[:8]}")
     print(f"inputA[:8] = {inputA.numpy()[:8]}")
     print(f"inputB[:8] = {inputB.numpy()[:8]}")
     print(f"outputC[:8] = {outputC.numpy()[:8]}")

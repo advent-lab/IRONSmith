@@ -360,8 +360,10 @@ void CanvasBlock::draw(QPainter& p, const CanvasRenderContext& ctx) const
                                     m_hasCustomColors ? m_labelColor : QColor(Constants::kBlockTextColor));
 
         QString specId;
-        if (ctx.itemSpecId(id(), specId))
-            CanvasStyle::drawBlockCoord(p, m_boundsScene, ctx.zoom, tileCoordSuffix(specId));
+        if (ctx.itemSpecId(id(), specId)) {
+            const bool belowLabel = specId.startsWith(QLatin1StringView("shim"));
+            CanvasStyle::drawBlockCoord(p, m_boundsScene, ctx.zoom, tileCoordSuffix(specId), belowLabel);
+        }
     }
 
     if (hasKernelChips) {

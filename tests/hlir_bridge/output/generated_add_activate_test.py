@@ -161,7 +161,17 @@ def main():
     A = iron.arange(data_size, dtype=bfloat16, device="npu")
     B = iron.arange(data_size, dtype=bfloat16, device="npu")
     D = iron.zeros(data_size, dtype=bfloat16, device="npu")
+    A.data[:] = A.data[:] % 8
+    A._sync_to_device()
+    B.data[:] = B.data[:] % 8
+    B._sync_to_device()
+
+    print(f"A[:8] = {A.numpy()[:8]}")
+    print(f"B[:8] = {B.numpy()[:8]}")
+
     add_activate_test_jit(A, B, D, data_size=data_size)
+
+    print(f"D[:8] = {D.numpy()[:8]}")
     print(f"A[:8] = {A.numpy()[:8]}")
     print(f"B[:8] = {B.numpy()[:8]}")
     print(f"D[:8] = {D.numpy()[:8]}")

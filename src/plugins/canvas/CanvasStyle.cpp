@@ -136,24 +136,39 @@ void CanvasStyle::drawBlockLabel(QPainter& p,
     p.drawText(r, Qt::AlignLeft | Qt::AlignTop, text);
 }
 
-void CanvasStyle::drawBlockCoord(QPainter& p, const QRectF& boundsScene, double zoom, const QString& text)
+void CanvasStyle::drawBlockCoord(QPainter& p, const QRectF& boundsScene, double zoom, const QString& text,
+                                 bool belowLabel)
 {
     Q_UNUSED(zoom);
 
     if (text.isEmpty())
         return;
 
-    QFont f = p.font();
-    f.setPointSizeF(Constants::kBlockCoordPointSize);
-    f.setBold(false);
-    p.setFont(f);
-
-    p.setPen(QColor(Constants::kBlockStereotypeColor));
-
     const QRectF r = boundsScene.adjusted(Constants::kBlockLabelPadX,
                                           Constants::kBlockLabelPadY,
                                           -Constants::kBlockLabelPadX,
                                           -Constants::kBlockLabelPadY);
+
+    QFont f = p.font();
+    f.setPointSizeF(Constants::kBlockCoordPointSize);
+    f.setBold(false);
+    p.setPen(QColor(Constants::kBlockStereotypeColor));
+
+    if (belowLabel) {
+        // Narrower blocks (e.g. SHIM) don't have room beside the label without
+        // colliding — stack the coordinate on its own line underneath instead.
+        QFont labelFont = p.font();
+        labelFont.setPointSizeF(Constants::kBlockLabelPointSize);
+        labelFont.setBold(true);
+        const double labelHeight = QFontMetricsF(labelFont).height();
+
+        p.setFont(f);
+        const QRectF belowRect(r.left(), r.top() + labelHeight, r.width(), r.height() - labelHeight);
+        p.drawText(belowRect, Qt::AlignLeft | Qt::AlignTop, text);
+        return;
+    }
+
+    p.setFont(f);
     p.drawText(r, Qt::AlignRight | Qt::AlignTop, text);
 }
 

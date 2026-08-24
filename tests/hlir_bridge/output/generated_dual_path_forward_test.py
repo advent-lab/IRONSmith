@@ -90,7 +90,18 @@ def main():
     inputB = iron.arange(N, dtype=np.int32, device="npu")
     outputA = iron.zeros(N, dtype=np.int32, device="npu")
     outputB = iron.zeros(N, dtype=np.int32, device="npu")
+    inputA.data[:] = inputA.data[:] % 8
+    inputA._sync_to_device()
+    inputB.data[:] = inputB.data[:] % 8
+    inputB._sync_to_device()
+
+    print(f"inputA[:8] = {inputA.numpy()[:8]}")
+    print(f"inputB[:8] = {inputB.numpy()[:8]}")
+
     dual_path_forward_test_jit(inputA, inputB, outputA, outputB, N=N)
+
+    print(f"outputA[:8] = {outputA.numpy()[:8]}")
+    print(f"outputB[:8] = {outputB.numpy()[:8]}")
     print(f"inputA[:8] = {inputA.numpy()[:8]}")
     print(f"inputB[:8] = {inputB.numpy()[:8]}")
     print(f"outputA[:8] = {outputA.numpy()[:8]}")

@@ -53,7 +53,14 @@ def main():
     N = 4096
     inputA = iron.arange(N, dtype=np.int32, device="npu")
     outputC = iron.zeros(N, dtype=np.int32, device="npu")
+    inputA.data[:] = inputA.data[:] % 8
+    inputA._sync_to_device()
+
+    print(f"inputA[:8] = {inputA.numpy()[:8]}")
+
     passthrough_test_jit(inputA, outputC, N=N)
+
+    print(f"outputC[:8] = {outputC.numpy()[:8]}")
     print(f"inputA[:8] = {inputA.numpy()[:8]}")
     print(f"outputC[:8] = {outputC.numpy()[:8]}")
     print("PASS: outputC matches inputA" if np.array_equal(outputC.numpy(), inputA.numpy()) else "FAIL: outputC does not match inputA")

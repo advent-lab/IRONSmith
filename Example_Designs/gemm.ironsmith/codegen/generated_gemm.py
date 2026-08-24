@@ -160,7 +160,17 @@ def main():
     A = iron.arange(M * K, dtype=np.int16, device="npu")
     B = iron.arange(K * N, dtype=np.int16, device="npu")
     C = iron.zeros(M * N, dtype=np.int32, device="npu")
+    A.data[:] = A.data[:] % 8
+    A._sync_to_device()
+    B.data[:] = B.data[:] % 8
+    B._sync_to_device()
+
+    print(f"A[:8] = {A.numpy()[:8]}")
+    print(f"B[:8] = {B.numpy()[:8]}")
+
     gui_design_jit(A, B, C, M=M, K=K, N=N, m=m, k=k, n=n)
+
+    print(f"C[:8] = {C.numpy()[:8]}")
 
 
 

@@ -83,7 +83,14 @@ def main():
     outputC = iron.zeros(N, dtype=bfloat16, device="npu")
     inputA.data[:] = inputA.data[:] % 10
     inputA._sync_to_device()
+    inputA.data[:] = inputA.data[:] % 8
+    inputA._sync_to_device()
+
+    print(f"inputA[:8] = {inputA.numpy()[:8]}")
+
     vector_exp_test_jit(inputA, outputC, N=N)
+
+    print(f"outputC[:8] = {outputC.numpy()[:8]}")
     print(f"inputA[:8] = {inputA.numpy()[:8]}")
     print(f"outputC[:8] = {outputC.numpy()[:8]}")
     expected = np.exp(inputA.numpy().astype(np.float32))

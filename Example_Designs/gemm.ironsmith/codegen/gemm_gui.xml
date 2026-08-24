@@ -121,6 +121,7 @@
             </arg_types>
             <include_dirs>
                 <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_scalar_i16_i32</dir>
+                <dir>/home/mliraie/mlir-aie/aie_kernels/aie2</dir>
             </include_dirs>
         </ExternalFunction>
         <CoreFunction name="core_shared_core_fn_matmul">
@@ -391,7 +392,7 @@
         </Worker>
         <Runtime name="runtime">
             <Sequence inputs="A_ty, B_ty, C_ty" as="a_in, b_in, c_out">
-                <Start>worker_aie0_3, worker_aie2_3, worker_aie0_4, worker_aie2_2, worker_aie2_5, worker_aie1_2, worker_aie1_3, worker_aie3_5, worker_aie2_4, worker_aie1_4, worker_aie3_2, worker_aie0_2, worker_aie1_5, worker_aie3_3, worker_aie0_5, worker_aie3_4</Start>
+                <Start>worker_aie0_5, worker_aie3_2, worker_aie3_3, worker_aie2_5, worker_aie0_2, worker_aie0_4, worker_aie2_2, worker_aie1_3, worker_aie2_4, worker_aie1_4, worker_aie3_4, worker_aie3_5, worker_aie0_3, worker_aie1_5, worker_aie2_3, worker_aie1_2</Start>
                 <Fill target="of_in_a_row0" source="a_in" data_ref="A" use_tap="true" tap_type="tap" tap_var="of_in_a_row0_tap">
                     <placement>Tile(0, 0)</placement>
                     <TensorAccessPattern>

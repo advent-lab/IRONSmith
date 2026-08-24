@@ -24,7 +24,7 @@ import keyword
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Set, Optional, Any
+from typing import Dict, List, Set, Optional, Any, Tuple
 import networkx as nx
 
 
@@ -61,6 +61,11 @@ class CodeGenerator:
         # per @iron.jit function and kept for the whole run so call sites
         # elsewhere in the module (e.g. main()) can inject name=name kwargs.
         self._function_compiletime_params: Dict[str, List[str]] = {}
+        # func_name -> [(tensor param name, 'In'/'Out'/'InOut'), ...] in
+        # declaration order, populated once per @iron.jit function - lets a
+        # call site (main()) inject mod-8 bounding + before/after prints for
+        # whichever variables it actually passes, matched positionally.
+        self._function_tensor_params: Dict[str, List[Tuple[str, str]]] = {}
 
         # Register code generation extensions
         from extension.CodeGeneratorExtender import register_codegen_extensions
@@ -334,6 +339,8 @@ class CodeGenerator:
                 self._function_compiletime_params[func_name] = [name for name, _ in promoted]
 
             directions = self._infer_param_directions(param_names)
+            if func_name:
+                self._function_tensor_params[func_name] = [(p, directions[p]) for p in param_names]
             sig_parts = [f"{p}: {directions[p]}" for p in param_names]
             if promoted:
                 sig_parts.append('*')
@@ -355,8 +362,16 @@ class CodeGenerator:
             self._emit("pass")
         else:
             for child_id in body_children:
-                self._process_statement(child_id)
-        
+                tensor_args = None
+                if self._get_node_attr(child_id, 'kind') == 'Call':
+                    tensor_args = self._jit_call_tensor_args(child_id)
+                if tensor_args:
+                    self._emit_pre_call_validation(tensor_args)
+                    self._process_statement(child_id)
+                    self._emit_post_call_validation(tensor_args)
+                else:
+                    self._process_statement(child_id)
+
         self.indent_level -= 1
         self._emit()
         self._emit()
@@ -1684,6 +1699,60 @@ class CodeGenerator:
             else:
                 directions[param_name] = 'In'
         return directions
+
+    def _jit_call_tensor_args(self, call_id: str) -> Optional[List[Tuple[str, str]]]:
+        """If call_id invokes an @iron.jit function this generator already
+        processed, return [(arg_var_name, direction), ...] for its tensor
+        args in call order - the ordered actual variable names (e.g. "A",
+        "B", "C") a caller like main() passed, paired with the direction
+        ('In'/'Out'/'InOut') inferred for the matching parameter position.
+        Returns None if call_id isn't a call to a known jit function, or
+        doesn't have a matching count of positional tensor args.
+        """
+        func_nodes = [c for c in self._get_children(call_id, 'calls')
+                      if self._get_node_attr(c, 'kind') == 'FunctionCall']
+        if not func_nodes:
+            return None
+        func_name = self._get_node_attr(func_nodes[0], 'label')
+        tensor_params = self._function_tensor_params.get(func_name)
+        if not tensor_params:
+            return None
+
+        arg_nodes = self._get_children(call_id, 'has_arg')
+        arg_names = [self._get_node_attr(a, 'label') for a in arg_nodes]
+        if len(arg_names) != len(tensor_params):
+            return None
+        return [(arg_name, direction) for arg_name, (_, direction) in zip(arg_names, tensor_params)]
+
+    def _emit_pre_call_validation(self, tensor_args: List[Tuple[str, str]]):
+        """Bound each input tensor to a small range and print a sample
+        before the jit call, mirroring the reference examples' pattern:
+        keeps K-term dot-product accumulation well inside the output
+        dtype's range (unbounded arange values can overflow int32/int16
+        accumulators) and gives an at-a-glance check of what's being fed
+        in.
+        """
+        inputs = [name for name, direction in tensor_args if direction in ('In', 'InOut')]
+        if not inputs:
+            return
+        for name in inputs:
+            self._emit(f"{name}.data[:] = {name}.data[:] % 8")
+            self._emit(f"{name}._sync_to_device()")
+        self._emit()
+        for name in inputs:
+            self._emit(f'print(f"{name}[:8] = {{{name}.numpy()[:8]}}")')
+        self._emit()
+
+    def _emit_post_call_validation(self, tensor_args: List[Tuple[str, str]]):
+        """Print a sample of each output tensor after the jit call, so a
+        run gives an immediate before/after look rather than needing a
+        separate script to inspect results."""
+        outputs = [name for name, direction in tensor_args if direction in ('Out', 'InOut')]
+        if not outputs:
+            return
+        self._emit()
+        for name in outputs:
+            self._emit(f'print(f"{name}[:8] = {{{name}.numpy()[:8]}}")')
 
     def _extract_fill_drain(self, op_id: str, fifo_kwarg: str, var_kwarg: str):
         """Pull the ObjectFifo base name, tile expr, source/dest expr, and

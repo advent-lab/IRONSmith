@@ -90,7 +90,17 @@ def main():
     inputA = iron.arange(N, dtype=bfloat16, device="npu")
     inputB = iron.arange(N, dtype=bfloat16, device="npu")
     outputC = iron.zeros(N, dtype=bfloat16, device="npu")
+    inputA.data[:] = inputA.data[:] % 8
+    inputA._sync_to_device()
+    inputB.data[:] = inputB.data[:] % 8
+    inputB._sync_to_device()
+
+    print(f"inputA[:8] = {inputA.numpy()[:8]}")
+    print(f"inputB[:8] = {inputB.numpy()[:8]}")
+
     vector_vector_mul_test_jit(inputA, inputB, outputC, N=N)
+
+    print(f"outputC[:8] = {outputC.numpy()[:8]}")
     print(f"inputA[:8] = {inputA.numpy()[:8]}")
     print(f"inputB[:8] = {inputB.numpy()[:8]}")
     print(f"outputC[:8] = {outputC.numpy()[:8]}")
