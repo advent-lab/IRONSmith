@@ -219,7 +219,7 @@
                   <string>MEM_L2_L1_A4_col0</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>0</const>
@@ -261,7 +261,7 @@
                   <string>MEM_L1_L2_C4_col0</string>
                 </list>
               </kwarg>
-              <kwarg name="placement">
+              <kwarg name="tile">
                 <constructor ref="Tile">
                   <arg>
                     <const>0</const>
@@ -509,14 +509,14 @@
       <context>
         <call>
           <method ref="rt" name="sequence">
-            <arg type_ref="memtile_ty"/>
-            <arg type_ref="memtile_ty"/>
+            <arg type_ref="data_ty"/>
+            <arg type_ref="data_ty"/>
           </method>
         </call>
       </context>
       <bindings>
-        <bind name="inputa_in" type_ref="memtile_ty"/>
-        <bind name="outputc_out" type_ref="memtile_ty"/>
+        <bind name="inputa_in" type_ref="data_ty"/>
+        <bind name="outputc_out" type_ref="data_ty"/>
       </bindings>
       <body>
         <Operation name="start">
@@ -542,7 +542,7 @@
             <arg>
               <var ref="inputa_in"/>
             </arg>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -568,7 +568,7 @@
               <var ref="outputc_out"/>
             </arg>
             <kwarg name="wait" value="True"/>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -613,8 +613,8 @@
   </DataFlow>
   <Function name="vector_exp_test_jit" decorator="iron.jit">
     <parameters>
-      <param name="inputA" type_ref="memtile_ty"/>
-      <param name="outputC" type_ref="memtile_ty"/>
+      <param name="inputA" type_ref="data_ty"/>
+      <param name="outputC" type_ref="data_ty"/>
     </parameters>
     <attributes>
       <kwarg name="is_placed" value="False"/>
@@ -674,6 +674,8 @@
           </call>
         </source>
       </Assign>
+      <RawLine>inputA.data[:] = inputA.data[:] % 10</RawLine>
+      <RawLine>inputA._sync_to_device()</RawLine>
       <Call>
         <function ref="vector_exp_test_jit">
           <arg>
@@ -684,6 +686,11 @@
           </arg>
         </function>
       </Call>
+      <RawLine>print(f"inputA[:8] = {inputA.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"outputC[:8] = {outputC.numpy()[:8]}")</RawLine>
+      <RawLine>expected = np.exp(inputA.numpy().astype(np.float32))</RawLine>
+      <RawLine>print(f"expected[:8] = {expected[:8]}")</RawLine>
+      <RawLine>print("PASS: outputC matches exp(inputA)" if np.allclose(outputC.numpy().astype(np.float32), expected, atol=1e-1, rtol=1e-1) else "FAIL: outputC does not match exp(inputA)")</RawLine>
     </body>
   </Function>
   <EntryPoint>

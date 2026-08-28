@@ -832,6 +832,11 @@ QLabel#AiePropertiesValueLabel {
     font-size: 12px;
 }
 
+QLabel#AiePropertiesCoordLabel {
+    color: rgba(230, 234, 240, 0.55);
+    font-size: 10px;
+}
+
 QLineEdit#AiePropertiesField,
 QSpinBox#AiePropertiesField,
 QComboBox#AiePropertiesField {

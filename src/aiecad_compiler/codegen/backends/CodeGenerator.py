@@ -20,10 +20,11 @@ Key Design Principles:
 """
 
 import json
+import keyword
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Set, Optional, Any
+from typing import Dict, List, Set, Optional, Any, Tuple
 import networkx as nx
 
 
@@ -49,6 +50,22 @@ class CodeGenerator:
         self.indent_level = 0
         self.dataflow_generated = False  # Prevent duplicate DataFlow generation
         self._use_kernel_api = False     # Set by _needs_kernel_api() during generate()
+
+        # Set by _process_function() for the @iron.jit-decorated function:
+        # literal-valued module Consts promoted to CompileTime[T] keyword
+        # params (see _promoted_consts), and - when there's exactly one -
+        # the name .numel() calls inside that function get rewritten to.
+        self._promoted_const_names: Set[str] = set()
+        self._compiletime_const_name: Optional[str] = None
+        # func_name -> [promoted CompileTime param names], populated once
+        # per @iron.jit function and kept for the whole run so call sites
+        # elsewhere in the module (e.g. main()) can inject name=name kwargs.
+        self._function_compiletime_params: Dict[str, List[str]] = {}
+        # func_name -> [(tensor param name, 'In'/'Out'/'InOut'), ...] in
+        # declaration order, populated once per @iron.jit function - lets a
+        # call site (main()) inject mod-8 bounding + before/after prints for
+        # whichever variables it actually passes, matched positionally.
+        self._function_tensor_params: Dict[str, List[Tuple[str, str]]] = {}
 
         # Register code generation extensions
         from extension.CodeGeneratorExtender import register_codegen_extensions
@@ -252,12 +269,11 @@ class CodeGenerator:
                     if self._use_kernel_api:
                         self._emit("import os")
                     self._emit("from aie.iron import Program, Runtime, Worker, ObjectFifo")
-                    self._emit("from aie.iron.placers import SequentialPlacer")
                     self._emit("from aie.iron.device.tile import AnyComputeTile")
                     if self._use_kernel_api:
-                        self._emit("from aie.iron import Kernel, jit")
+                        self._emit("from aie.iron import Kernel, jit, In, Out, InOut, CompileTime")
                     else:
-                        self._emit("from aie.iron import ExternalFunction, jit")
+                        self._emit("from aie.iron import ExternalFunction, jit, In, Out, InOut, CompileTime")
                     self._emit("from aie.iron.dataflow import ObjectFifoLink")
                     self._emit("from aie.iron.device import Tile")
                     self._emit("from aie.iron.device import NPU1Col1, NPU2Col1, XCVC1902")
@@ -290,32 +306,54 @@ class CodeGenerator:
     def _process_function(self, func_id: str):
         """
         Process a function definition.
-        
+
         Generates:
         - Decorator (@iron.device)
         - Function signature with parameters
         - Function body statements
-        
+
         Manages indentation for nested statements.
         """
         func_name = self._get_node_attr(func_id, 'label')
         decorator = self._get_node_attr(func_id, 'decorator')
-        
+
         # Generate decorator
         if decorator:
-            self._emit(f"@{decorator}(is_placed=False)")
-        
-        # Get parameters
-        params = []
+            self._emit(f"@{decorator}")
+
         param_nodes = self._get_children(func_id, 'has_param')
-        for param_id in param_nodes:
-            param_name = self._get_node_attr(param_id, 'label')
-            params.append(param_name)
-        
+        param_names = [self._get_node_attr(p, 'label') for p in param_nodes]
+
+        if decorator:
+            # The @iron.jit-traced function: tensor params need an
+            # In/Out/InOut annotation (the framework only builds a
+            # placeholder for annotated params), and any module-level
+            # literal constant becomes a keyword-only CompileTime[T] param
+            # instead of a hardcoded body-local value - .numel() can't be
+            # read off an annotated placeholder inside the trace, so sizes
+            # have to come in this way instead.
+            promoted = self._promoted_consts()
+            self._promoted_const_names = {name for name, _ in promoted}
+            self._compiletime_const_name = promoted[0][0] if len(promoted) == 1 else None
+            if func_name:
+                self._function_compiletime_params[func_name] = [name for name, _ in promoted]
+
+            directions = self._infer_param_directions(param_names)
+            if func_name:
+                self._function_tensor_params[func_name] = [(p, directions[p]) for p in param_names]
+            sig_parts = [f"{p}: {directions[p]}" for p in param_names]
+            if promoted:
+                sig_parts.append('*')
+                sig_parts.extend(f"{name}: CompileTime[{ctype}]" for name, ctype in promoted)
+        else:
+            self._promoted_const_names = set()
+            self._compiletime_const_name = None
+            sig_parts = list(param_names)
+
         # Generate function signature
-        params_str = ", ".join(params)
+        params_str = ", ".join(sig_parts)
         self._emit(f"def {func_name}({params_str}):")
-        
+
         # Generate function body
         self.indent_level += 1
         body_children = self._get_children(func_id, 'contains')
@@ -324,8 +362,16 @@ class CodeGenerator:
             self._emit("pass")
         else:
             for child_id in body_children:
-                self._process_statement(child_id)
-        
+                tensor_args = None
+                if self._get_node_attr(child_id, 'kind') == 'Call':
+                    tensor_args = self._jit_call_tensor_args(child_id)
+                if tensor_args:
+                    self._emit_pre_call_validation(tensor_args)
+                    self._process_statement(child_id)
+                    self._emit_post_call_validation(tensor_args)
+                else:
+                    self._process_statement(child_id)
+
         self.indent_level -= 1
         self._emit()
         self._emit()
@@ -405,7 +451,22 @@ class CodeGenerator:
     # ===================================================================
     # Recursively rebuilds expressions from graph nodes.
     # This is the core of code generation - converts graph to Python syntax.
-    
+
+    def _maybe_numel_const(self, method: str) -> Optional[str]:
+        """When exactly one compile-time constant was promoted out of the
+        jit function's body into a `CompileTime[T]` keyword param (see
+        _process_function), rewrite <tensor>.numel() calls inside that
+        function to reference the constant directly instead.
+
+        The current IRON API only builds a placeholder for annotated
+        In/Out/InOut tensor params, so .numel() can no longer be read off
+        them inside the trace body - the equivalent size has to come from
+        the promoted constant instead.
+        """
+        if method != 'numel':
+            return None
+        return getattr(self, '_compiletime_const_name', None)
+
     def _reconstruct_expression(self, expr_id: str) -> str:
         """
         Reconstruct expression from graph node.
@@ -444,6 +505,9 @@ class CodeGenerator:
         elif kind == 'MethodCallExpr':
             obj_ref = self._get_node_attr(expr_id, 'object_ref')
             method = self._get_node_attr(expr_id, 'method')
+            const_name = self._maybe_numel_const(method)
+            if const_name:
+                return const_name
             return f"{obj_ref}.{method}()"
         
         elif kind == 'Call':
@@ -624,7 +688,8 @@ class CodeGenerator:
 
             if object_ref:
                 # This is a method call on a specific object: object.method()
-                return f"{object_ref}.{method_name}()"
+                const_name = self._maybe_numel_const(method_name)
+                return const_name or f"{object_ref}.{method_name}()"
             else:
                 # Just the method name with parentheses
                 return f"{method_name}()"
@@ -679,12 +744,14 @@ class CodeGenerator:
                         args.append(arg_expr)
                     return f"{obj_label}.{method_name}({', '.join(args)})"
                 else:
-                    return f"{obj_label}.{method_name}()"
+                    const_name = self._maybe_numel_const(method_name)
+                    return const_name or f"{obj_label}.{method_name}()"
             else:
                 # Check for object_ref attribute
                 obj_ref = self._get_node_attr(expr_id, 'object_ref')
                 if obj_ref:
-                    return f"{obj_ref}.{method_name}()"
+                    const_name = self._maybe_numel_const(method_name)
+                    return const_name or f"{obj_ref}.{method_name}()"
                 # Method without object reference
                 return f"{method_name}()"
 
@@ -733,6 +800,17 @@ class CodeGenerator:
     # Handles method chains and function calls with arguments.
     # Critical for IRON's fluent API patterns.
     
+    def _compiletime_call_kwargs(self, func_name: str, existing_args: List[str]) -> List[str]:
+        """name=name kwargs to append when calling the @iron.jit function
+        that had CompileTime params promoted out of its body (see
+        _process_function) - callers in the graph predate that promotion,
+        so they never declared these kwargs themselves."""
+        param_names = self._function_compiletime_params.get(func_name)
+        if not param_names:
+            return []
+        existing_kw_names = {a.split('=', 1)[0] for a in existing_args if '=' in a}
+        return [f"{name}={name}" for name in param_names if name not in existing_kw_names]
+
     def _reconstruct_call(self, call_id: str) -> str:
         """
         Reconstruct a call expression - handles method chains and function calls.
@@ -764,7 +842,8 @@ class CodeGenerator:
                 arg_nodes = [c for c in children if self._get_node_attr(c, 'kind') in ['Arg', 'Kwarg']]
                 for arg_id in arg_nodes:
                     args.append(self._reconstruct_expression(arg_id))
-                
+                args += self._compiletime_call_kwargs(func_name, args)
+
                 args_str = ", ".join(args) if args else ""
                 return f"{func_name}({args_str})"
         
@@ -841,6 +920,10 @@ class CodeGenerator:
                             # Otherwise, append the whole expression
                             return f"{obj_name}.{method_name}().{nested_expr}"
                     
+                    if not args:
+                        const_name = self._maybe_numel_const(method_name)
+                        if const_name:
+                            return const_name
                     args_str = ", ".join(args) if args else ""
                     return f"{obj_name}.{method_name}({args_str})"
                 else:
@@ -917,6 +1000,7 @@ class CodeGenerator:
                         value = self._get_node_attr(kw_id, 'value')
                         args.append(f"{name}={value}")
                 
+                args += self._compiletime_call_kwargs(func_name, args)
                 args_str = ", ".join(args) if args else ""
                 chain_suffix = self._get_node_attr(method_id, 'chain_suffix') or ''
                 return f"{func_name}({args_str}){chain_suffix}"
@@ -992,7 +1076,9 @@ class CodeGenerator:
                                             method_ref = self._get_node_attr(item_id, 'label')
                                             # Add () if it's a method call
                                             if method_ref and '.' in method_ref:
-                                                items.append(f"{method_ref}()")
+                                                obj_ref, method_name = method_ref.rsplit('.', 1)
+                                                const_name = self._maybe_numel_const(method_name)
+                                                items.append(const_name or f"{method_ref}()")
                                             else:
                                                 items.append(method_ref)
                                     if items:
@@ -1105,9 +1191,13 @@ class CodeGenerator:
         if not symbols_sections:
             return
 
-        # Emit constant definitions first (so symbolic types can reference them)
+        # Emit constant definitions first (so symbolic types can reference
+        # them). Literal-valued consts were promoted to CompileTime[T]
+        # keyword params by _process_function - only expression-valued
+        # consts (e.g. M_div_m = M // m) still need a body-local assignment.
         const_nodes = [c for c in self._get_children(symbols_sections[0], 'contains')
-                       if self._get_node_attr(c, 'kind') == 'Const']
+                       if self._get_node_attr(c, 'kind') == 'Const'
+                       and self._get_node_attr(c, 'label') not in self._promoted_const_names]
         if const_nodes:
             self._emit("# Constants")
             for child_id in const_nodes:
@@ -1466,196 +1556,348 @@ class CodeGenerator:
                         self._emit_tap_assignment(tap_id)
                     self._emit()
 
-        # Generate Runtime
+        # Generate Runtime: emits the sequence() function plus
+        # rt = Runtime(sequence, [...]) - see _generate_sequence_block.
         self._emit("# Runtime")
-        runtime_nodes = [c for c in self._get_children(dataflow_id, 'contains') 
+        runtime_nodes = [c for c in self._get_children(dataflow_id, 'contains')
                         if self._get_node_attr(c, 'kind') == 'Runtime']
-        
+        seq_nodes = [c for c in self._get_children(dataflow_id, 'contains')
+                    if self._get_node_attr(c, 'kind') == 'SequenceBlock']
+
         for rt_id in runtime_nodes:
             rt_name = self._get_node_attr(rt_id, 'label')
-            self._emit(f"{rt_name} = Runtime()")
-        
-        # Generate SequenceBlock
-        seq_nodes = [c for c in self._get_children(dataflow_id, 'contains') 
-                    if self._get_node_attr(c, 'kind') == 'SequenceBlock']
-        
-        for seq_id in seq_nodes:
-            self._generate_sequence_block(seq_id)
-        
-        # Generate Program
+            for seq_id in seq_nodes:
+                self._generate_sequence_block(seq_id, rt_name)
+
+        # Generate Program. Workers are passed here directly (see the
+        # Workers list emitted above) rather than started from within the
+        # runtime sequence.
         self._emit("# Program")
-        program_nodes = [c for c in self._get_children(dataflow_id, 'contains') 
+        program_nodes = [c for c in self._get_children(dataflow_id, 'contains')
                         if self._get_node_attr(c, 'kind') == 'Program']
-        
+        workers_list_name = (self._get_node_attr(list_nodes[0], 'label')
+                              if list_nodes else None)
+
         for prog_id in program_nodes:
             prog_name = self._get_node_attr(prog_id, 'label')
-            self._emit(f"{prog_name} = Program(iron.get_current_device(), rt)")
-        
-        self._emit()
-        
-        # Generate Placer
-        self._emit("# Placement")
-        placer_nodes = [c for c in self._get_children(dataflow_id, 'contains') 
-                       if self._get_node_attr(c, 'kind') == 'Placer']
-        
-        for placer_id in placer_nodes:
-            placer_name = self._get_node_attr(placer_id, 'label')
-            self._emit(f"{placer_name} = SequentialPlacer()")
-    
-    def _generate_sequence_block(self, seq_id: str):
-        """
-        Generate with rt.sequence(...) block.
-        
-        Creates context manager for sequenced operations:
-        with rt.sequence(type1, type2) as (binding1, binding2):
-            rt.fill(...)
-            rt.drain(...)
-        """
-        # Get bindings
-        binding_nodes = self._get_children(seq_id, 'binds')
-        bindings = []
-        for bind_id in binding_nodes:
-            bind_name = self._get_node_attr(bind_id, 'label')
-            bindings.append(bind_name)
-        
-        bindings_str = ", ".join(bindings)
-        
-        # Get type references from bindings
-        type_refs = []
-        for bind_id in binding_nodes:
-            type_ref = self._get_node_attr(bind_id, 'type_ref')
-            if type_ref:
-                type_refs.append(type_ref)
-        
-        type_args = ", ".join(type_refs) if type_refs else "vector_ty, vector_ty"
-        
-        self._emit(f"with rt.sequence({type_args}) as ({bindings_str}):")
+            program_args = "iron.get_current_device(), rt"
+            if workers_list_name:
+                program_args += f", workers={workers_list_name}"
+            self._emit(f"{prog_name} = Program({program_args})")
 
-        # Generate operations grouped by type
-        self.indent_level += 1
+        self._emit()
+
+    def _safe_param_name(self, name: str, used: Set[str]) -> str:
+        """Turn a derived name (e.g. an "of_" prefix stripped off a fifo
+        name) into a valid, unused Python identifier. Handles the empty
+        string, Python keywords (of_in/of_out -> in/out collide with
+        `in`/`out`), and collisions with names already taken."""
+        if not name or not name.isidentifier() or keyword.iskeyword(name):
+            name = f"{name}_h" if name else "h"
+        base = name
+        i = 2
+        while name in used:
+            name = f"{base}_{i}"
+            i += 1
+        used.add(name)
+        return name
+
+    def _operation_name(self, op_id: str) -> str:
+        """The runtime-sequence op name (fill/drain/...) from an Operation
+        node's target method call."""
+        target_nodes = self._get_children(op_id, 'target')
+        if target_nodes:
+            target_kind = self._get_node_attr(target_nodes[0], 'kind')
+            if target_kind == 'MethodCall':
+                return self._get_node_attr(target_nodes[0], 'label') or ''
+            target_call = self._reconstruct_call(target_nodes[0])
+            if '.' in target_call:
+                return target_call.split('.')[1].rstrip('()')
+        return self._get_node_attr(op_id, 'label') or ''
+
+    def _module_const_nodes(self) -> List[str]:
+        """Const nodes under the module's Symbols section."""
+        module_nodes = self._find_nodes_by_kind('Module')
+        if not module_nodes:
+            return []
+        symbols_sections = [c for c in self._get_children(module_nodes[0], 'contains')
+                             if self._get_node_attr(c, 'kind') == 'Section'
+                             and self._get_node_attr(c, 'label') == 'Symbols']
+        if not symbols_sections:
+            return []
+        return [c for c in self._get_children(symbols_sections[0], 'contains')
+                if self._get_node_attr(c, 'kind') == 'Const']
+
+    def _promoted_consts(self) -> List[tuple]:
+        """Module-level Consts with a plain literal value (e.g.
+        data_size = 128) - these become CompileTime[T] keyword params on
+        the jit function instead of a hardcoded body-local value.
+        Expression-valued Consts (e.g. M_div_m = M // m) stay as body-local
+        computed assignments, now referencing the promoted params directly.
+        """
+        promoted = []
+        for c_id in self._module_const_nodes():
+            name = self._get_node_attr(c_id, 'label')
+            value = self._get_node_attr(c_id, 'value')
+            if name and value is not None and re.fullmatch(r'-?\d+(\.\d+)?', value.strip()):
+                const_type = self._get_node_attr(c_id, 'type') or 'int'
+                promoted.append((name, const_type))
+        return promoted
+
+    def _infer_param_directions(self, param_names: List[str]) -> Dict[str, str]:
+        """Infer In/Out/InOut for each jit-function tensor parameter.
+
+        There's no direction attribute on Parameter nodes today - the only
+        reliable existing signal is which runtime-sequence binding (matched
+        positionally to param_names, the same convention the rest of the
+        pipeline already relies on) shows up as a fill source or drain
+        dest. Falls back to 'In' for anything that can't be classified,
+        since every tensor param needs some annotation for the framework to
+        build a placeholder for it.
+        """
+        directions = {p: 'In' for p in param_names}
+
+        module_nodes = self._find_nodes_by_kind('Module')
+        if not module_nodes:
+            return directions
+        dataflow_sections = [c for c in self._get_children(module_nodes[0], 'contains')
+                              if self._get_node_attr(c, 'kind') == 'Section'
+                              and self._get_node_attr(c, 'label') == 'DataFlow']
+        if not dataflow_sections:
+            return directions
+        seq_nodes = [c for c in self._get_children(dataflow_sections[0], 'contains')
+                     if self._get_node_attr(c, 'kind') == 'SequenceBlock']
+        if not seq_nodes:
+            return directions
+
+        seq_id = seq_nodes[0]
+        bindings = [self._get_node_attr(b, 'label') for b in self._get_children(seq_id, 'binds')]
         op_nodes = [op_id for op_id in self._get_children(seq_id, 'contains')
                     if self._get_node_attr(op_id, 'kind') == 'Operation']
 
-        def _op_name(op_id):
-            target_nodes = self._get_children(op_id, 'target')
-            if target_nodes:
-                target_kind = self._get_node_attr(target_nodes[0], 'kind')
-                if target_kind == 'MethodCall':
-                    return self._get_node_attr(target_nodes[0], 'label') or ''
-                target_call = self._reconstruct_call(target_nodes[0])
-                if '.' in target_call:
-                    return target_call.split('.')[1].rstrip('()')
-            return self._get_node_attr(op_id, 'label') or ''
+        in_bindings: Set[str] = set()
+        out_bindings: Set[str] = set()
+        for op_id in op_nodes:
+            name = self._operation_name(op_id)
+            if name == 'fill':
+                _, _, source_expr, _ = self._extract_fill_drain(op_id, 'in_fifo', 'source')
+                if source_expr:
+                    in_bindings.add(source_expr)
+            elif name == 'drain':
+                _, _, dest_expr, _ = self._extract_fill_drain(op_id, 'out_fifo', 'dest')
+                if dest_expr:
+                    out_bindings.add(dest_expr)
 
-        starts = [op for op in op_nodes if _op_name(op) == 'start']
-        fills  = [op for op in op_nodes if _op_name(op) == 'fill']
-        drains = [op for op in op_nodes if _op_name(op) == 'drain']
-        others = [op for op in op_nodes if op not in starts and op not in fills and op not in drains]
+        for i, param_name in enumerate(param_names):
+            binding = bindings[i] if i < len(bindings) else None
+            is_in = binding in in_bindings
+            is_out = binding in out_bindings
+            if is_in and is_out:
+                directions[param_name] = 'InOut'
+            elif is_out:
+                directions[param_name] = 'Out'
+            else:
+                directions[param_name] = 'In'
+        return directions
 
-        if starts:
-            self._emit("# Start Workers")
-            for op_id in starts:
-                self._generate_operation(op_id)
+    def _jit_call_tensor_args(self, call_id: str) -> Optional[List[Tuple[str, str]]]:
+        """If call_id invokes an @iron.jit function this generator already
+        processed, return [(arg_var_name, direction), ...] for its tensor
+        args in call order - the ordered actual variable names (e.g. "A",
+        "B", "C") a caller like main() passed, paired with the direction
+        ('In'/'Out'/'InOut') inferred for the matching parameter position.
+        Returns None if call_id isn't a call to a known jit function, or
+        doesn't have a matching count of positional tensor args.
+        """
+        func_nodes = [c for c in self._get_children(call_id, 'calls')
+                      if self._get_node_attr(c, 'kind') == 'FunctionCall']
+        if not func_nodes:
+            return None
+        func_name = self._get_node_attr(func_nodes[0], 'label')
+        tensor_params = self._function_tensor_params.get(func_name)
+        if not tensor_params:
+            return None
+
+        arg_nodes = self._get_children(call_id, 'has_arg')
+        arg_names = [self._get_node_attr(a, 'label') for a in arg_nodes]
+        if len(arg_names) != len(tensor_params):
+            return None
+        return [(arg_name, direction) for arg_name, (_, direction) in zip(arg_names, tensor_params)]
+
+    def _emit_pre_call_validation(self, tensor_args: List[Tuple[str, str]]):
+        """Bound each input tensor to a small range and print a sample
+        before the jit call, mirroring the reference examples' pattern:
+        keeps K-term dot-product accumulation well inside the output
+        dtype's range (unbounded arange values can overflow int32/int16
+        accumulators) and gives an at-a-glance check of what's being fed
+        in.
+        """
+        inputs = [name for name, direction in tensor_args if direction in ('In', 'InOut')]
+        if not inputs:
+            return
+        for name in inputs:
+            self._emit(f"{name}.data[:] = {name}.data[:] % 8")
+            self._emit(f"{name}._sync_to_device()")
+        self._emit()
+        for name in inputs:
+            self._emit(f'print(f"{name}[:8] = {{{name}.numpy()[:8]}}")')
+        self._emit()
+
+    def _emit_post_call_validation(self, tensor_args: List[Tuple[str, str]]):
+        """Print a sample of each output tensor after the jit call, so a
+        run gives an immediate before/after look rather than needing a
+        separate script to inspect results."""
+        outputs = [name for name, direction in tensor_args if direction in ('Out', 'InOut')]
+        if not outputs:
+            return
+        self._emit()
+        for name in outputs:
+            self._emit(f'print(f"{name}[:8] = {{{name}.numpy()[:8]}}")')
+
+    def _extract_fill_drain(self, op_id: str, fifo_kwarg: str, var_kwarg: str):
+        """Pull the ObjectFifo base name, tile expr, source/dest expr, and
+        any remaining kwargs (e.g. tap, wait) off a fill/drain Operation
+        node.
+
+        Handles both the pure-kwarg form (``in_fifo=``/``out_fifo=``,
+        ``source=``/``dest=``, ``tile=``, ``tap=``) and the simple
+        positional form (arg0 = ``fifo.prod()``/``.cons()``, arg1 =
+        source/dest var) that the GUI simple-XML path can emit.
+        """
+        fifo_name = None
+        var_expr = None
+
+        arg_nodes = self._get_children(op_id, 'has_arg')
+        if len(arg_nodes) >= 1:
+            if self._get_node_attr(arg_nodes[0], 'kind') == 'Call':
+                arg0_expr = self._reconstruct_call(arg_nodes[0])
+            else:
+                arg0_expr = self._reconstruct_expression(arg_nodes[0])
+            fifo_name = arg0_expr.split('.', 1)[0]
+        if len(arg_nodes) >= 2:
+            var_expr = self._reconstruct_expression(arg_nodes[1])
+
+        tile_expr = None
+        extra_kwargs = []
+        for kw_id in self._get_children(op_id, 'has_kwarg'):
+            name = self._get_node_attr(kw_id, 'name')
+            value_nodes = self._get_children(kw_id, 'contains')
+            expr = (self._reconstruct_expression(value_nodes[0]) if value_nodes
+                    else self._get_node_attr(kw_id, 'value'))
+
+            if name == fifo_kwarg and expr:
+                fifo_name = expr.split('.', 1)[0]
+            elif name == var_kwarg:
+                var_expr = expr
+            elif name == 'tile':
+                tile_expr = expr
+            elif expr is not None:
+                extra_kwargs.append(f"{name}={expr}")
+
+        return fifo_name, tile_expr, var_expr, extra_kwargs
+
+    def _generate_sequence_block(self, seq_id: str, rt_name: str):
+        """
+        Generate the sequence() function and the Runtime(...) that binds it.
+
+        The current IRON API threads ObjectFifo endpoints (and their tile
+        placement) through the sequence function's own parameter list
+        instead of through rt.fill()/rt.drain()/a `with rt.sequence(...)`
+        context manager:
+
+            def sequence(a_in, b_in, d_out, in_a, out_d):
+                in_a.fill(a_in, tap=...)
+                out_d.drain(d_out, wait=True, tap=...)
+
+            rt = Runtime(sequence, [
+                data_ty, data_ty, data_ty,
+                of_in_a.prod(tile=Tile(0, 0)),
+                of_out_d.cons(tile=Tile(0, 0)),
+            ])
+
+        Worker start-up is handled by Program(..., workers=Workers) instead
+        of rt.start(*Workers), so 'start' operations are dropped entirely.
+        """
+        # Tensor params (a_in, b_in, d_out, ...) bound from the outer
+        # jit function's arguments.
+        binding_nodes = self._get_children(seq_id, 'binds')
+        bindings = [self._get_node_attr(b, 'label') for b in binding_nodes]
+        type_refs = [self._get_node_attr(b, 'type_ref') or 'vector_ty' for b in binding_nodes]
+
+        op_nodes = [op_id for op_id in self._get_children(seq_id, 'contains')
+                    if self._get_node_attr(op_id, 'kind') == 'Operation']
+
+        fills  = [op for op in op_nodes if self._operation_name(op) == 'fill']
+        drains = [op for op in op_nodes if self._operation_name(op) == 'drain']
+
+        # One ObjectFifo-handle parameter per fill/drain, in that order,
+        # named after the fifo (stripping the "of_" prefix by convention -
+        # disambiguated against Python keywords, e.g. "of_in"/"of_out", and
+        # against any name already taken).
+        used_names = set(bindings)
+        handle_params = []   # [(param_name, fn_arg_expr)]
+        fill_info = {}       # op_id -> (param_name, source_expr, extra_kwargs)
+        for op_id in fills:
+            fifo_name, tile_expr, source_expr, extra_kwargs = self._extract_fill_drain(op_id, 'in_fifo', 'source')
+            if not fifo_name:
+                continue
+            param_name = self._safe_param_name(fifo_name.removeprefix('of_'), used_names)
+            tile_arg = f"tile={tile_expr}" if tile_expr else ""
+            handle_params.append((param_name, f"{fifo_name}.prod({tile_arg})"))
+            fill_info[op_id] = (param_name, source_expr, extra_kwargs)
+
+        drain_info = {}      # op_id -> (param_name, dest_expr, extra_kwargs)
+        for op_id in drains:
+            fifo_name, tile_expr, dest_expr, extra_kwargs = self._extract_fill_drain(op_id, 'out_fifo', 'dest')
+            if not fifo_name:
+                continue
+            param_name = self._safe_param_name(fifo_name.removeprefix('of_'), used_names)
+            tile_arg = f"tile={tile_expr}" if tile_expr else ""
+            handle_params.append((param_name, f"{fifo_name}.cons({tile_arg})"))
+            drain_info[op_id] = (param_name, dest_expr, extra_kwargs)
+
+        all_params = bindings + [p for p, _ in handle_params]
+        self._emit(f"def sequence({', '.join(all_params)}):")
+
+        self.indent_level += 1
         if fills:
             self._emit("# Fills")
             for op_id in fills:
-                self._generate_operation(op_id)
+                if op_id not in fill_info:
+                    continue
+                param_name, source_expr, extra_kwargs = fill_info[op_id]
+                call_args = ", ".join([source_expr] + extra_kwargs) if source_expr else ", ".join(extra_kwargs)
+                self._emit(f"{param_name}.fill({call_args})")
         if drains:
             self._emit("# Drains")
             for op_id in drains:
-                self._generate_operation(op_id)
-        for op_id in others:
-            self._generate_operation(op_id)
-
+                if op_id not in drain_info:
+                    continue
+                param_name, dest_expr, extra_kwargs = drain_info[op_id]
+                call_args = ", ".join([dest_expr] + extra_kwargs) if dest_expr else ", ".join(extra_kwargs)
+                self._emit(f"{param_name}.drain({call_args})")
         self.indent_level -= 1
         self._emit()
-    
-    def _generate_operation(self, op_id: str):
-        """
-        Generate operation (fill/drain).
 
-        Generates: rt.operation(args, kwargs)
-        """
-        # Get the operation name from the target method, not the Operation label
-        target_nodes = self._get_children(op_id, 'target')
-        op_name = None
-        if target_nodes:
-            # Check if target is a MethodCall node with direct name attribute
-            target_kind = self._get_node_attr(target_nodes[0], 'kind')
-            if target_kind == 'MethodCall':
-                op_name = self._get_node_attr(target_nodes[0], 'label')
-            else:
-                # This is a call to rt.fill() or rt.drain()
-                # The target is a method call like rt.fill
-                target_call = self._reconstruct_call(target_nodes[0])
-                # Extract the method name (e.g., "fill" from "rt.fill()")
-                if '.' in target_call:
-                    op_name = target_call.split('.')[1].rstrip('()')
+        fn_args = type_refs + [expr for _, expr in handle_params]
+        self._emit(f"{rt_name} = Runtime(sequence, [")
+        self.indent_level += 1
+        for item in fn_args:
+            self._emit(f"{item},")
+        self.indent_level -= 1
+        self._emit("])")
+        self._emit()
 
-        if not op_name:
-            # Fallback to using the label
-            op_name = self._get_node_attr(op_id, 'label')
-
-        # Get all arguments from has_arg edges
-        arg_nodes = self._get_children(op_id, 'has_arg')
-        args = []
-
-        for arg_id in arg_nodes:
-            arg_kind = self._get_node_attr(arg_id, 'kind')
-            if arg_kind == 'Call':
-                # This is a method call like of_in.prod()
-                arg_expr = self._reconstruct_call(arg_id)
-                args.append(arg_expr)
-            elif arg_kind in ['Variable', 'VarRef', 'Binding']:
-                # This is a variable reference like a_in
-                arg_label = self._get_node_attr(arg_id, 'label')
-                # Check if this is a list that needs unpacking
-                if arg_label == 'Workers' and op_name == 'start':
-                    args.append(f"*{arg_label}")
-                else:
-                    args.append(arg_label)
-            elif arg_kind == 'List':
-                # This is a list node - check if it needs unpacking
-                list_label = self._get_node_attr(arg_id, 'label')
-                if list_label and op_name == 'start':
-                    args.append(f"*{list_label}")
-                else:
-                    args.append(list_label if list_label else "list")
-            else:
-                # Try to reconstruct as expression
-                arg_expr = self._reconstruct_expression(arg_id)
-                args.append(arg_expr)
-
-        # Get kwargs
-        kwarg_nodes = self._get_children(op_id, 'has_kwarg')
-        for kw_id in kwarg_nodes:
-            name = self._get_node_attr(kw_id, 'name')
-            value = self._get_node_attr(kw_id, 'value')
-
-            # Check if kwarg has complex value (constructor, list, etc.)
-            value_nodes = self._get_children(kw_id, 'contains')
-            if value_nodes:
-                # Reconstruct complex value
-                value_expr = self._reconstruct_expression(value_nodes[0])
-                args.append(f"{name}={value_expr}")
-            elif value:
-                # Simple value - check if it needs quotes or special handling
-                if value == 'True' or value == 'False':
-                    args.append(f"{name}={value}")
-                elif value == 'None':
-                    args.append(f"{name}={value}")
-                else:
-                    args.append(f"{name}={value}")
-
-        args_str = ", ".join(args)
-        self._emit(f"rt.{op_name}({args_str})")
-    
     def _generate_return(self, return_id: str):
         """
         Generate return statement.
-        
+
         Looks for ResolveProgram in DataFlow to generate:
-        return my_program.resolve_program(placer)
+        return my_program.resolve_program()
+
+        The current IRON API resolves placement via a compiler pass rather
+        than a Python-side Placer, so resolve_program() always takes no
+        arguments regardless of what the graph's target call reconstructs.
         """
         # Find ResolveProgram in DataFlow
         module_nodes = self._find_nodes_by_kind('Module')
@@ -1673,13 +1915,17 @@ class CodeGenerator:
                     # Get the target method call
                     target_nodes = self._get_children(resolve_nodes[0], 'target')
                     if target_nodes:
-                        # Reconstruct the method call with its arguments
+                        # Reconstruct the call to get the base object/method
+                        # (e.g. "my_program.resolve_program"), then drop any
+                        # placer argument it may have reconstructed - the
+                        # current API takes none.
                         method_call = self._reconstruct_call(target_nodes[0])
                         if method_call:
-                            self._emit(f"return {method_call}")
+                            base = method_call.split('(', 1)[0]
+                            self._emit(f"return {base}()")
                             return
                     # Fallback to hardcoded version
-                    self._emit("return my_program.resolve_program(SequentialPlacer())")
+                    self._emit("return my_program.resolve_program()")
                     return
         
         self._emit("return")

@@ -10,6 +10,7 @@
 #include <QLoggingCategory>
 #include <QMenu>
 #include <array>
+#include <memory>
 #include <QtCore/QtGlobal>
 #include <QtGui/QActionGroup>
 
@@ -70,8 +71,6 @@ private:
     void setCanvasActionsEnabled(bool enabled);
     void applyZoom(CanvasView* view, double factor);
     void zoomToFit(CanvasView* view, CanvasDocument* doc);
-    void clearWireOverrides(CanvasDocument* doc);
-    void setWireArrows(CanvasDocument* doc, bool enabled);
 
 	    QPointer<CanvasHostImpl> m_host;
 	    QPointer<CanvasGridHostImpl> m_gridHost;
@@ -93,10 +92,6 @@ private:
         QPointer<QAction> linkCollect;
         QPointer<QAction> linkFifo;
         QPointer<QAction> linkForwardFifo;
-
-        QPointer<QAction> autoRoute;
-        QPointer<QAction> clearOverrides;
-        QPointer<QAction> wireArrows;
 
         QPointer<QAction> zoomIn;
         QPointer<QAction> zoomOut;
@@ -215,10 +210,6 @@ void CanvasPlugin::connectRibbonActions(Core::IUiHost* uiHost)
     m_actions.linkCollect = findMenuActionById(m_actions.ddrTransfersMenu,
                                                Core::Constants::CANVAS_LINK_COLLECT_ITEMID);
 
-    m_actions.autoRoute = fetch(Core::Constants::RIBBON_TAB_HOME_WIRES_GROUP, Core::Constants::CANVAS_WIRE_AUTO_ROUTE_ITEMID);
-    m_actions.clearOverrides = fetch(Core::Constants::RIBBON_TAB_HOME_WIRES_GROUP, Core::Constants::CANVAS_WIRE_CLEAR_OVERRIDES_ITEMID);
-    m_actions.wireArrows = fetch(Core::Constants::RIBBON_TAB_HOME_WIRES_GROUP, Core::Constants::CANVAS_WIRE_TOGGLE_ARROWS_ITEMID);
-
     m_actions.zoomIn = fetch(Core::Constants::RIBBON_TAB_HOME_VIEW_GROUP, Core::Constants::CANVAS_VIEW_ZOOM_IN_ITEMID);
     m_actions.zoomOut = fetch(Core::Constants::RIBBON_TAB_HOME_VIEW_GROUP, Core::Constants::CANVAS_VIEW_ZOOM_OUT_ITEMID);
     m_actions.zoomFit = fetch(Core::Constants::RIBBON_TAB_HOME_VIEW_GROUP, Core::Constants::CANVAS_VIEW_ZOOM_FIT_ITEMID);
@@ -271,22 +262,6 @@ void CanvasPlugin::connectRibbonActions(Core::IUiHost* uiHost)
         });
     }
 
-    if (m_actions.autoRoute) {
-        connect(m_actions.autoRoute, &QAction::triggered, this, [this, doc]() {
-            clearWireOverrides(doc);
-        });
-    }
-    if (m_actions.clearOverrides) {
-        connect(m_actions.clearOverrides, &QAction::triggered, this, [this, doc]() {
-            clearWireOverrides(doc);
-        });
-    }
-    if (m_actions.wireArrows) {
-        connect(m_actions.wireArrows, &QAction::toggled, this, [this, doc](bool enabled) {
-            setWireArrows(doc, enabled);
-        });
-    }
-
     if (m_actions.zoomIn) {
         connect(m_actions.zoomIn, &QAction::triggered, this, [this, view]() {
             applyZoom(view, Canvas::Constants::kZoomStep);
@@ -316,7 +291,24 @@ void CanvasPlugin::connectRibbonActions(Core::IUiHost* uiHost)
 
     setCanvasActionsEnabled(m_host->canvasActive());
     connect(m_host, &Canvas::Api::ICanvasHost::canvasActiveChanged, this,
-            [this](bool active) { setCanvasActionsEnabled(active); });
+            [this, view, doc](bool active) {
+                setCanvasActionsEnabled(active);
+                if (!active || !m_gridHost)
+                    return;
+                // Fit the view once a design opens (new or existing) instead of
+                // leaving it at CanvasView's raw default (zoom 1.0, pan (0,0) -
+                // the same state Reset View produces, which reads as "too
+                // zoomed in" on anything bigger than a couple of tiles).
+                // canvasActiveChanged can fire before the grid model's blocks
+                // are populated, so wait for the next blocksChanged rather than
+                // fitting immediately against a still-empty document.
+                auto conn = std::make_shared<QMetaObject::Connection>();
+                *conn = connect(m_gridHost, &Canvas::Api::ICanvasGridHost::blocksChanged,
+                                this, [this, view, doc, conn]() {
+                                    zoomToFit(view, doc);
+                                    QObject::disconnect(*conn);
+                                });
+            });
 }
 
 void CanvasPlugin::syncRibbonState(CanvasController* controller)
@@ -372,9 +364,6 @@ void CanvasPlugin::setCanvasActionsEnabled(bool enabled)
     setEnabled(m_actions.linkCollect);
     setEnabled(m_actions.linkFifo);
     setEnabled(m_actions.linkForwardFifo);
-    setEnabled(m_actions.autoRoute);
-    setEnabled(m_actions.clearOverrides);
-    setEnabled(m_actions.wireArrows);
     setEnabled(m_actions.zoomIn);
     setEnabled(m_actions.zoomOut);
     setEnabled(m_actions.zoomFit);
@@ -439,67 +428,6 @@ void CanvasPlugin::zoomToFit(CanvasView* view, CanvasDocument* doc)
     view->setZoom(targetZoom);
     view->setPan(pan);
     view->setDisplayZoomBaseline(targetZoom);
-}
-
-void CanvasPlugin::clearWireOverrides(CanvasDocument* doc)
-{
-    if (!doc)
-        return;
-
-    bool changed = false;
-    for (const auto& it : doc->items()) {
-        auto* wire = dynamic_cast<CanvasWire*>(it.get());
-        if (!wire || !wire->hasRouteOverride())
-            continue;
-        wire->clearRouteOverride();
-        changed = true;
-    }
-
-    if (changed)
-        doc->notifyChanged();
-}
-
-void CanvasPlugin::setWireArrows(CanvasDocument* doc, bool enabled)
-{
-    if (!doc)
-        return;
-
-    bool changed = false;
-    for (const auto& it : doc->items()) {
-        auto* wire = dynamic_cast<CanvasWire*>(it.get());
-        if (!wire)
-            continue;
-
-        WireArrowPolicy next = WireArrowPolicy::None;
-        if (enabled) {
-            CanvasPort aMeta;
-            CanvasPort bMeta;
-            const auto& a = wire->a();
-            const auto& b = wire->b();
-            if (a.attached.has_value() && b.attached.has_value() &&
-                doc->getPort(a.attached->itemId, a.attached->portId, aMeta) &&
-                doc->getPort(b.attached->itemId, b.attached->portId, bMeta)) {
-                const bool aConsumer = aMeta.role == PortRole::Consumer;
-                const bool bConsumer = bMeta.role == PortRole::Consumer;
-                if (aConsumer && !bConsumer)
-                    next = WireArrowPolicy::Start;
-                else if (bConsumer && !aConsumer)
-                    next = WireArrowPolicy::End;
-                else
-                    next = wire->arrowPolicy();
-            } else {
-                next = wire->arrowPolicy();
-            }
-        }
-
-        if (wire->arrowPolicy() != next) {
-            wire->setArrowPolicy(next);
-            changed = true;
-        }
-    }
-
-    if (changed)
-        doc->notifyChanged();
 }
 
 } // Canvas::Internal

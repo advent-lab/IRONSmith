@@ -126,7 +126,7 @@
             <placement>Tile(0, 2)</placement>
         </Worker>
         <Runtime name="runtime">
-            <Sequence inputs="memtile_ty, memtile_ty, memtile_ty" as="inputa_in, inputb_in, outputc_out">
+            <Sequence inputs="data_ty, data_ty, data_ty" as="inputa_in, inputb_in, outputc_out">
                 <Start>worker0, worker1, worker2, worker3</Start>
                 <Fill target="of_in_a" source="inputa_in" data_ref="inputA" column="0" use_tap="false">
                     <placement>Tile(0, 0)</placement>
@@ -148,9 +148,9 @@
     </DataFlow>
     <Function name="jit_function" decorator="iron.jit" entry="vector_vector_mul_test_jit">
         <parameters>
-            <param name="inputA" type="memtile_ty"/>
-            <param name="inputB" type="memtile_ty"/>
-            <param name="outputC" type="memtile_ty"/>
+            <param name="inputA" type="data_ty"/>
+            <param name="inputB" type="data_ty"/>
+            <param name="outputC" type="data_ty"/>
         </parameters>
         <body>
             <UseDataFlow/>
@@ -170,6 +170,12 @@
                 <init>iron.zeros(N, dtype=bfloat16, device="npu")</init>
             </Tensor>
             <Call function="jit_function" args="inputA, inputB, outputC"/>
+            <RawLine>print(f"inputA[:8] = {inputA.numpy()[:8]}")</RawLine>
+            <RawLine>print(f"inputB[:8] = {inputB.numpy()[:8]}")</RawLine>
+            <RawLine>print(f"outputC[:8] = {outputC.numpy()[:8]}")</RawLine>
+            <RawLine>expected = inputA.numpy().astype(np.float32) * inputB.numpy().astype(np.float32)</RawLine>
+            <RawLine>print(f"expected[:8] = {expected[:8]}")</RawLine>
+            <RawLine>print("PASS: outputC matches inputA * inputB" if np.allclose(outputC.numpy().astype(np.float32), expected, atol=1e-1, rtol=1e-1) else "FAIL: outputC does not match inputA * inputB")</RawLine>
         </body>
     </Function>
     <EntryPoint>

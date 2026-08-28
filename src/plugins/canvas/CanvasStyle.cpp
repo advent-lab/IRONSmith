@@ -136,6 +136,42 @@ void CanvasStyle::drawBlockLabel(QPainter& p,
     p.drawText(r, Qt::AlignLeft | Qt::AlignTop, text);
 }
 
+void CanvasStyle::drawBlockCoord(QPainter& p, const QRectF& boundsScene, double zoom, const QString& text,
+                                 bool belowLabel)
+{
+    Q_UNUSED(zoom);
+
+    if (text.isEmpty())
+        return;
+
+    const QRectF r = boundsScene.adjusted(Constants::kBlockLabelPadX,
+                                          Constants::kBlockLabelPadY,
+                                          -Constants::kBlockLabelPadX,
+                                          -Constants::kBlockLabelPadY);
+
+    QFont f = p.font();
+    f.setPointSizeF(Constants::kBlockCoordPointSize);
+    f.setBold(false);
+    p.setPen(QColor(Constants::kBlockStereotypeColor));
+
+    if (belowLabel) {
+        // Narrower blocks (e.g. SHIM) don't have room beside the label without
+        // colliding — stack the coordinate on its own line underneath instead.
+        QFont labelFont = p.font();
+        labelFont.setPointSizeF(Constants::kBlockLabelPointSize);
+        labelFont.setBold(true);
+        const double labelHeight = QFontMetricsF(labelFont).height();
+
+        p.setFont(f);
+        const QRectF belowRect(r.left(), r.top() + labelHeight, r.width(), r.height() - labelHeight);
+        p.drawText(belowRect, Qt::AlignLeft | Qt::AlignTop, text);
+        return;
+    }
+
+    p.setFont(f);
+    p.drawText(r, Qt::AlignRight | Qt::AlignTop, text);
+}
+
 void CanvasStyle::drawBlockStereotype(QPainter& p,
                                       const QRectF& boundsScene,
                                       double zoom,
@@ -362,7 +398,7 @@ void CanvasStyle::drawWirePath(QPainter& p,
     const double base = 2.0 / clamped(zoom, 0.25, 8.0);
     const double penW = clamped(base, 0.5, 3.0);
 
-    QColor c(selected ? Constants::kBlockSelectionColor : Constants::kWireColor);
+    QColor c(selected ? Constants::kWireHighlightColor : Constants::kWireColor);
     QPen pen(c);
     pen.setWidthF(penW);
     pen.setCapStyle(Qt::RoundCap);
@@ -418,7 +454,7 @@ void CanvasStyle::drawWirePathColored(QPainter& p,
     const double base = 2.0 / clamped(zoom, 0.25, 8.0);
     const double penW = clamped(base, 0.5, 3.0);
 
-    QColor c(selected ? Constants::kBlockSelectionColor : color);
+    QColor c(selected ? Constants::kWireHighlightColor : color);
     QPen pen(c);
     pen.setWidthF(penW);
     pen.setCapStyle(Qt::RoundCap);

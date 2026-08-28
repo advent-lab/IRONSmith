@@ -703,6 +703,29 @@ class BuilderWrapper:
         except Exception as e:
             return error_response("PYTHON_EXCEPTION", str(e))
 
+    def runtime_add_main_raw_line(self, text: str) -> str:
+        """Append a raw line of Python to main(), emitted after the jit
+        call (e.g. a print()/assert verifying the design's output)."""
+        try:
+            if not hasattr(self.runtime.runtime, 'main_raw_lines'):
+                self.runtime.runtime.main_raw_lines = []
+            self.runtime.runtime.main_raw_lines.append(text)
+            return success_response()
+        except Exception as e:
+            return error_response("PYTHON_EXCEPTION", str(e))
+
+    def runtime_add_main_setup_line(self, text: str) -> str:
+        """Append a raw line of Python to main(), emitted after host
+        buffers are allocated/initialized but before the jit call (e.g. to
+        bound test data so it doesn't overflow the kernel's dtype)."""
+        try:
+            if not hasattr(self.runtime.runtime, 'main_setup_lines'):
+                self.runtime.runtime.main_setup_lines = []
+            self.runtime.runtime.main_setup_lines.append(text)
+            return success_response()
+        except Exception as e:
+            return error_response("PYTHON_EXCEPTION", str(e))
+
     def runtime_add_worker(self, worker_id: str) -> str:
         """Add worker to runtime for StartWorkers list."""
         try:

@@ -6,10 +6,13 @@
 #include "canvas/CanvasGlobal.hpp"
 #include "canvas/CanvasTypes.hpp"
 
+#include <QtCore/QHash>
+#include <QtCore/QPointF>
 #include <QtCore/QRectF>
 #include <QtCore/QSet>
 #include <QtCore/QString>
 #include <cstdint>
+#include <vector>
 
 namespace Canvas {
 
@@ -35,6 +38,17 @@ struct CANVAS_EXPORT CanvasRenderContext final {
 
     bool selected(ObjectId id) const {
         return isSelected ? isSelected(isSelectedUser, id) : false;
+    }
+
+    // True if `id` is a currently-selected link-hub block — used so a hub's attached
+    // wires (root + branch arms) can be drawn highlighted even though the wires
+    // themselves aren't individually selected.
+    using IsHubHighlightedFn = bool (*)(void*, ObjectId);
+    IsHubHighlightedFn isHubHighlighted = nullptr;
+    void* isHubHighlightedUser = nullptr;
+
+    bool hubHighlighted(ObjectId id) const {
+        return isHubHighlighted ? isHubHighlighted(isHubHighlightedUser, id) : false;
     }
 
     bool hasHoveredItem = false;
@@ -145,6 +159,19 @@ struct CANVAS_EXPORT CanvasRenderContext final {
     // FIFO names that appear as Join-hub pivot targets in the document.
     // Used by BCAST pivot wire annotation to decide whether to suppress the hub name.
     QSet<QString> joinTargetFifoNames;
+
+    // Opaque Canvas::Internal::EdgeOccupancy*, cast back inside WireRouter. Transient —
+    // only valid while the occupancy pre-pass in Support::buildRenderContext is running;
+    // never read outside that function. Declared opaque here (rather than typed) because
+    // CanvasWireRouting.hpp already includes this header, so including it back here would
+    // be circular.
+    const void* wireEdgeOccupancy = nullptr;
+
+    // Every wire's resolved scene-space path, precomputed once per repaint by the
+    // occupancy pre-pass. CanvasWire::resolvedPathScene() returns this cached value when
+    // present instead of re-routing, so all draw/annotation/badge call sites within one
+    // repaint agree on the same geometry (and avoid redundant recomputation).
+    QHash<ObjectId, std::vector<QPointF>> resolvedWirePaths;
 };
 
 } // namespace Canvas

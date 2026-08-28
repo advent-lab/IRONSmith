@@ -12,9 +12,37 @@ Example:
 
 from __future__ import annotations
 import json
+import os
 from pathlib import Path
 from typing import Dict, Type, Optional, List
 import networkx as nx
+
+
+#: Shared mlir-aie checkout every generated design is tested against. All
+#: users run generated IRON scripts against this one environment, so this is
+#: a fixed fallback rather than a `~`-relative guess - `~` would expand
+#: against whatever machine/OS IRONSmith's codegen happens to run on, which
+#: is not necessarily the (always-Linux) machine the generated script runs
+#: on.
+DEFAULT_MLIR_AIE_ROOT = "/home/mliraie/mlir-aie"
+
+
+def mlir_aie_root() -> str:
+    """Root of the mlir-aie checkout used to resolve ExternalFunction
+    kernels that live in mlir-aie's own ``aie_kernels`` library (e.g.
+    ``aie_kernels/aie2/add.cc``).
+
+    Checked via the ``IRONSMITH_MLIR_AIE_DIR`` env var first (mirrors the
+    ``IRONSMITH_BUILTIN_KERNELS_DIR`` convention used for IRONSmith's own
+    vendored kernels), falling back to the shared test environment at
+    ``DEFAULT_MLIR_AIE_ROOT``.
+
+    Generated scripts run under the mlir-aie toolchain (Linux), so the
+    result always uses forward slashes regardless of the OS IRONSmith's
+    codegen happens to run on.
+    """
+    env_root = os.environ.get("IRONSMITH_MLIR_AIE_DIR") or DEFAULT_MLIR_AIE_ROOT
+    return os.path.expanduser(env_root).replace('\\', '/').rstrip('/')
 
 
 # ----------------------------------------------------------------------
@@ -87,19 +115,103 @@ class ExternalFunctionCodeGen(CodeGenExtension):
                 return self._get_node_attr(kw_id, 'value')
         return None
 
-    def _load_iron_signature(self, node_id: str) -> Optional[dict]:
-        """Load iron_signature from the kernel's kernel.json, or None."""
-        source_file = self._get_source_file(node_id)
-        if not source_file:
+    def _resolve_source_file(self, source_file: str) -> str:
+        """Resolve any path under an ``mlir-aie`` checkout (kernels,
+        runtime libs, etc.) to the same subpath under the configured shared
+        mlir-aie root, so generated scripts don't depend on which machine -
+        or which other machine's absolute path got baked into the design -
+        they happen to be run from.
+
+        Matches an explicit ``mlir-aie/`` path segment first (e.g. a stray
+        absolute path from a different machine's checkout), falling back to
+        a bare ``aie_kernels/`` segment for paths that reference mlir-aie's
+        kernel library without naming the checkout itself (e.g. a relative
+        ``../../../aie_kernels/aie2/add.cc``). Paths matching neither
+        (custom, user-authored kernels) are returned unchanged.
+        """
+        normalized = source_file.replace('\\', '/').rstrip('/')
+        idx = normalized.find('mlir-aie/')
+        if idx != -1:
+            tail = normalized[idx + len('mlir-aie/'):]
+            return f"{mlir_aie_root()}/{tail}" if tail else mlir_aie_root()
+        idx = normalized.find('aie_kernels/')
+        if idx != -1:
+            return f"{mlir_aie_root()}/{normalized[idx:]}"
+        return source_file
+
+    def _kernel_include_dir(self, resolved_source_file: str) -> Optional[str]:
+        """Directory to add via -I so a kernel's relative #includes (e.g.
+        ``#include "../aie_kernel_utils.h"``) resolve regardless of the
+        compiler's working directory during the Peano build step."""
+        normalized = resolved_source_file.replace('\\', '/')
+        if 'aie_kernels/' not in normalized:
             return None
-        kj_path = Path(source_file).parent / 'kernel.json'
+        return normalized.rsplit('/', 1)[0]
+
+    def _needs_lut_companion(self, resolved_source_file: str) -> bool:
+        """Whether this kernel needs aie_runtime_lib's lut_based_ops.cpp
+        compiled alongside it.
+
+        Kernels like bf16_exp/gelu/silu/softmax/swiglu #include
+        <lut_based_ops.h>, which only *declares* helpers such as
+        getExpBf16() - the backing LUT array data (exp_ilut_ab etc.) is
+        defined in lut_based_ops.cpp itself, so it must be part of the same
+        compile, not just discoverable via include_dirs (mirrors how
+        mlir-aie's own aie.iron.kernels.activation._create_lut_kernel
+        builds these kernels, via a combined source_string rather than
+        source_file - see generate()).
+
+        Detected by checking IRONSmith's own vendored copy of the kernel
+        (matched by filename) for the ``lut_based_ops.h`` include, since
+        that's always available locally regardless of the target mlir-aie
+        checkout.
+        """
+        basename = resolved_source_file.replace('\\', '/').rsplit('/', 1)[-1]
+        vendored = Path(__file__).resolve().parents[3] / "resources" / "kernels" / "aie_kernels" / "aie2" / basename
+        try:
+            return 'lut_based_ops.h' in vendored.read_text()
+        except OSError:
+            return False
+
+    def _load_kernel_json(self, node_id: str) -> Optional[dict]:
+        """Load the kernel's kernel.json from IRONSmith's local kernel
+        catalog (resources/kernels/<func_name>/kernel.json), keyed by the
+        kernel's function name rather than derived from source_file.
+
+        source_file often needs to point at the shared mlir-aie checkout
+        (e.g. /home/mliraie/mlir-aie/aie_kernels/aie2/mm.cc) so generated
+        scripts run in that environment - that directory has no kernel.json
+        of its own, so metadata like compile_flags/iron_signature must be
+        looked up from our own catalog independently of wherever
+        source_file ends up pointing.
+        """
+        func_name = self._func_name(node_id)
+        if not func_name:
+            return None
+        kj_path = Path(__file__).resolve().parents[3] / "resources" / "kernels" / func_name / 'kernel.json'
         if not kj_path.is_file():
             return None
         try:
             with open(kj_path) as f:
-                return json.load(f).get('iron_signature')
+                return json.load(f)
         except Exception:
             return None
+
+    def _load_iron_signature(self, node_id: str) -> Optional[dict]:
+        """Load iron_signature from the kernel's kernel.json, or None."""
+        kj = self._load_kernel_json(node_id)
+        return kj.get('iron_signature') if kj else None
+
+    def _load_compile_flags(self, node_id: str) -> List[str]:
+        """Load compile_flags from the kernel's kernel.json, or [].
+
+        compile_flags is a property of the *kernel* (e.g. -DDIM_M=64
+        -Di16_i32_ONLY for mm.cc's templated combos macro), not something
+        wired per-design on the canvas - so it always comes from kernel.json
+        and is emitted with every ExternalFunction that selects this kernel.
+        """
+        kj = self._load_kernel_json(node_id)
+        return (kj.get('compile_flags', []) if kj else []) or []
 
     def _graph_arg_types(self, node_id: str) -> List[str]:
         """Extract arg_types list from the graph node kwargs (fallback)."""
@@ -136,36 +248,102 @@ class ExternalFunctionCodeGen(CodeGenExtension):
         func_name = self._func_name(node_id)              # e.g. matmul_i16_i16
 
         iron_sig = self._load_iron_signature(node_id)
-        arg_types = (iron_sig.get('arg_types', []) if iron_sig
-                     else self._graph_arg_types(node_id))
-        arg_types_str = f"[{', '.join(arg_types)}]" if arg_types else "[]"
+        graph_arg_types = self._graph_arg_types(node_id)
 
         # ---- Multi-kernel mode → Kernel API ----
+        # The archive is a precompiled .a with a fixed ABI, so its arg_types
+        # must match the archive's actual signature - kernel.json's
+        # iron_signature is authoritative here, not the graph wiring.
         if getattr(self.generator, '_use_kernel_api', False) and iron_sig:
             archive = iron_sig.get('archive', '')
             archive_var = Path(archive).stem + '_archive' if archive else '"<unknown_archive>"'
+            arg_types = iron_sig.get('arg_types', []) or graph_arg_types
+            arg_types_str = f"[{', '.join(arg_types)}]" if arg_types else "[]"
             return f'{var_name} = Kernel("{func_name}", {archive_var}, {arg_types_str})'
 
         # ---- Single-kernel mode → ExternalFunction ----
-        source_file = self._get_source_file(node_id) or ''
+        # Compiling from source_file means the actual shape/dtype is whatever
+        # the user wired on the canvas (a_tile_ty, b_tile_ty, ...), which may
+        # differ per-design from kernel.json's generic default signature -
+        # prefer the graph wiring and only fall back to iron_signature when
+        # nothing was wired at all.
+        arg_types = graph_arg_types or (iron_sig.get('arg_types', []) if iron_sig else [])
+        arg_types_str = f"[{', '.join(arg_types)}]" if arg_types else "[]"
+
+        # source_file is also a property of the selected kernel - which real
+        # environment its source actually lives in (e.g. the shared
+        # /home/mliraie/mlir-aie checkout) - read from kernel.json when
+        # declared there, so it's emitted the same way every time this
+        # kernel is picked rather than depending on whatever path happened
+        # to get wired on the canvas. Falls back to the graph-wired value
+        # (still resolved against the shared root) for kernels that don't
+        # declare it.
+        kj = self._load_kernel_json(node_id)
+        kj_source_file = kj.get('source_file') if kj else None
+        source_file = kj_source_file or self._get_source_file(node_id) or ''
+        if source_file:
+            source_file = self._resolve_source_file(source_file)
+
         kwargs: List[str] = []
         kwargs.append(f'name="{func_name}"')
-        if source_file:
+
+        # Kernels that need aie_runtime_lib's LUT data (bf16_exp, gelu,
+        # silu, softmax, swiglu, ...) can't use source_file alone - the
+        # header only declares the helper, the LUT arrays are defined in
+        # lut_based_ops.cpp, so it has to be part of the same compile.
+        # Combine them into one source_string, exactly like mlir-aie's own
+        # kernel factories do.
+        if source_file and self._needs_lut_companion(source_file):
+            lut_cpp = f"{mlir_aie_root()}/aie_runtime_lib/AIE2/lut_based_ops.cpp"
+            source_string = f'#include \\"{source_file}\\"\\n#include \\"{lut_cpp}\\"\\n'
+            kwargs.append(f'source_string="{source_string}"')
+        elif source_file:
             kwargs.append(f'source_file="{source_file}"')
+
         kwargs.append(f'arg_types={arg_types_str}')
 
-        # include_dirs from graph kwarg
-        for kw_id in self._get_children(node_id, 'has_kwarg'):
-            if self._get_node_attr(kw_id, 'name') == 'include_dirs':
-                value_nodes = self._get_children(kw_id, 'contains')
-                for v_id in value_nodes:
-                    if self._get_node_attr(v_id, 'kind') == 'List':
-                        dirs = [
-                            f'"{self._get_node_attr(item_id, "label").strip(chr(34) + chr(39))}"'
-                            for item_id in self._get_children(v_id, 'contains')
-                        ]
-                        if dirs:
-                            kwargs.append(f"include_dirs=[{', '.join(dirs)}]")
+        # include_dirs: same kernel.json-first precedence as source_file
+        # above, falling back to the graph kwarg (still resolved against the
+        # shared root) for kernels that don't declare it.
+        kj_include_dirs = kj.get('include_dirs') if kj else None
+        if kj_include_dirs:
+            dirs: List[str] = [self._resolve_source_file(d) for d in kj_include_dirs]
+        else:
+            dirs = []
+            for kw_id in self._get_children(node_id, 'has_kwarg'):
+                if self._get_node_attr(kw_id, 'name') == 'include_dirs':
+                    value_nodes = self._get_children(kw_id, 'contains')
+                    for v_id in value_nodes:
+                        if self._get_node_attr(v_id, 'kind') == 'List':
+                            dirs = [
+                                self._resolve_source_file(
+                                    self._get_node_attr(item_id, "label").strip(chr(34) + chr(39))
+                                )
+                                for item_id in self._get_children(v_id, 'contains')
+                            ]
+
+        # Kernels from mlir-aie's aie_kernels library reference sibling
+        # headers with relative includes (e.g. "../aie_kernel_utils.h").
+        # Peano compiles from a cache directory, not the kernel's own
+        # directory, so that resolves only with an explicit -I here.
+        if source_file:
+            kernel_dir = self._kernel_include_dir(source_file)
+            if kernel_dir and kernel_dir not in dirs:
+                dirs.append(kernel_dir)
+
+        if dirs:
+            dirs_str = ", ".join(f'"{d}"' for d in dirs)
+            kwargs.append(f"include_dirs=[{dirs_str}]")
+
+        # compile_flags is a property of the selected kernel (e.g. -DDIM_M=64
+        # -DDIM_K=64 -DDIM_N=32 -Di16_i32_ONLY for mm.cc's templated combos
+        # macro), read from kernel.json - not something wired per-design, so
+        # it's emitted automatically whenever this kernel is selected.
+        flags = self._load_compile_flags(node_id)
+
+        if flags:
+            flags_str = ", ".join(f'"{f}"' for f in flags)
+            kwargs.append(f"compile_flags=[{flags_str}]")
 
         kwargs_str = ", ".join(kwargs)
         return f"{var_name} = ExternalFunction(\n        {kwargs_str}\n    )"
@@ -382,7 +560,7 @@ class WorkerCodeGen(CodeGenExtension):
         if args_str:
             parts.append(f"fn_args=[{args_str}]")
         if placement_str:
-            parts.append(f"placement={placement_str}")
+            parts.append(f"tile={placement_str}")
         
         kwargs_str = ", ".join([p for p in parts if p])
         return f"{name} = Worker({kwargs_str})"

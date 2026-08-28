@@ -15,6 +15,7 @@
 
 #include <QtCore/QHash>
 #include <QtCore/QJsonArray>
+#include <QtCore/QSet>
 #include <QtCore/QStringList>
 #include <QtCore/QtGlobal>
 #include <QtGui/QColor>
@@ -1090,6 +1091,105 @@ Utils::Result CanvasDocumentJsonSerializer::deserialize(const QJsonObject& json,
         } else if (wire->b().attached && isBroadcastHub(wire->b().attached->itemId)) {
             wire->setColorOverride(
                 Support::linkWireStyle(Support::LinkWireRole::BroadcastProducer).color);
+        }
+    }
+
+    // Always point the arrowhead at the destination endpoint, overriding whatever was
+    // persisted. Saved designs may have arrowPolicy stuck at None from a now-removed
+    // "wire arrows" toggle that could clear it document-wide; recomputing from the
+    // current port roles on every load makes the destination arrow a standing guarantee
+    // rather than togglable, stale, per-wire state.
+    //
+    // DDR and SHIM/tile ports are generically PortRole::Dynamic (direction isn't fixed
+    // per-port, only per-wire), so most wires have only ONE side with a concrete
+    // Producer/Consumer role — typically the hub side of a split/join/broadcast/
+    // distribute/collect arm or pivot wire. Treat whichever side IS concrete as
+    // authoritative: a concrete Consumer is the destination; a concrete Producer means
+    // the *other* (Dynamic) side is the destination. Only fall back to "leave it alone"
+    // when neither side resolves to a concrete role at all.
+    for (const auto& item : document.items()) {
+        auto* wire = dynamic_cast<CanvasWire*>(item.get());
+        if (!wire || !wire->a().attached.has_value() || !wire->b().attached.has_value())
+            continue;
+
+        CanvasPort aMeta;
+        CanvasPort bMeta;
+        if (!document.getPort(wire->a().attached->itemId, wire->a().attached->portId, aMeta) ||
+            !document.getPort(wire->b().attached->itemId, wire->b().attached->portId, bMeta))
+            continue;
+
+        const bool aKnown = aMeta.role == PortRole::Producer || aMeta.role == PortRole::Consumer;
+        const bool bKnown = bMeta.role == PortRole::Producer || bMeta.role == PortRole::Consumer;
+
+        std::optional<WireArrowPolicy> next;
+        if (aKnown && bKnown) {
+            if (aMeta.role == PortRole::Consumer && bMeta.role == PortRole::Producer)
+                next = WireArrowPolicy::Start;
+            else if (bMeta.role == PortRole::Consumer && aMeta.role == PortRole::Producer)
+                next = WireArrowPolicy::End;
+        } else if (aKnown) {
+            next = (aMeta.role == PortRole::Consumer) ? WireArrowPolicy::Start : WireArrowPolicy::End;
+        } else if (bKnown) {
+            next = (bMeta.role == PortRole::Consumer) ? WireArrowPolicy::End : WireArrowPolicy::Start;
+        }
+
+        if (next.has_value())
+            wire->setArrowPolicy(*next);
+    }
+
+    // A single logical FIFO is often routed through several wire "hops" of different
+    // kinds (e.g. a DDR fill wire, a hub-arm FillDrain wire, then plain tile-to-tile
+    // ObjectFifo wires) — a hop with two Dynamic-role endpoints has no local role signal
+    // and is left unresolved above. But if another hop of the *same* named FIFO already
+    // resolved a direction, we know which block just became "downstream": once a block
+    // has received data for this FIFO, any other unresolved wire it appears in (same
+    // FIFO) must be it passing that data onward, so the arrow belongs on the far end.
+    // Iterates to a fixed point since a chain can have more than one unresolved hop in a
+    // row (e.g. SHIM -> MEM -> compute tile, both hops initially unresolved).
+    auto fifoKeyForWire = [](const CanvasWire* w) -> QString {
+        if (w->hasObjectFifo())
+            return w->objectFifo()->name;
+        if (w->hasFillDrain())
+            return w->fillDrain()->fifoName;
+        return QString();
+    };
+
+    QHash<QString, QVector<CanvasWire*>> fifoGroups;
+    for (const auto& item : document.items()) {
+        auto* wire = dynamic_cast<CanvasWire*>(item.get());
+        if (!wire || !wire->a().attached.has_value() || !wire->b().attached.has_value())
+            continue;
+        const QString key = fifoKeyForWire(wire);
+        if (!key.isEmpty())
+            fifoGroups[key].push_back(wire);
+    }
+
+    bool changed = true;
+    const size_t maxRounds = document.items().size() + 1;
+    for (size_t guard = 0; changed && guard <= maxRounds; ++guard) {
+        changed = false;
+        for (auto groupIt = fifoGroups.begin(); groupIt != fifoGroups.end(); ++groupIt) {
+            QSet<ObjectId> destBlocks;
+            for (CanvasWire* w : groupIt.value()) {
+                if (w->arrowPolicy() == WireArrowPolicy::None)
+                    continue;
+                destBlocks.insert(w->arrowPolicy() == WireArrowPolicy::End
+                                       ? w->b().attached->itemId
+                                       : w->a().attached->itemId);
+            }
+            for (CanvasWire* w : groupIt.value()) {
+                if (w->arrowPolicy() != WireArrowPolicy::None)
+                    continue;
+                const bool aIsDest = destBlocks.contains(w->a().attached->itemId);
+                const bool bIsDest = destBlocks.contains(w->b().attached->itemId);
+                if (aIsDest && !bIsDest) {
+                    w->setArrowPolicy(WireArrowPolicy::End);
+                    changed = true;
+                } else if (bIsDest && !aIsDest) {
+                    w->setArrowPolicy(WireArrowPolicy::Start);
+                    changed = true;
+                }
+            }
         }
     }
 

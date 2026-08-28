@@ -5,6 +5,8 @@
 
 #include <iostream>
 #include <filesystem>
+#include <string>
+#include <vector>
 
 namespace BridgeTests {
 
@@ -19,6 +21,35 @@ static std::string OUTPUT_DIR = "tests/hlir_bridge/output/";
 
 static void ensureOutputDir() {
     std::filesystem::create_directories(OUTPUT_DIR);
+}
+
+// Appends a block of raw Python lines to main(), emitted after the jit call
+// (see HlirBridge::runtimeAddMainRawLine) - used below to bake output
+// verification (print + PASS/FAIL check) into every regenerated test script,
+// so it isn't lost when the tests are rerun and the .py files regenerated.
+static bool addMainRawLines(hlir::HlirBridge& bridge, const std::vector<std::string>& lines) {
+    for (const auto& line : lines) {
+        auto result = bridge.runtimeAddMainRawLine(line);
+        if (!result) {
+            std::cerr << "FAILED (raw line: " << line << ")\n    " << result.error()[0].message << "\n";
+            return false;
+        }
+    }
+    return true;
+}
+
+// Same as addMainRawLines, but emitted before the jit call (e.g. to bound
+// test data so it doesn't overflow the kernel's dtype) - see
+// HlirBridge::runtimeAddMainSetupLine.
+static bool addMainSetupLines(hlir::HlirBridge& bridge, const std::vector<std::string>& lines) {
+    for (const auto& line : lines) {
+        auto result = bridge.runtimeAddMainSetupLine(line);
+        if (!result) {
+            std::cerr << "FAILED (setup line: " << line << ")\n    " << result.error()[0].message << "\n";
+            return false;
+        }
+    }
+    return true;
 }
 
 static bool testHlirBridge() {
@@ -319,6 +350,17 @@ static bool testPassthroughExample() {
         auto buildRuntime = bridge.runtimeBuild();
         if (!buildRuntime) {
             std::cerr << "FAILED\n    " << buildRuntime.error()[0].message << "\n";
+            return false;
+        }
+        std::cout << "OK\n";
+
+        // Step 12.5: Bake output verification into main()
+        std::cout << "  [Verify] Adding output verification... ";
+        if (!addMainRawLines(bridge, {
+            "print(f\"inputA[:8] = {inputA.numpy()[:8]}\")",
+            "print(f\"outputC[:8] = {outputC.numpy()[:8]}\")",
+            "print(\"PASS: outputC matches inputA\" if np.array_equal(outputC.numpy(), inputA.numpy()) else \"FAIL: outputC does not match inputA\")",
+        })) {
             return false;
         }
         std::cout << "OK\n";
@@ -894,6 +936,20 @@ static bool testAddActivateExample() {
         }
         std::cout << "OK\n";
 
+        // Bake output verification into main()
+        std::cout << "  [Verify] Adding output verification... ";
+        if (!addMainRawLines(bridge, {
+            "print(f\"A[:8] = {A.numpy()[:8]}\")",
+            "print(f\"B[:8] = {B.numpy()[:8]}\")",
+            "print(f\"D[:8] = {D.numpy()[:8]}\")",
+            "expected = np.maximum(A.numpy().astype(np.float32) + B.numpy().astype(np.float32), 0)",
+            "print(f\"expected[:8] = {expected[:8]}\")",
+            "print(\"PASS: D matches relu(A + B)\" if np.allclose(D.numpy().astype(np.float32), expected, atol=1e-2) else \"FAIL: D does not match relu(A + B)\")",
+        })) {
+            return false;
+        }
+        std::cout << "OK\n";
+
         // Validate program
         std::cout << "  [Validation] Building and validating program... ";
         auto buildResult = bridge.build();
@@ -1152,9 +1208,13 @@ static bool testVectorExpExample() {
             return false;
         }
 
-        // Add input/output types
-        auto addInputA = bridge.runtimeAddInputType(*memtileTy);
-        auto addOutputC = bridge.runtimeAddOutputType(*memtileTy);
+        // Add input/output types. Use dataTy (full N), not memtileTy (N/16 -
+        // the per-tile DMA chunk size): main() allocates full-N host
+        // buffers, and the new CompileTime/In/Out API validates the jit
+        // function's tensor args against this declared type, unlike the
+        // old rt.sequence()-based API which didn't check it here.
+        auto addInputA = bridge.runtimeAddInputType(*dataTy);
+        auto addOutputC = bridge.runtimeAddOutputType(*dataTy);
         if (!addInputA || !addOutputC) {
             std::cerr << "FAILED (types)\n";
             return false;
@@ -1199,6 +1259,28 @@ static bool testVectorExpExample() {
             return false;
         }
         std::cout << "OK\n";
+
+        // main() fills inputA via iron.arange() up to N=65536. exp(x)
+        // overflows float32/bf16 for x beyond ~88, so almost the entire
+        // unbounded range is meaningless for this kernel - bound it to a
+        // small range first (same class of fix as matrix_vector_mul_test).
+        if (!addMainSetupLines(bridge, {
+            "inputA.data[:] = inputA.data[:] % 10",
+            "inputA._sync_to_device()",
+        })) {
+            return false;
+        }
+
+        // Bake output verification into main()
+        if (!addMainRawLines(bridge, {
+            "print(f\"inputA[:8] = {inputA.numpy()[:8]}\")",
+            "print(f\"outputC[:8] = {outputC.numpy()[:8]}\")",
+            "expected = np.exp(inputA.numpy().astype(np.float32))",
+            "print(f\"expected[:8] = {expected[:8]}\")",
+            "print(\"PASS: outputC matches exp(inputA)\" if np.allclose(outputC.numpy().astype(np.float32), expected, atol=1e-1, rtol=1e-1) else \"FAIL: outputC does not match exp(inputA)\")",
+        })) {
+            return false;
+        }
 
         // Step 12: Build and validate
         std::cout << "  [12/12] Building and validating program... ";
@@ -1475,10 +1557,14 @@ static bool testVectorVectorMulExample() {
             return false;
         }
 
-        // Add input/output types (memtile_ty for streaming)
-        auto addInputA = bridge.runtimeAddInputType(*memtileTy);
-        auto addInputB = bridge.runtimeAddInputType(*memtileTy);
-        auto addOutputC = bridge.runtimeAddOutputType(*memtileTy);
+        // Add input/output types. Use dataTy (full N), not memtileTy (N/16 -
+        // the per-tile DMA chunk size): main() allocates full-N host
+        // buffers, and the new CompileTime/In/Out API validates the jit
+        // function's tensor args against this declared type, unlike the
+        // old rt.sequence()-based API which didn't check it here.
+        auto addInputA = bridge.runtimeAddInputType(*dataTy);
+        auto addInputB = bridge.runtimeAddInputType(*dataTy);
+        auto addOutputC = bridge.runtimeAddOutputType(*dataTy);
         if (!addInputA || !addInputB || !addOutputC) {
             std::cerr << "FAILED (types)\n";
             return false;
@@ -1529,6 +1615,22 @@ static bool testVectorVectorMulExample() {
             return false;
         }
         std::cout << "OK\n";
+
+        // Bake output verification into main()
+        if (!addMainRawLines(bridge, {
+            "print(f\"inputA[:8] = {inputA.numpy()[:8]}\")",
+            "print(f\"inputB[:8] = {inputB.numpy()[:8]}\")",
+            "print(f\"outputC[:8] = {outputC.numpy()[:8]}\")",
+            "expected = inputA.numpy().astype(np.float32) * inputB.numpy().astype(np.float32)",
+            "print(f\"expected[:8] = {expected[:8]}\")",
+            // bf16's 7-bit mantissa loses absolute precision fast as
+            // inputA*inputB grows toward N**2 (~4.3e9 here) - atol alone
+            // (as used for the smaller add-activate case) isn't enough;
+            // needs rtol too, same as the vector_exp check below.
+            "print(\"PASS: outputC matches inputA * inputB\" if np.allclose(outputC.numpy().astype(np.float32), expected, atol=1e-1, rtol=1e-1) else \"FAIL: outputC does not match inputA * inputB\")",
+        })) {
+            return false;
+        }
 
         // Step 13: Build and validate
         std::cout << "  [13/14] Building and validating program... ";
@@ -1895,9 +1997,15 @@ static bool testMatrixVectorMulExample() {
             std::cerr << "FAILED (types)\n";
             return false;
         }
-        bridge.runtimeAddMainSize("n_fifo_elems");  // inputA
-        bridge.runtimeAddMainSize("n_fifo_elems");  // inputB
-        bridge.runtimeAddMainSize("n_fifo_elems");  // outputC
+        // main() host buffers must match each DMA type's real flat size -
+        // A_ty=(n_fifo_elems, A_elem_size), B_ty=(1, K), C_ty=(1, M) - not
+        // n_fifo_elems for all three (that undersizes every buffer to 16
+        // elements). The new CompileTime/In/Out API validates the jit
+        // function's tensor args against these declared sizes, unlike the
+        // old rt.sequence()-based API which didn't check them here.
+        bridge.runtimeAddMainSize("n_fifo_elems * A_elem_size");  // inputA
+        bridge.runtimeAddMainSize("K");                           // inputB
+        bridge.runtimeAddMainSize("M");                           // outputC
 
         // Parameters
         auto addParamA = bridge.runtimeAddParam("inputA");
@@ -1939,6 +2047,35 @@ static bool testMatrixVectorMulExample() {
             return false;
         }
         std::cout << "OK\n";
+
+        // main() fills inputA/inputB via iron.arange() up to their full
+        // element count (65536 / 256) - signed int16 only holds up to
+        // 32767, so unbounded arange overflows before the kernel even
+        // runs, and the accumulated int32 dot-product can overflow too.
+        // Bound both to a small range so the data (and result) stay
+        // meaningful.
+        if (!addMainSetupLines(bridge, {
+            "inputA.data[:] = inputA.data[:] % 128",
+            "inputA._sync_to_device()",
+            "inputB.data[:] = inputB.data[:] % 128",
+            "inputB._sync_to_device()",
+        })) {
+            return false;
+        }
+
+        // Bake output verification into main(). Print-only, no PASS/FAIL
+        // assertion: computing a reference here would need to replicate
+        // TensorTiler2D's group_tiler element reordering for a/b/c_tap
+        // exactly, which is a bigger undertaking than bounding the data -
+        // worth doing separately if this test's real numeric correctness
+        // needs verifying.
+        if (!addMainRawLines(bridge, {
+            "print(f\"inputA[:8] = {inputA.numpy()[:8]}\")",
+            "print(f\"inputB[:8] = {inputB.numpy()[:8]}\")",
+            "print(f\"outputC[:8] = {outputC.numpy()[:8]}\")",
+        })) {
+            return false;
+        }
 
         // Step 15: Build and validate
         std::cout << "  [15/16] Building and validating program... ";
@@ -2104,6 +2241,17 @@ static bool testDualPathForwardExample() {
         bridge.runtimeAddDrain("drain_out5", *out5, "outputA", *shim0);
         bridge.runtimeAddDrain("drain_out6", *out6, "outputB", *shim0);
         bridge.runtimeBuild();
+
+        // Bake output verification into main()
+        addMainRawLines(bridge, {
+            "print(f\"inputA[:8] = {inputA.numpy()[:8]}\")",
+            "print(f\"inputB[:8] = {inputB.numpy()[:8]}\")",
+            "print(f\"outputA[:8] = {outputA.numpy()[:8]}\")",
+            "print(f\"outputB[:8] = {outputB.numpy()[:8]}\")",
+            "okA = np.array_equal(outputA.numpy(), inputA.numpy())",
+            "okB = np.array_equal(outputB.numpy(), inputB.numpy())",
+            "print(\"PASS: outputA matches inputA and outputB matches inputB\" if (okA and okB) else f\"FAIL: outputA matches inputA = {okA}, outputB matches inputB = {okB}\")",
+        });
 
         // Build, export, and run code generator
         bridge.build();

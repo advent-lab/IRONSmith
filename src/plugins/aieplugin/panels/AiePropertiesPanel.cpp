@@ -79,6 +79,31 @@ QString formatBounds(const QRectF& bounds)
         .arg(normalized.height(), 0, 'f', 1);
 }
 
+// Parses a specId ("aie0_3", "shim1_0", "mem2_1") into a "(col, row)" display string for
+// the tile name row in the properties panel. Returns empty for specIds with no device grid
+// coordinate (e.g. "ddr"). Mirrors the identical prefix/col/row parsing already duplicated
+// in DesignVerifier.cpp's parseTileSpec() and HlirSyncService::parseTileSpecId().
+QString tileCoordText(const QString& specId)
+{
+    static const char* const kPrefixes[] = { "shim", "mem", "aie" };
+    for (const char* prefix : kPrefixes) {
+        const QLatin1StringView p{prefix};
+        if (!specId.startsWith(p))
+            continue;
+        const QString rest = specId.sliced(p.size());
+        const qsizetype underIdx = rest.indexOf(u'_');
+        if (underIdx < 0)
+            continue;
+        bool okCol = false, okRow = false;
+        const int col = rest.left(underIdx).toInt(&okCol);
+        const int row = rest.sliced(underIdx + 1).toInt(&okRow);
+        if (!okCol || !okRow)
+            continue;
+        return QStringLiteral("(%1, %2)").arg(col).arg(row);
+    }
+    return QString();
+}
+
 struct FifoTypeOption final {
     QString id;
     QString name;
@@ -608,6 +633,20 @@ void AiePropertiesPanel::buildUi()
 
     auto* tileLabelEdit = new QLineEdit(tileGroup);
     tileLabelEdit->setObjectName(QStringLiteral("AiePropertiesField"));
+
+    // Device-grid coordinate, e.g. "(2, 3)" — shown in small muted text next to the name
+    // field so a tile can be quickly identified/referenced without opening "Spec ID".
+    auto* tileCoordLabel = new QLabel(tileGroup);
+    tileCoordLabel->setObjectName(QStringLiteral("AiePropertiesCoordLabel"));
+    tileCoordLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+
+    auto* tileNameRow = new QWidget(tileGroup);
+    auto* tileNameRowLayout = new QHBoxLayout(tileNameRow);
+    tileNameRowLayout->setContentsMargins(0, 0, 0, 0);
+    tileNameRowLayout->setSpacing(6);
+    tileNameRowLayout->addWidget(tileLabelEdit, 1);
+    tileNameRowLayout->addWidget(tileCoordLabel, 0);
+
     // Kernel chips row: dynamically rebuilt in rebuildKernelChips() on every selection refresh.
     auto* kernelRow = new QWidget(tileGroup);
     auto* kernelRowLayout = new QHBoxLayout(kernelRow);
@@ -618,7 +657,7 @@ void AiePropertiesPanel::buildUi()
     tileForm->addRow(makeKeyLabel(QStringLiteral("Item ID")), tileIdValue);
     tileForm->addRow(makeKeyLabel(QStringLiteral("Spec ID")), tileSpecIdValue);
     tileForm->addRow(makeKeyLabel(QStringLiteral("Bounds")), tileBoundsValue);
-    tileForm->addRow(makeKeyLabel(QStringLiteral("Label")), tileLabelEdit);
+    tileForm->addRow(makeKeyLabel(QStringLiteral("Label")), tileNameRow);
     auto* kernelRowLabel = makeKeyLabel(QStringLiteral("Kernel"));
     tileForm->addRow(kernelRowLabel, kernelRow);
 
@@ -642,6 +681,7 @@ void AiePropertiesPanel::buildUi()
     m_tileSpecIdValue = tileSpecIdValue;
     m_tileBoundsValue = tileBoundsValue;
     m_tileLabelEdit = tileLabelEdit;
+    m_tileCoordLabel = tileCoordLabel;
     m_tileKernelRow = kernelRow;
     m_tileKernelRowLabel = kernelRowLabel;
     m_kernelChipsLayout = kernelRowLayout;
@@ -1873,6 +1913,8 @@ void AiePropertiesPanel::refreshSelection()
                 m_tileBoundsValue->setText(formatBounds(block->boundsScene()));
             if (m_tileLabelEdit)
                 m_tileLabelEdit->setText(block->label());
+            if (m_tileCoordLabel)
+                m_tileCoordLabel->setText(tileCoordText(block->specId().trimmed()));
             const bool isComputeTile = block->specId().trimmed().startsWith(u"aie");
             if (m_tileKernelRow)
                 m_tileKernelRow->setVisible(isComputeTile);
@@ -2032,6 +2074,12 @@ void AiePropertiesPanel::refreshSelection()
                                fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward);
 
         if (isPivot) {
+            // Remember which wire these fields came from — whether the user selected the
+            // pivot wire directly or a hub block that got redirected to it above — so
+            // applyHubPivotProperties() commits back to the same wire instead of trying
+            // (and failing) to re-derive it from the live canvas selection.
+            m_hubPivotWireId = wire->id();
+
             const bool isSplit    = (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Split);
             const bool isBroadcast = (fifo.operation == Canvas::CanvasWire::ObjectFifoOperation::Forward);
 
@@ -2231,214 +2279,6 @@ void AiePropertiesPanel::applyTileLabel()
     m_document->notifyChanged();
 }
 
-/// Build the default template JSON for a kernel tile when switching to BodyStmts mode
-/// with no pre-existing body.  Mirrors what HlirSyncService::buildWorkers generates for
-/// the default acquire/call/release pattern, using in0/in1.../out0/out1... naming.
-static QString buildDefaultBodyJson(const Canvas::CanvasBlock* block,
-                                    const Canvas::CanvasDocument* document)
-{
-    const QStringList& assigned = block->assignedKernels();
-
-    // If the user has explicitly assigned fn_args via coreBodyArgs, derive the template from
-    // those rather than from raw wire counts, so param names match the fifo/kernel names.
-    const QList<Canvas::CanvasBlock::CoreBodyArgSpec>& coreArgs = block->coreBodyArgs();
-    if (!coreArgs.isEmpty()) {
-        using Kind = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
-        QStringList kernelParams, inputParams, outputParams;
-        for (const auto& arg : coreArgs) {
-            // paramName is the function parameter ("in0", "out0", "kernel"); ref is the bound value.
-            const QString name = arg.paramName.trimmed().isEmpty() ? arg.ref.trimmed() : arg.paramName.trimmed();
-            if (name.isEmpty()) continue;
-            switch (arg.kind) {
-                case Kind::Kernel:       kernelParams << name; break;
-                case Kind::FifoConsumer: inputParams  << name; break;
-                case Kind::FifoProducer: outputParams << name; break;
-            }
-        }
-        QJsonArray  params;
-        QJsonObject paramRoles;
-        auto addPm = [&](const QString& n, int role) { params.append(n); paramRoles[n] = role; };
-        for (const QString& n : kernelParams) addPm(n, 0);
-        for (const QString& n : inputParams)  addPm(n, 1);
-        for (const QString& n : outputParams) addPm(n, 2);
-
-        QJsonArray bufArgs;
-        for (const QString& n : inputParams)  bufArgs.append(u"buf_"_s + n);
-        for (const QString& n : outputParams) bufArgs.append(u"buf_"_s + n);
-
-        QJsonArray body;
-        for (const QString& n : inputParams) {
-            QJsonObject acq;
-            acq[u"type"_s]       = u"Acquire"_s;
-            acq[u"fifo_param"_s] = n;
-            acq[u"count"_s]      = 1;
-            acq[u"local_var"_s]  = u"buf_"_s + n;
-            body.append(acq);
-        }
-        for (const QString& n : outputParams) {
-            QJsonObject acq;
-            acq[u"type"_s]       = u"Acquire"_s;
-            acq[u"fifo_param"_s] = n;
-            acq[u"count"_s]      = 1;
-            acq[u"local_var"_s]  = u"buf_"_s + n;
-            body.append(acq);
-        }
-        for (const QString& kp : kernelParams) {
-            QJsonObject call;
-            call[u"type"_s]         = u"KernelCall"_s;
-            call[u"kernel_param"_s] = kp;
-            call[u"args"_s]         = bufArgs;
-            body.append(call);
-        }
-        for (const QString& n : inputParams) {
-            QJsonObject rel;
-            rel[u"type"_s]       = u"Release"_s;
-            rel[u"fifo_param"_s] = n;
-            rel[u"count"_s]      = 1;
-            body.append(rel);
-        }
-        for (const QString& n : outputParams) {
-            QJsonObject rel;
-            rel[u"type"_s]       = u"Release"_s;
-            rel[u"fifo_param"_s] = n;
-            rel[u"count"_s]      = 1;
-            body.append(rel);
-        }
-        QJsonObject root;
-        root[u"params"_s]      = params;
-        root[u"param_roles"_s] = paramRoles;
-        root[u"body"_s]        = body;
-        return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact));
-    }
-
-    // Walk all wires connected to this tile and mirror HlirSyncService's classification:
-    //
-    // Convention: hub is always at endpoint A, tile always at endpoint B for arm wires.
-    //   - Hub port at A is Producer (split/broadcast) → tile receives → input
-    //   - Hub port at A is Consumer (join)            → tile sends    → output
-    // For direct FIFO wires (no hub):
-    //   - Tile at B (consumer endpoint) → input
-    //   - Tile at A (producer endpoint) → output
-    int numInputs = 0;
-    int numOutputs = 0;
-
-    // Build a quick id→block lookup for hub classification.
-    QHash<Canvas::ObjectId, Canvas::CanvasBlock*> blockIndex;
-    for (const auto& wItem : document->items()) {
-        auto* blk = dynamic_cast<Canvas::CanvasBlock*>(wItem.get());
-        if (blk) blockIndex.insert(blk->id(), blk);
-    }
-
-    for (const auto& wItem : document->items()) {
-        auto* wire = dynamic_cast<Canvas::CanvasWire*>(wItem.get());
-        if (!wire || !wire->hasObjectFifo()) continue;
-        const auto& epA = wire->a();
-        const auto& epB = wire->b();
-        if (!epA.attached || !epB.attached) continue;
-
-        const bool tileIsA = (epA.attached->itemId == block->id());
-        const bool tileIsB = (epB.attached->itemId == block->id());
-        if (!tileIsA && !tileIsB) continue;
-
-        if (tileIsB) {
-            Canvas::CanvasBlock* blockA = blockIndex.value(epA.attached->itemId, nullptr);
-            if (!blockA) continue;
-
-            if (!blockA->isLinkHub()) {
-                // Direct FIFO, tile is consumer → input.
-                ++numInputs;
-            } else {
-                // Arm wire: direction determined by hub's port role at endpoint A.
-                Canvas::PortRole hubRole = Canvas::PortRole::Dynamic;
-                for (const auto& port : blockA->ports()) {
-                    if (port.id == epA.attached->portId) {
-                        hubRole = port.role;
-                        break;
-                    }
-                }
-                if (hubRole == Canvas::PortRole::Producer)
-                    ++numInputs;   // split or broadcast → tile receives
-                else if (hubRole == Canvas::PortRole::Consumer)
-                    ++numOutputs;  // join → tile sends
-            }
-        } else { // tileIsA
-            Canvas::CanvasBlock* blockB = blockIndex.value(epB.attached->itemId, nullptr);
-            if (!blockB || blockB->isLinkHub()) continue;
-            // Direct FIFO, tile is producer → output.
-            ++numOutputs;
-        }
-    }
-
-    // Build params array and role map: all kernels first, then inputs, then outputs.
-    // param_roles: 0=kernel, 1=input, 2=output — read by BodyStmtsEditor::setJson.
-    // Kernel names: "kernel" for the first, "kernel2", "kernel3", ... for extras.
-    QStringList allKernelParams;
-    allKernelParams.append(assigned.isEmpty() ? u"kernel"_s : assigned.first());
-    for (int ki = 1; ki < assigned.size(); ++ki)
-        allKernelParams.append(QStringLiteral("kernel%1").arg(ki + 1));
-
-    QJsonArray  params;
-    QJsonObject paramRoles;
-    auto addParam = [&](const QString& name, int role) {
-        params.append(name);
-        paramRoles.insert(name, role);
-    };
-    for (const QString& kp : allKernelParams) addParam(kp, 0);
-    for (int i = 0; i < numInputs;  ++i) addParam(QString(u"in%1"_s).arg(i),  1);
-    for (int i = 0; i < numOutputs; ++i) addParam(QString(u"out%1"_s).arg(i), 2);
-
-    // Build body statements: acquire all FIFOs, one kernel call per kernel, release all FIFOs.
-    QJsonArray body;
-    for (int i = 0; i < numInputs; ++i) {
-        QJsonObject acq;
-        acq[u"type"_s]       = u"Acquire"_s;
-        acq[u"fifo_param"_s] = QString(u"in%1"_s).arg(i);
-        acq[u"count"_s]      = 1;
-        acq[u"local_var"_s]  = QString(u"buf_in%1"_s).arg(i);
-        body.append(acq);
-    }
-    for (int i = 0; i < numOutputs; ++i) {
-        QJsonObject acq;
-        acq[u"type"_s]       = u"Acquire"_s;
-        acq[u"fifo_param"_s] = QString(u"out%1"_s).arg(i);
-        acq[u"count"_s]      = 1;
-        acq[u"local_var"_s]  = QString(u"buf_out%1"_s).arg(i);
-        body.append(acq);
-    }
-
-    QJsonArray callArgs;
-    for (int i = 0; i < numInputs;  ++i) callArgs.append(QString(u"buf_in%1"_s).arg(i));
-    for (int i = 0; i < numOutputs; ++i) callArgs.append(QString(u"buf_out%1"_s).arg(i));
-    for (const QString& kp : allKernelParams) {
-        QJsonObject call;
-        call[u"type"_s]         = u"KernelCall"_s;
-        call[u"kernel_param"_s] = kp;
-        call[u"args"_s]         = callArgs;
-        body.append(call);
-    }
-
-    for (int i = 0; i < numInputs; ++i) {
-        QJsonObject rel;
-        rel[u"type"_s]       = u"Release"_s;
-        rel[u"fifo_param"_s] = QString(u"in%1"_s).arg(i);
-        rel[u"count"_s]      = 1;
-        body.append(rel);
-    }
-    for (int i = 0; i < numOutputs; ++i) {
-        QJsonObject rel;
-        rel[u"type"_s]       = u"Release"_s;
-        rel[u"fifo_param"_s] = QString(u"out%1"_s).arg(i);
-        rel[u"count"_s]      = 1;
-        body.append(rel);
-    }
-
-    QJsonObject root;
-    root[u"params"_s]      = params;
-    root[u"param_roles"_s] = paramRoles;
-    root[u"body"_s]        = body;
-    return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact));
-}
-
 // ---------------------------------------------------------------------------
 // paramsForBlock() — derive the ordered param list for a tile's core function.
 //
@@ -2457,7 +2297,8 @@ struct ParamInfo {
 };
 
 QList<ParamInfo> paramsForBlock(const Canvas::CanvasBlock* block,
-                                const Canvas::CanvasDocument* document)
+                                const Canvas::CanvasDocument* document,
+                                const QJsonArray& sharedFunctionLibrary = {})
 {
     using Kind = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
 
@@ -2469,13 +2310,30 @@ QList<ParamInfo> paramsForBlock(const Canvas::CanvasBlock* block,
         return result;
     }
 
-    // 2. BodyStmts JSON with params/param_roles.
+    // 2. BodyStmts JSON with params/param_roles — either the block's own body
+    //    (Mode::BodyStmts), or, for Mode::SharedRef, the referenced shared function's
+    //    body looked up from the library by name (a SharedRef block never stores its
+    //    own bodyStmtsJson, so falling through to the generic kernel/in/out defaults
+    //    below would silently ignore the shared function's real parameter names).
     if (block->hasCoreFunctionConfig()) {
         const auto& cfg = block->coreFunctionConfig();
-        if (cfg->mode == Canvas::CanvasBlock::CoreFunctionConfig::Mode::BodyStmts
-            && !cfg->bodyStmtsJson.isEmpty()) {
+        QString effectiveBodyJson;
+        if (cfg->mode == Canvas::CanvasBlock::CoreFunctionConfig::Mode::BodyStmts) {
+            effectiveBodyJson = cfg->bodyStmtsJson;
+        } else if (cfg->mode == Canvas::CanvasBlock::CoreFunctionConfig::Mode::SharedRef
+                   && !cfg->sharedFunctionName.isEmpty()) {
+            for (const auto& v : sharedFunctionLibrary) {
+                const QJsonObject entry = v.toObject();
+                if (entry.value(u"name"_s).toString().trimmed() == cfg->sharedFunctionName) {
+                    effectiveBodyJson = entry.value(u"bodyStmtsJson"_s).toString();
+                    break;
+                }
+            }
+        }
+
+        if (!effectiveBodyJson.isEmpty()) {
             const QJsonDocument jdoc =
-                QJsonDocument::fromJson(cfg->bodyStmtsJson.toUtf8());
+                QJsonDocument::fromJson(effectiveBodyJson.toUtf8());
             const QJsonObject obj   = jdoc.object();
             const QJsonArray  jparams = obj[u"params"].toArray();
             const QJsonObject jroles  = obj[u"param_roles"].toObject();
@@ -2552,13 +2410,10 @@ void AiePropertiesPanel::applyCoreFunctionBody()
 
     if (isBodyStmts) {
         cfg.mode = Mode::BodyStmts;
-        // If switching into BodyStmts with no saved body, auto-populate the default template.
-        const QString savedJson = existing.has_value() ? existing->bodyStmtsJson : QString{};
-        if (savedJson.isEmpty() && m_coreFnEditor->isEmpty()) {
-            const QString defaultJson = buildDefaultBodyJson(block, m_document);
-            QSignalBlocker blk(m_coreFnEditor);
-            m_coreFnEditor->setJson(defaultJson);
-        }
+        // Switching into BodyStmts starts from a blank slate - no leftover
+        // params or acquire/call/release statements from the Default mode's
+        // implicit template. The user builds the parameter list and body
+        // from scratch, top to bottom.
         cfg.bodyStmtsJson      = m_coreFnEditor->toJson();
         cfg.sharedFunctionName = existingSharedName;
 
@@ -2615,7 +2470,10 @@ void AiePropertiesPanel::applyCoreFunctionBody()
             oldByParam[a.paramName] = a;
 
         block->clearCoreBodyArgs(); // bypass priority-1 in paramsForBlock
-        const QList<ParamInfo> newParams = paramsForBlock(block, m_document);
+        const QJsonArray library = (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+            ? m_canvasDocuments->activeMetadata().value(kCoreFunctionLibraryKey).toArray()
+            : QJsonArray{};
+        const QList<ParamInfo> newParams = paramsForBlock(block, m_document, library);
 
         QList<Canvas::CanvasBlock::CoreBodyArgSpec> newArgs;
         for (const auto& p : newParams) {
@@ -2848,7 +2706,10 @@ void AiePropertiesPanel::refreshArgList(Canvas::CanvasBlock* block)
     for (const auto& arg : block->coreBodyArgs())
         refByParam[arg.paramName] = arg.ref;
 
-    const QList<ParamInfo> params = paramsForBlock(block, m_document);
+    const QJsonArray library = (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+        ? m_canvasDocuments->activeMetadata().value(kCoreFunctionLibraryKey).toArray()
+        : QJsonArray{};
+    const QList<ParamInfo> params = paramsForBlock(block, m_document, library);
 
     // Per-kind counter for auto-assigning refs sequentially when no saved ref exists.
     // Starts at combo index 1 (skipping the "—" placeholder at index 0).
@@ -2946,7 +2807,10 @@ void AiePropertiesPanel::applyArgList()
     if (!block)
         return;
 
-    const QList<ParamInfo> params = paramsForBlock(block, m_document);
+    const QJsonArray library = (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+        ? m_canvasDocuments->activeMetadata().value(kCoreFunctionLibraryKey).toArray()
+        : QJsonArray{};
+    const QList<ParamInfo> params = paramsForBlock(block, m_document, library);
 
     QList<Canvas::CanvasBlock::CoreBodyArgSpec> args;
     for (int row = 0; row < m_argListTable->rowCount(); ++row) {
@@ -2976,7 +2840,10 @@ void AiePropertiesPanel::autoPopulateArgList(Canvas::CanvasBlock* block)
 
     using Kind = Canvas::CanvasBlock::CoreBodyArgSpec::Kind;
 
-    const QList<ParamInfo> params = paramsForBlock(block, m_document);
+    const QJsonArray library = (m_canvasDocuments && m_canvasDocuments->hasOpenDocument())
+        ? m_canvasDocuments->activeMetadata().value(kCoreFunctionLibraryKey).toArray()
+        : QJsonArray{};
+    const QList<ParamInfo> params = paramsForBlock(block, m_document, library);
     const QStringList& kernels    = block->assignedKernels();
     const QList<TileFifoInfo> fifos = connectedFifosForTile(block, m_document);
     QStringList inputFifos, outputFifos;
@@ -3012,8 +2879,13 @@ void AiePropertiesPanel::applyHubPivotProperties()
     if (m_updatingUi || !m_document || !m_hubPivotNameEdit || !m_hubPivotFifoEdit)
         return;
 
-    auto* wire = selectedFifoWire();
-    if (!wire)
+    // Use the wire refreshSelection() actually populated these fields from — not
+    // selectedFifoWire(), which re-derives the target from the live canvas selection.
+    // That's wrong when a hub block (rather than its pivot wire) is selected: the block's
+    // ObjectId doesn't dynamic_cast to CanvasWire, so selectedFifoWire() silently returns
+    // null and the edit was discarded, appearing to "revert" once the field lost focus.
+    auto* wire = dynamic_cast<Canvas::CanvasWire*>(m_document->findItem(m_hubPivotWireId));
+    if (!wire || !wire->hasObjectFifo())
         return;
 
     Canvas::CanvasWire::ObjectFifoConfig config = wire->objectFifo().value();

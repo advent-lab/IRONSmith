@@ -54,6 +54,12 @@ struct CANVAS_EXPORT CanvasStyle final
                                     const QString& text,
                                     const QColor& color,
                                     bool underline);
+    // Small muted text showing a device-grid coordinate like "(2, 3)" for quick tile
+    // reference. Normally placed in the block's top-right corner, next to the label
+    // (top-left); pass belowLabel=true for narrower blocks where that would collide with
+    // the label text, to stack it on its own line underneath instead.
+    static void drawBlockCoord(QPainter& p, const QRectF& boundsScene, double zoom, const QString& text,
+                               bool belowLabel = false);
     static void drawPort(QPainter& p, const QPointF& anchorScene, PortSide side, PortRole role, double zoom, bool hovered);
     static void drawPortLabel(QPainter& p,
                               const QPointF& anchorScene,

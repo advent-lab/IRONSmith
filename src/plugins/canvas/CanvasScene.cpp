@@ -38,6 +38,12 @@ bool isPortSelectedThunk(void* user, ObjectId itemId, PortId portId)
     return scene && scene->isPortSelected(itemId, portId);
 }
 
+bool isHubHighlightedThunk(void* user, ObjectId id)
+{
+    const auto* scene = static_cast<const CanvasScene*>(user);
+    return scene && scene->isHubHighlighted(id);
+}
+
 struct FabricKeepoutBounds final {
     int minX = 0;
     int maxX = 0;
@@ -93,8 +99,9 @@ void CanvasScene::setDocument(CanvasDocument* doc)
     m_document = doc;
     if (m_document) {
         connect(m_document, &CanvasDocument::changed, this,
-                [this]() { emit requestUpdate(); });
+                [this]() { ++m_wireGeometryGeneration; emit requestUpdate(); });
     }
+    ++m_wireGeometryGeneration;
     emit requestUpdate();
 }
 
@@ -155,6 +162,14 @@ bool CanvasScene::isSelected(ObjectId id) const noexcept
 bool CanvasScene::isPortSelected(ObjectId itemId, PortId portId) const noexcept
 {
     return m_selectionModel ? m_selectionModel->isPortSelected(itemId, portId) : false;
+}
+
+bool CanvasScene::isHubHighlighted(ObjectId id) const noexcept
+{
+    if (!m_document || !isSelected(id))
+        return false;
+    const auto* block = dynamic_cast<const CanvasBlock*>(m_document->findItem(id));
+    return block && block->isLinkHub();
 }
 
 void CanvasScene::setSelectedItem(ObjectId id)
@@ -565,6 +580,7 @@ CanvasRenderContext CanvasScene::buildRenderContext(const QRectF& sceneRect, boo
     selection.user = const_cast<CanvasScene*>(this);
     selection.hasHoveredItem = m_hasHoveredWire;
     selection.hoveredItem = m_hoveredWireItem;
+    selection.isHubHighlighted = &isHubHighlightedThunk;
 
     Support::RenderContextPortState ports;
     if (includeHover) {
@@ -585,7 +601,19 @@ CanvasRenderContext CanvasScene::buildRenderContext(const QRectF& sceneRect, boo
     annotations.wireAnnotationDetailMode = m_wireAnnotationDetailMode;
     annotations.wireAnnotationsScaleWithZoom = m_wireAnnotationsScaleWithZoom;
 
-    return Support::buildRenderContext(m_document, sceneRect, zoom, selection, ports, annotations);
+    // Reuse the last computed wire-overlap-avoidance pre-pass when the document hasn't
+    // changed since — repaints (hover, pan, zoom) happen far more often than structural
+    // edits, and the pre-pass reroutes every wire in the document.
+    const bool cacheValid = (m_cachedWireGeometryGeneration == m_wireGeometryGeneration);
+    CanvasRenderContext ctx = Support::buildRenderContext(m_document, sceneRect, zoom, selection, ports,
+                                                           annotations, /*computeWirePaths=*/!cacheValid);
+    if (cacheValid) {
+        ctx.resolvedWirePaths = m_cachedResolvedWirePaths;
+    } else {
+        m_cachedResolvedWirePaths = ctx.resolvedWirePaths;
+        m_cachedWireGeometryGeneration = m_wireGeometryGeneration;
+    }
+    return ctx;
 }
 
 } // namespace Canvas

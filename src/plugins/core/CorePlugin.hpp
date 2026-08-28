@@ -32,7 +32,6 @@ public:
 private:
 	void setupCommandRibbonActions(Core::IUiHost* uiHost);
 	void setupHomePageCommands(Core::IUiHost* uiHost);
-	void setupViewPageCommands(Core::IUiHost* uiHost);
 	void setupOutputPageCommands(Core::IUiHost* uiHost);
 
 	QPointer<CoreImpl> m_core;

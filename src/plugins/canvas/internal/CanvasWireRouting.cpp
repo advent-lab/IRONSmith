@@ -94,7 +94,42 @@ int manhattanDistance(int x, int y, const FabricCoord& goal)
     return std::abs(x - goal.x) + std::abs(y - goal.y);
 }
 
+// Order-independent key for the unit edge between two adjacent cells.
+EdgeKey makeEdgeKey(const FabricCoord& a, const FabricCoord& b)
+{
+    if (a.y == b.y)
+        return EdgeKey{std::min(a.x, b.x), a.y, 0};
+    return EdgeKey{a.x, std::min(a.y, b.y), 1};
+}
+
 } // namespace
+
+void addPathEdges(EdgeOccupancy& occupancy, const std::vector<FabricCoord>& coords)
+{
+    for (size_t i = 1; i < coords.size(); ++i) {
+        const FabricCoord& p0 = coords[i - 1];
+        const FabricCoord& p1 = coords[i];
+        if (p0.x == p1.x && p0.y == p1.y)
+            continue; // zero-length — nothing to claim
+        if (p0.x != p1.x && p0.y != p1.y)
+            continue; // not axis-aligned (can happen at raw port-anchor endpoints) — best effort, skip
+
+        const int dx = (p1.x > p0.x) ? 1 : (p1.x < p0.x ? -1 : 0);
+        const int dy = (p1.y > p0.y) ? 1 : (p1.y < p0.y ? -1 : 0);
+        FabricCoord cur = p0;
+        while (!(cur.x == p1.x && cur.y == p1.y)) {
+            const FabricCoord next{cur.x + dx, cur.y + dy};
+            occupancy[makeEdgeKey(cur, next)] += 1;
+            cur = next;
+        }
+    }
+}
+
+int edgeOccupancyCount(const EdgeOccupancy& occupancy, const FabricCoord& a, const FabricCoord& b)
+{
+    const auto it = occupancy.find(makeEdgeKey(a, b));
+    return it == occupancy.end() ? 0 : it->second;
+}
 
 WireRouter::WireRouter(const CanvasRenderContext& ctx)
     : m_ctx(ctx)
@@ -210,8 +245,13 @@ std::vector<FabricCoord> WireRouter::aStarPath(const FabricCoord& start, const F
 
 std::vector<FabricCoord> WireRouter::trySimplePath(const FabricCoord& start, const FabricCoord& goal) const
 {
-    if (isSegmentClear(start, goal, true))
-        return directManhattanPath(start, goal);
+    if (isSegmentClear(start, goal, true)) {
+        auto direct = directManhattanPath(start, goal);
+        // Occupied — reject rather than accept, so routeSegment() falls through to
+        // aStarPath(), which can look for a free detour (or, via its own soft cost,
+        // fall back to this same occupied path if that's genuinely the only option).
+        return pathOccupancyCount(direct) == 0 ? direct : std::vector<FabricCoord>{};
+    }
 
     const FabricCoord midH{goal.x, start.y};
     const FabricCoord midV{start.x, goal.y};
@@ -221,16 +261,25 @@ std::vector<FabricCoord> WireRouter::trySimplePath(const FabricCoord& start, con
     if (!canHV && !canVH)
         return {};
 
-    const bool preferHorizontal = std::abs(goal.x - start.x) >= std::abs(goal.y - start.y);
-    if (preferHorizontal) {
-        if (canHV)
-            return concatSegments(directManhattanPath(start, midH), directManhattanPath(midH, goal));
-        return concatSegments(directManhattanPath(start, midV), directManhattanPath(midV, goal));
+    std::vector<FabricCoord> hvPath, vhPath;
+    int hvOcc = -1, vhOcc = -1;
+    if (canHV) {
+        hvPath = concatSegments(directManhattanPath(start, midH), directManhattanPath(midH, goal));
+        hvOcc = pathOccupancyCount(hvPath);
+    }
+    if (canVH) {
+        vhPath = concatSegments(directManhattanPath(start, midV), directManhattanPath(midV, goal));
+        vhOcc = pathOccupancyCount(vhPath);
     }
 
-    if (canVH)
-        return concatSegments(directManhattanPath(start, midV), directManhattanPath(midV, goal));
-    return concatSegments(directManhattanPath(start, midH), directManhattanPath(midH, goal));
+    // Prefer whichever hard-clear candidate has fewer already-occupied edges; break ties
+    // (including "only one candidate exists") with the original aspect-ratio heuristic.
+    const bool preferHorizontal = std::abs(goal.x - start.x) >= std::abs(goal.y - start.y);
+    const bool chooseHV = (canHV && canVH) ? (hvOcc != vhOcc ? hvOcc < vhOcc : preferHorizontal) : canHV;
+
+    const std::vector<FabricCoord>& chosen = chooseHV ? hvPath : vhPath;
+    const int chosenOcc = chooseHV ? hvOcc : vhOcc;
+    return chosenOcc == 0 ? chosen : std::vector<FabricCoord>{};
 }
 
 double WireRouter::effectiveStep() const
@@ -277,7 +326,7 @@ void WireRouter::tryEnqueueNeighbor(SearchState& state, OpenSet& open,
     if (isBlocked(nc, state.goal))
         return;
 
-    const int ng = cur.g + stepCost(cur.dir, dir);
+    const int ng = cur.g + stepCost(cur.dir, dir) + occupancyPenalty(FabricCoord{cur.x, cur.y}, nc);
     const StateKey nextKey{nx, ny, dir};
     const auto it = gScore.find(nextKey);
     if (it != gScore.end() && ng >= it->second)
@@ -291,6 +340,25 @@ void WireRouter::tryEnqueueNeighbor(SearchState& state, OpenSet& open,
 bool WireRouter::isBlocked(const FabricCoord& coord, const FabricCoord& goal) const
 {
     return m_ctx.fabricBlocked(coord) && !(coord.x == goal.x && coord.y == goal.y);
+}
+
+int WireRouter::occupancyPenalty(const FabricCoord& a, const FabricCoord& b) const
+{
+    if (!m_ctx.wireEdgeOccupancy)
+        return 0;
+    const auto* occ = static_cast<const EdgeOccupancy*>(m_ctx.wireEdgeOccupancy);
+    return edgeOccupancyCount(*occ, a, b) > 0 ? kOccupancyPenalty : 0;
+}
+
+int WireRouter::pathOccupancyCount(const std::vector<FabricCoord>& path) const
+{
+    if (!m_ctx.wireEdgeOccupancy || path.size() < 2)
+        return 0;
+    const auto* occ = static_cast<const EdgeOccupancy*>(m_ctx.wireEdgeOccupancy);
+    int total = 0;
+    for (size_t i = 1; i < path.size(); ++i)
+        total += edgeOccupancyCount(*occ, path[i - 1], path[i]);
+    return total;
 }
 
 std::vector<FabricCoord> WireRouter::rebuildPath(const CameFromMap& cameFrom,

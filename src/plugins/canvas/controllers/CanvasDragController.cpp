@@ -272,6 +272,9 @@ void CanvasDragController::updateEndpointDrag(const QPointF& scenePos)
         m_view->setHoveredEdge(edge->itemId, edge->side, edge->anchorScene);
     else
         m_view->clearHoveredEdge();
+    // Same reasoning as updateBlockDrag: this path skips notifyChanged() during the live
+    // drag, so the wire-geometry cache needs an explicit nudge to track the endpoint.
+    m_view->invalidateWireGeometryCache();
     m_view->update();
 }
 
@@ -466,6 +469,11 @@ void CanvasDragController::updateBlockDrag(const QPointF& scenePos)
         state.block->setBoundsScene(newBounds);
     }
 
+    // This intentionally skips CanvasDocument::notifyChanged() (kept cheap during the
+    // drag itself — see endBlockDrag), so the wire-geometry cache must be nudged
+    // separately or wires attached to the dragged block(s) would stay frozen at their
+    // pre-drag paths until the drag is released.
+    m_view->invalidateWireGeometryCache();
     m_view->update();
 }
 

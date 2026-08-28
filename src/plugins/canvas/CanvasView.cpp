@@ -211,6 +211,12 @@ void CanvasView::clearHoveredEdge()
         m_scene->clearHoveredEdge();
 }
 
+void CanvasView::invalidateWireGeometryCache()
+{
+    if (m_scene)
+        m_scene->invalidateWireGeometryCache();
+}
+
 void CanvasView::setMarqueeRect(const QRectF& sceneRect)
 {
     if (m_scene)

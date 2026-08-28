@@ -67,6 +67,29 @@ protected:
     }
 };
 
+// QComboBox has the same scroll-wheel-changes-the-value footgun as
+// QSpinBox: it accepts wheel events without focus, so scrolling the panel
+// toward a control below it (e.g. the Sizes/Strides "+" button) can
+// silently flip the Format combo from TensorAccessPattern to TensorTiler2D.
+class WheelSafeComboBox final : public QComboBox
+{
+public:
+    explicit WheelSafeComboBox(QWidget* parent = nullptr)
+        : QComboBox(parent)
+    {
+    }
+
+protected:
+    void wheelEvent(QWheelEvent* event) override
+    {
+        if (!hasFocus()) {
+            event->ignore();
+            return;
+        }
+        QComboBox::wheelEvent(event);
+    }
+};
+
 QFont fixedFont()
 {
     return QFontDatabase::systemFont(QFontDatabase::FixedFont);
@@ -103,6 +126,7 @@ QSpinBox* makeTapSpinBox(QWidget* parent, int minimum, int maximum)
     spin->setRange(minimum, maximum);
     return spin;
 }
+
 
 QToolButton* makeTapPatternButton(const QString& text, QWidget* parent)
 {
@@ -199,6 +223,10 @@ void SymbolsPanel::buildUi()
     addDimsButton->setObjectName(QStringLiteral("AieSymbolsSecondaryButton"));
     m_addDimsButton = addDimsButton;
 
+    auto* duplicateButton = new QPushButton(QStringLiteral("Duplicate"), toolbarCard);
+    duplicateButton->setObjectName(QStringLiteral("AieSymbolsDangerButton"));
+    m_duplicateButton = duplicateButton;
+
     auto* deleteButton = new QPushButton(QStringLiteral("Delete"), toolbarCard);
     deleteButton->setObjectName(QStringLiteral("AieSymbolsDangerButton"));
     m_deleteButton = deleteButton;
@@ -217,6 +245,7 @@ void SymbolsPanel::buildUi()
     toolbarLayout->addWidget(addTypeButton);
     toolbarLayout->addWidget(addTapButton);
     toolbarLayout->addWidget(addDimsButton);
+    toolbarLayout->addWidget(duplicateButton);
     toolbarLayout->addWidget(deleteButton);
     toolbarLayout->addStretch(1);
     toolbarLayout->addWidget(filterCombo, 0);
@@ -329,6 +358,7 @@ void SymbolsPanel::buildUi()
         if (result)
             refreshSelection();
     });
+    connect(duplicateButton, &QPushButton::clicked, this, &SymbolsPanel::duplicateSelectedSymbol);
     connect(deleteButton, &QPushButton::clicked, this, &SymbolsPanel::deleteSelectedSymbol);
     connect(filterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
         if (!m_filterModel)
@@ -452,7 +482,7 @@ void SymbolsPanel::buildEditorPages()
     dimensionsForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     dimensionsForm->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
-    auto* dtypeCombo = new QComboBox(typeCard);
+    auto* dtypeCombo = new WheelSafeComboBox(typeCard);
     dtypeCombo->setObjectName(QStringLiteral("AiePropertiesField"));
     dtypeCombo->addItems(supportedSymbolDtypes());
 
@@ -503,7 +533,7 @@ void SymbolsPanel::buildEditorPages()
     tapNameForm->addRow(makeKeyLabel(QStringLiteral("Name"), tapCard), tapNameEdit);
     
     // Add format selector
-    auto* tapFormatCombo = new QComboBox(tapCard);
+    auto* tapFormatCombo = new WheelSafeComboBox(tapCard);
     tapFormatCombo->setObjectName(QStringLiteral("AiePropertiesField"));
     tapFormatCombo->addItem(QStringLiteral("TensorAccessPattern"));
     tapFormatCombo->addItem(QStringLiteral("TensorTiler2D"));
@@ -1067,7 +1097,24 @@ void SymbolsPanel::refreshEditor()
             m_tapOffsetSpin->setValue(symbol->tap.offset);
         if (m_tapShowRepetitionsCheck)
             m_tapShowRepetitionsCheck->setChecked(symbol->tap.showRepetitions);
-        rebuildTapPatternEditors();
+        // Only rebuild the pattern rows if the row count changed; otherwise
+        // just update the field values in place, same as the dimension
+        // editors above - a commit fired while typing (m_commitTimer has a
+        // 0ms interval) would otherwise destroy the very field the user is
+        // typing into and steal focus.
+        if (m_tapSizeSpins.size() != symbol->tap.sizes.size()
+            || m_tapStrideSpins.size() != symbol->tap.strides.size()) {
+            rebuildTapPatternEditors();
+        } else {
+            for (int i = 0; i < m_tapSizeSpins.size(); ++i) {
+                if (m_tapSizeSpins[i] && m_tapSizeSpins[i]->value() != symbol->tap.sizes.at(i))
+                    m_tapSizeSpins[i]->setValue(symbol->tap.sizes.at(i));
+            }
+            for (int i = 0; i < m_tapStrideSpins.size(); ++i) {
+                if (m_tapStrideSpins[i] && m_tapStrideSpins[i]->value() != symbol->tap.strides.at(i))
+                    m_tapStrideSpins[i]->setValue(symbol->tap.strides.at(i));
+            }
+        }
         
         // Update TensorTiler2D fields
         if (m_tapTiler2DArrayDimsEdit)
@@ -1466,6 +1513,26 @@ void SymbolsPanel::deleteSelectedSymbol()
 
     const Utils::Result result = m_controller->removeSymbol(symbolId);
     refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+}
+
+void SymbolsPanel::duplicateSelectedSymbol()
+{
+    if (!m_controller)
+        return;
+
+    // Flush any in-progress edit first so the duplicate captures the symbol's
+    // latest committed state, not whatever was last persisted before it.
+    flushPendingCommit();
+
+    const QString symbolId = m_controller->selectedSymbolId();
+    if (symbolId.isEmpty())
+        return;
+
+    QString newId;
+    const Utils::Result result = m_controller->duplicateSymbol(symbolId, &newId);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+    if (result)
+        refreshSelection();
 }
 
 QString SymbolsPanel::selectedSymbolIdFromView() const

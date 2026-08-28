@@ -1066,12 +1066,28 @@ class GUIXMLSerializer:
                         init_elem.text = f'iron.zeros({flat_arg}, dtype={dtype_arg}, device="npu")'
                 init_elem.tail = '\n'
 
+        # Extra setup lines requested via runtimeAddMainSetupLine (e.g.
+        # bounding test data so it doesn't overflow the kernel's dtype),
+        # emitted after host buffers are allocated but before the jit call.
+        for setup_line in getattr(program.runtime, 'main_setup_lines', []):
+            sl = SubElement(body_elem, 'RawLine')
+            sl.text = setup_line
+            sl.tail = '\n'
+
         # Call JIT function
         call_elem = SubElement(body_elem, 'Call')
         call_elem.set('function', 'jit_function')
         if program.runtime and program.runtime.param_names:
             call_elem.set('args', ', '.join(program.runtime.param_names))
         call_elem.tail = '\n'
+
+        # Extra verification/debug lines requested via runtimeAddMainRawLine
+        # (e.g. print()/assert statements checking the design's output),
+        # emitted after the jit call so they can reference its outputs.
+        for raw_line in getattr(program.runtime, 'main_raw_lines', []):
+            rl = SubElement(body_elem, 'RawLine')
+            rl.text = raw_line
+            rl.tail = '\n'
 
         # Entry point
         entry_elem = SubElement(parent, 'EntryPoint')

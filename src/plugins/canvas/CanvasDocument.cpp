@@ -259,6 +259,11 @@ bool CanvasDocument::isFabricPointBlocked(const FabricCoord& coord) const
     return Services::CanvasGeometryService::isFabricPointBlocked(*this, coord);
 }
 
+bool CanvasDocument::isRectBlocked(const QRectF& sceneRect) const
+{
+    return Services::CanvasGeometryService::isRectBlocked(*this, sceneRect);
+}
+
 bool CanvasDocument::computePortTerminal(ObjectId itemId, PortId portId,
                                         QPointF& outAnchorScene,
                                         QPointF& outBorderScene,

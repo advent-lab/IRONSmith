@@ -213,7 +213,7 @@ class GraphBuilder:
         """Create Const node for constant declarations (e.g., N = 4096)."""
         name = e.get("name")
         value = e.text.strip() if e.text else "?"
-        n = self._add_node(name, "Const", value=value)
+        n = self._add_node(name, "Const", value=value, type=e.get("type", "int"))
         self._link(p, n, "contains")
         self._declare_symbol(name, n)
 

@@ -1055,6 +1055,36 @@ HlirResult<void> HlirBridge::runtimeAddMainSize(const std::string& size) {
     return parseJsonResult<void>(jsonRes.value());
 }
 
+HlirResult<void> HlirBridge::runtimeAddMainRawLine(const std::string& text) {
+    PyObject* args = Py_BuildValue("(s)", text.c_str());
+
+    auto pyRes = callBuilderMethod("runtime_add_main_raw_line", args);
+    Py_DECREF(args);
+
+    if (!pyRes) return std::unexpected(pyRes.error());
+
+    auto jsonRes = extractJsonString(pyRes.value());
+    Py_DECREF(pyRes.value());
+
+    if (!jsonRes) return std::unexpected(jsonRes.error());
+    return parseJsonResult<void>(jsonRes.value());
+}
+
+HlirResult<void> HlirBridge::runtimeAddMainSetupLine(const std::string& text) {
+    PyObject* args = Py_BuildValue("(s)", text.c_str());
+
+    auto pyRes = callBuilderMethod("runtime_add_main_setup_line", args);
+    Py_DECREF(args);
+
+    if (!pyRes) return std::unexpected(pyRes.error());
+
+    auto jsonRes = extractJsonString(pyRes.value());
+    Py_DECREF(pyRes.value());
+
+    if (!jsonRes) return std::unexpected(jsonRes.error());
+    return parseJsonResult<void>(jsonRes.value());
+}
+
 HlirResult<void> HlirBridge::runtimeAddWorker(const ComponentId& workerId) {
     PyObject* args = Py_BuildValue("(s)", workerId.value.c_str());
 

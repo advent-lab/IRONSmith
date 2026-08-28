@@ -63,6 +63,7 @@ public:
 
 	bool isFabricPointBlocked(const FabricCoord& coord) const;
 	static bool isFabricPointBlockedThunk(const FabricCoord& coord, void* user);
+	bool isRectBlocked(const QRectF& sceneRect) const;
 
 	bool computePortTerminal(ObjectId itemId, PortId portId,
 	                         QPointF& outAnchorScene,

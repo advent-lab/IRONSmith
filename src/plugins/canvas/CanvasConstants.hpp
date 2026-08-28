@@ -20,6 +20,10 @@ inline constexpr char kBlockFillColor[] = "#0E1B18";
 inline constexpr char kBlockTextColor[] = "#B8C2CC";
 inline constexpr char kBlockSelectionColor[] = "#5DA9FF";
 inline constexpr char kWireColor[] = "#8D99A8";
+// Used for a wire that is itself selected, or that is a branch/root arm of a currently
+// selected link hub — distinct from kBlockSelectionColor's blue so it doesn't read as the
+// same color as the broadcast hub outline (kLinkHubBroadcastOutline).
+inline constexpr char kWireHighlightColor[] = "#FF33CC";
 inline constexpr char kWireAnnotationFillColor[] = "#C8D4E8";
 inline constexpr char kWireAnnotationOutlineColor[] = "#8A98AF";
 inline constexpr char kWireAnnotationTextColor[] = "#1E2430";
@@ -52,6 +56,7 @@ inline constexpr double kBlockLabelPadY = 4.0 * kWorldScale;
 inline constexpr double kBlockStereotypePointSize = 8.0 * kWorldScale;
 inline constexpr double kBlockStereotypeOffsetY = 2.0 * kWorldScale;
 inline constexpr char kBlockStereotypeColor[] = "#88919A";
+inline constexpr double kBlockCoordPointSize = 7.0 * kWorldScale;
 inline constexpr char kBlockStereotypeLinkColor[] = "#4A90E2";
 inline constexpr double kPortHitRadiusPx = 8.0;
 inline constexpr double kEdgeHoverRadiusPx = 14.0;

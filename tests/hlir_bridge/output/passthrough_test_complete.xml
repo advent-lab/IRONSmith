@@ -107,7 +107,7 @@
             <arg>
               <var ref="inputa_in"/>
             </arg>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -133,7 +133,7 @@
               <var ref="outputc_out"/>
             </arg>
             <kwarg name="wait" value="True"/>
-            <kwarg name="placement">
+            <kwarg name="tile">
               <constructor ref="Tile">
                 <arg>
                   <const>0</const>
@@ -248,6 +248,9 @@
           </arg>
         </function>
       </Call>
+      <RawLine>print(f"inputA[:8] = {inputA.numpy()[:8]}")</RawLine>
+      <RawLine>print(f"outputC[:8] = {outputC.numpy()[:8]}")</RawLine>
+      <RawLine>print("PASS: outputC matches inputA" if np.array_equal(outputC.numpy(), inputA.numpy()) else "FAIL: outputC does not match inputA")</RawLine>
     </body>
   </Function>
   <EntryPoint>

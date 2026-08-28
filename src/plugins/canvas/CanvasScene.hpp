@@ -11,6 +11,7 @@
 #include "canvas/CanvasController.hpp"
 #include "canvas/CanvasSelectionModel.hpp"
 
+#include <QtCore/QHash>
 #include <QtCore/QPointer>
 #include <QtCore/QPointF>
 #include <QtCore/QRectF>
@@ -19,6 +20,8 @@
 
 #include <QtCore/QObject>
 #include <qnamespace.h>
+
+#include <vector>
 
 QT_BEGIN_NAMESPACE
 class QPainter;
@@ -51,11 +54,20 @@ public:
     const QSet<ObjectId>& selectedItems() const noexcept;
     bool isSelected(ObjectId id) const noexcept;
     bool isPortSelected(ObjectId itemId, PortId portId) const noexcept;
+    // True if `id` names a currently-selected link-hub block.
+    bool isHubHighlighted(ObjectId id) const noexcept;
     void setSelectedItem(ObjectId id);
     void setSelectedItems(const QSet<ObjectId>& items);
     void clearSelectedItems();
     void setSelectedPort(ObjectId itemId, PortId portId);
     void clearSelectedPort();
+
+    // Bumps the wire-geometry cache generation without going through
+    // CanvasDocument::changed() — for live/transient position updates (block drag,
+    // endpoint drag) that intentionally skip the heavier changed() listeners (e.g. HLIR
+    // resync) until the drag commits, but still need wires to visually track the item
+    // every frame during the drag itself.
+    void invalidateWireGeometryCache() noexcept { ++m_wireGeometryGeneration; }
 
     void setHoveredPort(ObjectId itemId, PortId portId);
     void clearHoveredPort();
@@ -116,6 +128,14 @@ private:
     WireAnnotationVisibilityMode m_wireAnnotationVisibilityMode = WireAnnotationVisibilityMode::Auto;
     WireAnnotationDetailMode m_wireAnnotationDetailMode = WireAnnotationDetailMode::Adaptive;
     bool m_wireAnnotationsScaleWithZoom = true;
+
+    // Cross-repaint cache for the wire-overlap-avoidance pre-pass (see
+    // Support::buildRenderContext). Repaints happen far more often than the document
+    // actually changes (e.g. every hover tick), and the pre-pass reroutes every wire in
+    // the document, so it's only worth rerunning when CanvasDocument::changed() fires.
+    quint64 m_wireGeometryGeneration = 0;
+    mutable quint64 m_cachedWireGeometryGeneration = ~quint64{0};
+    mutable QHash<ObjectId, std::vector<QPointF>> m_cachedResolvedWirePaths;
 };
 
 } // namespace Canvas

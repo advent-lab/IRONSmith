@@ -461,6 +461,12 @@
                 <init>iron.zeros(data_size, dtype=bfloat16, device="npu")</init>
             </Tensor>
             <Call function="jit_function" args="A, B, D"/>
+            <RawLine>print(f"A[:8] = {A.numpy()[:8]}")</RawLine>
+            <RawLine>print(f"B[:8] = {B.numpy()[:8]}")</RawLine>
+            <RawLine>print(f"D[:8] = {D.numpy()[:8]}")</RawLine>
+            <RawLine>expected = np.maximum(A.numpy().astype(np.float32) + B.numpy().astype(np.float32), 0)</RawLine>
+            <RawLine>print(f"expected[:8] = {expected[:8]}")</RawLine>
+            <RawLine>print("PASS: D matches relu(A + B)" if np.allclose(D.numpy().astype(np.float32), expected, atol=1e-2) else "FAIL: D does not match relu(A + B)")</RawLine>
         </body>
     </Function>
     <EntryPoint>

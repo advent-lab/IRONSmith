@@ -112,13 +112,11 @@ void CorePlugin::setupCommandRibbonActions(Core::IUiHost* uiHost)
 	const RibbonUpdateBatchGuard batchGuard{uiHost};
 
 	uiHost->addMenuTab(Constants::RIBBON_TAB_HOME, "Home");
-	uiHost->addMenuTab(Constants::RIBBON_TAB_VIEW, "View");
 	uiHost->addMenuTab(Constants::RIBBON_TAB_OUTPUT, "Output");
 
 	uiHost->setActiveMenuTab(Constants::RIBBON_TAB_HOME);
 
 	setupHomePageCommands(uiHost);
-	setupViewPageCommands(uiHost);
 	setupOutputPageCommands(uiHost);
 }
 
@@ -129,7 +127,6 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 
 	uiHost->ensureRibbonGroup(Constants::RIBBON_TAB_HOME, Constants::RIBBON_TAB_HOME_PROJECT_GROUP, "Project");
 	uiHost->ensureRibbonGroup(Constants::RIBBON_TAB_HOME, Constants::RIBBON_TAB_HOME_CANVAS_GROUP, "Canvas");
-	uiHost->ensureRibbonGroup(Constants::RIBBON_TAB_HOME, Constants::RIBBON_TAB_HOME_WIRES_GROUP, "Wires");
 	uiHost->ensureRibbonGroup(Constants::RIBBON_TAB_HOME, Constants::RIBBON_TAB_HOME_VIEW_GROUP, "View");
 
 	auto* actNew    = new QAction(tr("New Design"), this);
@@ -292,24 +289,6 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 		qCWarning(corelog) << res.error;
 	}
 
-	auto* actAutoRoute = new QAction(tr("Auto Route"), this);
-	auto* actClearOverrides = new QAction(tr("Clear Overrides"), this);
-	auto* actToggleArrows = new QAction(tr("Wire Arrows"), this);
-
-	actToggleArrows->setCheckable(true);
-	actAutoRoute->setIcon(Ui::IconLoader::load(QStringLiteral(":/ui/icons/svg/auto_route_icon.svg"), QSize(20, 20)));
-
-	auto wiresRoot = RibbonNode::makeRow("wires_root");
-	wiresRoot->addCommand(Constants::CANVAS_WIRE_AUTO_ROUTE_ITEMID, actAutoRoute, RibbonControlType::Button, smallPres);
-	wiresRoot->addCommand(Constants::CANVAS_WIRE_CLEAR_OVERRIDES_ITEMID, actClearOverrides, RibbonControlType::Button, smallPres);
-	wiresRoot->addCommand(Constants::CANVAS_WIRE_TOGGLE_ARROWS_ITEMID, actToggleArrows, RibbonControlType::ToggleButton, smallPres);
-
-	if (const auto res = uiHost->setRibbonGroupLayout(Constants::RIBBON_TAB_HOME,
-	                                                  Constants::RIBBON_TAB_HOME_WIRES_GROUP,
-	                                                  std::move(wiresRoot));
-	    !res) {
-		qCWarning(corelog) << res.error;
-	}
 	auto* actZoomIn = new QAction(tr("Zoom In"), this);
 	auto* actZoomOut = new QAction(tr("Zoom Out"), this);
 	auto* actZoomFit = new QAction(tr("Zoom to Fit"), this);
@@ -332,11 +311,6 @@ void CorePlugin::setupHomePageCommands(Core::IUiHost* uiHost)
 	    !res) {
 		qCWarning(corelog) << res.error;
 	}
-}
-
-void CorePlugin::setupViewPageCommands(Core::IUiHost* uiHost)
-{
-	Q_UNUSED(uiHost);
 }
 
 void CorePlugin::setupOutputPageCommands(Core::IUiHost* uiHost)
