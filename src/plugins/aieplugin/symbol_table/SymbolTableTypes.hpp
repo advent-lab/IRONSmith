@@ -53,7 +53,7 @@ struct TensorAccessPatternSymbolData final {
     QVector<int> sizes{4, 4};
     QVector<int> strides{16, 1};
     bool showRepetitions = true;
-    bool useTiler2D = true;  // If true, generate TensorTiler2D code; if false, use TensorAccessPattern
+    bool useTiler2D = false;  // If true, generate TensorTiler2D code; if false, use TensorAccessPattern (default for new TAPs)
     // TensorTiler2D-specific fields (used when useTiler2D = true)
     QString tensorDims;   // total tensor size, e.g. "16 x 16"
     QString tileDims;

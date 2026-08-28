@@ -5,6 +5,7 @@
 #include "aieplugin/AieConstants.hpp"
 
 #include <QtCore/QMarginsF>
+#include <QtCore/QPointF>
 
 namespace Aie {
 
@@ -101,6 +102,11 @@ Utils::Result buildCanvasGridModel(const NpuProfile& profile, CanvasGridModel& o
         ddr.id = QStringLiteral("ddr");
         ddr.label = QStringLiteral("DDR");
         ddr.gridRect = {0, 0, gridSpec.columns, 1};
+        // Starting position matches the hand-tuned y-offset saved in the
+        // gemm.ironsmith reference design's blockOffsets, so new designs
+        // begin with the same DDR<->shim clearance for Distribute/Collect
+        // hubs rather than the tight default.
+        ddr.positionOffset = QPointF(0.0, Aie::kDdrHubGapPixels);
         ddr.movable = false;
         ddr.showPorts = false;
         ddr.deletable = false;

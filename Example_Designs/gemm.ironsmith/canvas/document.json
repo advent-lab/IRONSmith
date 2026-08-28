@@ -689,7 +689,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join1[0]"
+                    "ref": "c_col0_joins[0]"
                 }
             ],
             "coreFn": {
@@ -769,7 +769,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join2[0]"
+                    "ref": "c_col1_joins[0]"
                 }
             ],
             "coreFn": {
@@ -849,7 +849,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join3[0]"
+                    "ref": "c_col2_joins[0]"
                 }
             ],
             "coreFn": {
@@ -930,7 +930,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join4[0]"
+                    "ref": "c_col3_joins[0]"
                 }
             ],
             "coreFn": {
@@ -1041,7 +1041,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join1[1]"
+                    "ref": "c_col0_joins[1]"
                 }
             ],
             "coreFn": {
@@ -1121,7 +1121,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join2[1]"
+                    "ref": "c_col1_joins[1]"
                 }
             ],
             "coreFn": {
@@ -1201,7 +1201,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join3[1]"
+                    "ref": "c_col2_joins[1]"
                 }
             ],
             "coreFn": {
@@ -1282,7 +1282,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join4[1]"
+                    "ref": "c_col3_joins[1]"
                 }
             ],
             "coreFn": {
@@ -1393,7 +1393,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join1[2]"
+                    "ref": "c_col0_joins[2]"
                 }
             ],
             "coreFn": {
@@ -1473,7 +1473,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join2[2]"
+                    "ref": "c_col1_joins[2]"
                 }
             ],
             "coreFn": {
@@ -1553,7 +1553,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join3[2]"
+                    "ref": "c_col2_joins[2]"
                 }
             ],
             "coreFn": {
@@ -1634,7 +1634,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join4[2]"
+                    "ref": "c_col3_joins[2]"
                 }
             ],
             "coreFn": {
@@ -1745,7 +1745,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join1[3]"
+                    "ref": "c_col0_joins[3]"
                 }
             ],
             "coreFn": {
@@ -1826,7 +1826,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join2[3]"
+                    "ref": "c_col1_joins[3]"
                 }
             ],
             "coreFn": {
@@ -1906,7 +1906,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join3[3]"
+                    "ref": "c_col2_joins[3]"
                 }
             ],
             "coreFn": {
@@ -1987,7 +1987,7 @@
                 {
                     "kind": "fifo_out",
                     "paramName": "c_out",
-                    "ref": "join4[3]"
+                    "ref": "c_col3_joins[3]"
                 }
             ],
             "coreFn": {
@@ -3754,7 +3754,7 @@
                 "name": "of_in_a_row0",
                 "operation": "fifo",
                 "symbolRef": "a_tile_ty",
-                "valueType": "i32"
+                "valueType": "i16"
             },
             "type": "wire"
         },
@@ -4161,7 +4161,7 @@
                 "depth": 2,
                 "dimensionMode": "vector",
                 "dimensions": "M * n",
-                "hubName": "join1",
+                "hubName": "c_col0_joins",
                 "name": "of_out_c_col0",
                 "offsetsOverride": "0, m * n, 2 * m * n, 3 * m * n",
                 "operation": "join",
@@ -4391,7 +4391,7 @@
                 "depth": 2,
                 "dimensionMode": "vector",
                 "dimensions": "M * n",
-                "hubName": "join2",
+                "hubName": "c_col1_joins",
                 "name": "of_out_c_col1",
                 "offsetsOverride": "0, m * n, 2 * m * n, 3 * m * n",
                 "operation": "join",
@@ -4620,7 +4620,7 @@
                 "depth": 2,
                 "dimensionMode": "vector",
                 "dimensions": "M * n",
-                "hubName": "join3",
+                "hubName": "c_col2_joins",
                 "name": "of_out_c_col2",
                 "offsetsOverride": "0, m * n, 2 * m * n, 3 * m * n",
                 "operation": "join",
@@ -4849,7 +4849,7 @@
                 "depth": 2,
                 "dimensionMode": "vector",
                 "dimensions": "M * n",
-                "hubName": "join4",
+                "hubName": "c_col3_joins",
                 "name": "of_out_c_col3",
                 "offsetsOverride": "0, m * n, 2 * m * n, 3 * m * n",
                 "operation": "join",

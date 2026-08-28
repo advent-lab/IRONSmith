@@ -10,6 +10,7 @@
 #include <QLoggingCategory>
 #include <QMenu>
 #include <array>
+#include <memory>
 #include <QtCore/QtGlobal>
 #include <QtGui/QActionGroup>
 
@@ -290,7 +291,24 @@ void CanvasPlugin::connectRibbonActions(Core::IUiHost* uiHost)
 
     setCanvasActionsEnabled(m_host->canvasActive());
     connect(m_host, &Canvas::Api::ICanvasHost::canvasActiveChanged, this,
-            [this](bool active) { setCanvasActionsEnabled(active); });
+            [this, view, doc](bool active) {
+                setCanvasActionsEnabled(active);
+                if (!active || !m_gridHost)
+                    return;
+                // Fit the view once a design opens (new or existing) instead of
+                // leaving it at CanvasView's raw default (zoom 1.0, pan (0,0) -
+                // the same state Reset View produces, which reads as "too
+                // zoomed in" on anything bigger than a couple of tiles).
+                // canvasActiveChanged can fire before the grid model's blocks
+                // are populated, so wait for the next blocksChanged rather than
+                // fitting immediately against a still-empty document.
+                auto conn = std::make_shared<QMetaObject::Connection>();
+                *conn = connect(m_gridHost, &Canvas::Api::ICanvasGridHost::blocksChanged,
+                                this, [this, view, doc, conn]() {
+                                    zoomToFit(view, doc);
+                                    QObject::disconnect(*conn);
+                                });
+            });
 }
 
 void CanvasPlugin::syncRibbonState(CanvasController* controller)

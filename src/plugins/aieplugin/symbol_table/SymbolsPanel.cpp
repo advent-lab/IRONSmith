@@ -223,6 +223,10 @@ void SymbolsPanel::buildUi()
     addDimsButton->setObjectName(QStringLiteral("AieSymbolsSecondaryButton"));
     m_addDimsButton = addDimsButton;
 
+    auto* duplicateButton = new QPushButton(QStringLiteral("Duplicate"), toolbarCard);
+    duplicateButton->setObjectName(QStringLiteral("AieSymbolsDangerButton"));
+    m_duplicateButton = duplicateButton;
+
     auto* deleteButton = new QPushButton(QStringLiteral("Delete"), toolbarCard);
     deleteButton->setObjectName(QStringLiteral("AieSymbolsDangerButton"));
     m_deleteButton = deleteButton;
@@ -241,6 +245,7 @@ void SymbolsPanel::buildUi()
     toolbarLayout->addWidget(addTypeButton);
     toolbarLayout->addWidget(addTapButton);
     toolbarLayout->addWidget(addDimsButton);
+    toolbarLayout->addWidget(duplicateButton);
     toolbarLayout->addWidget(deleteButton);
     toolbarLayout->addStretch(1);
     toolbarLayout->addWidget(filterCombo, 0);
@@ -353,6 +358,7 @@ void SymbolsPanel::buildUi()
         if (result)
             refreshSelection();
     });
+    connect(duplicateButton, &QPushButton::clicked, this, &SymbolsPanel::duplicateSelectedSymbol);
     connect(deleteButton, &QPushButton::clicked, this, &SymbolsPanel::deleteSelectedSymbol);
     connect(filterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
         if (!m_filterModel)
@@ -1507,6 +1513,26 @@ void SymbolsPanel::deleteSelectedSymbol()
 
     const Utils::Result result = m_controller->removeSymbol(symbolId);
     refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+}
+
+void SymbolsPanel::duplicateSelectedSymbol()
+{
+    if (!m_controller)
+        return;
+
+    // Flush any in-progress edit first so the duplicate captures the symbol's
+    // latest committed state, not whatever was last persisted before it.
+    flushPendingCommit();
+
+    const QString symbolId = m_controller->selectedSymbolId();
+    if (symbolId.isEmpty())
+        return;
+
+    QString newId;
+    const Utils::Result result = m_controller->duplicateSymbol(symbolId, &newId);
+    refreshStatusMessage(result ? QString() : result.errors.join(QStringLiteral("\n")), !result.ok);
+    if (result)
+        refreshSelection();
 }
 
 QString SymbolsPanel::selectedSymbolIdFromView() const

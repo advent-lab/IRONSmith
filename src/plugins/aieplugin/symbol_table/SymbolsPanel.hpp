@@ -72,6 +72,7 @@ private:
     void commitTapEdits();
     void commitDimsEdits();
     void deleteSelectedSymbol();
+    void duplicateSelectedSymbol();
     void addTapPatternRow();
     void moveTapPatternRow(int row, int delta);
     void removeTapPatternRow(int row);
@@ -93,6 +94,7 @@ private:
     QPointer<QPushButton> m_addTypeButton;
     QPointer<QPushButton> m_addTapButton;
     QPointer<QPushButton> m_addDimsButton;
+    QPointer<QPushButton> m_duplicateButton;
     QPointer<QPushButton> m_deleteButton;
     QPointer<QComboBox> m_filterCombo;
     QPointer<QTableView> m_tableView;

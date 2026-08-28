@@ -784,7 +784,7 @@
   <data key="d3">of_out_c_col3</data>
 </node>
 <node id="ObjectFifo_161">
-  <data key="d0">join1</data>
+  <data key="d0">c_col0_joins</data>
   <data key="d1">ObjectFifo</data>
 </node>
 <node id="MethodChain_162">
@@ -834,19 +834,19 @@
   <data key="d1">List</data>
 </node>
 <node id="String_173">
-  <data key="d0">join1_in1</data>
+  <data key="d0">c_col0_joins_in1</data>
   <data key="d1">String</data>
 </node>
 <node id="String_174">
-  <data key="d0">join1_in2</data>
+  <data key="d0">c_col0_joins_in2</data>
   <data key="d1">String</data>
 </node>
 <node id="String_175">
-  <data key="d0">join1_in3</data>
+  <data key="d0">c_col0_joins_in3</data>
   <data key="d1">String</data>
 </node>
 <node id="String_176">
-  <data key="d0">join1_in4</data>
+  <data key="d0">c_col0_joins_in4</data>
   <data key="d1">String</data>
 </node>
 <node id="Kwarg_177">
@@ -906,7 +906,7 @@
   <data key="d3">6144</data>
 </node>
 <node id="ObjectFifo_189">
-  <data key="d0">join2</data>
+  <data key="d0">c_col1_joins</data>
   <data key="d1">ObjectFifo</data>
 </node>
 <node id="MethodChain_190">
@@ -956,19 +956,19 @@
   <data key="d1">List</data>
 </node>
 <node id="String_201">
-  <data key="d0">join2_in1</data>
+  <data key="d0">c_col1_joins_in1</data>
   <data key="d1">String</data>
 </node>
 <node id="String_202">
-  <data key="d0">join2_in2</data>
+  <data key="d0">c_col1_joins_in2</data>
   <data key="d1">String</data>
 </node>
 <node id="String_203">
-  <data key="d0">join2_in3</data>
+  <data key="d0">c_col1_joins_in3</data>
   <data key="d1">String</data>
 </node>
 <node id="String_204">
-  <data key="d0">join2_in4</data>
+  <data key="d0">c_col1_joins_in4</data>
   <data key="d1">String</data>
 </node>
 <node id="Kwarg_205">
@@ -1028,7 +1028,7 @@
   <data key="d3">6144</data>
 </node>
 <node id="ObjectFifo_217">
-  <data key="d0">join3</data>
+  <data key="d0">c_col2_joins</data>
   <data key="d1">ObjectFifo</data>
 </node>
 <node id="MethodChain_218">
@@ -1078,19 +1078,19 @@
   <data key="d1">List</data>
 </node>
 <node id="String_229">
-  <data key="d0">join3_in1</data>
+  <data key="d0">c_col2_joins_in1</data>
   <data key="d1">String</data>
 </node>
 <node id="String_230">
-  <data key="d0">join3_in2</data>
+  <data key="d0">c_col2_joins_in2</data>
   <data key="d1">String</data>
 </node>
 <node id="String_231">
-  <data key="d0">join3_in3</data>
+  <data key="d0">c_col2_joins_in3</data>
   <data key="d1">String</data>
 </node>
 <node id="String_232">
-  <data key="d0">join3_in4</data>
+  <data key="d0">c_col2_joins_in4</data>
   <data key="d1">String</data>
 </node>
 <node id="Kwarg_233">
@@ -1150,7 +1150,7 @@
   <data key="d3">6144</data>
 </node>
 <node id="ObjectFifo_245">
-  <data key="d0">join4</data>
+  <data key="d0">c_col3_joins</data>
   <data key="d1">ObjectFifo</data>
 </node>
 <node id="MethodChain_246">
@@ -1200,19 +1200,19 @@
   <data key="d1">List</data>
 </node>
 <node id="String_257">
-  <data key="d0">join4_in1</data>
+  <data key="d0">c_col3_joins_in1</data>
   <data key="d1">String</data>
 </node>
 <node id="String_258">
-  <data key="d0">join4_in2</data>
+  <data key="d0">c_col3_joins_in2</data>
   <data key="d1">String</data>
 </node>
 <node id="String_259">
-  <data key="d0">join4_in3</data>
+  <data key="d0">c_col3_joins_in3</data>
   <data key="d1">String</data>
 </node>
 <node id="String_260">
-  <data key="d0">join4_in4</data>
+  <data key="d0">c_col3_joins_in4</data>
   <data key="d1">String</data>
 </node>
 <node id="Kwarg_261">

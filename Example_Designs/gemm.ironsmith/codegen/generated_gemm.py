@@ -42,10 +42,10 @@ def gui_design_jit(A: In, B: In, C: Out, *, M: CompileTime[int], K: CompileTime[
     of_in_b_col3 = ObjectFifo(obj_type=b_tile_ty, depth=2, name="of_in_b_col3")
     of_out_c_col3 = ObjectFifo(obj_type=c_col_ty, depth=2, name="of_out_c_col3")
     # Joins
-    join1 = of_out_c_col0.prod().join(names=["join1_in1", "join1_in2", "join1_in3", "join1_in4"], obj_types=[c_tile_ty, c_tile_ty, c_tile_ty, c_tile_ty], offsets=[0, 2048, 4096, 6144], tile=Tile(0, 1))
-    join2 = of_out_c_col1.prod().join(names=["join2_in1", "join2_in2", "join2_in3", "join2_in4"], obj_types=[c_tile_ty, c_tile_ty, c_tile_ty, c_tile_ty], offsets=[0, 2048, 4096, 6144], tile=Tile(1, 1))
-    join3 = of_out_c_col2.prod().join(names=["join3_in1", "join3_in2", "join3_in3", "join3_in4"], obj_types=[c_tile_ty, c_tile_ty, c_tile_ty, c_tile_ty], offsets=[0, 2048, 4096, 6144], tile=Tile(2, 1))
-    join4 = of_out_c_col3.prod().join(names=["join4_in1", "join4_in2", "join4_in3", "join4_in4"], obj_types=[c_tile_ty, c_tile_ty, c_tile_ty, c_tile_ty], offsets=[0, 2048, 4096, 6144], tile=Tile(3, 1))
+    c_col0_joins = of_out_c_col0.prod().join(names=["c_col0_joins_in1", "c_col0_joins_in2", "c_col0_joins_in3", "c_col0_joins_in4"], obj_types=[c_tile_ty, c_tile_ty, c_tile_ty, c_tile_ty], offsets=[0, 2048, 4096, 6144], tile=Tile(0, 1))
+    c_col1_joins = of_out_c_col1.prod().join(names=["c_col1_joins_in1", "c_col1_joins_in2", "c_col1_joins_in3", "c_col1_joins_in4"], obj_types=[c_tile_ty, c_tile_ty, c_tile_ty, c_tile_ty], offsets=[0, 2048, 4096, 6144], tile=Tile(1, 1))
+    c_col2_joins = of_out_c_col2.prod().join(names=["c_col2_joins_in1", "c_col2_joins_in2", "c_col2_joins_in3", "c_col2_joins_in4"], obj_types=[c_tile_ty, c_tile_ty, c_tile_ty, c_tile_ty], offsets=[0, 2048, 4096, 6144], tile=Tile(2, 1))
+    c_col3_joins = of_out_c_col3.prod().join(names=["c_col3_joins_in1", "c_col3_joins_in2", "c_col3_joins_in3", "c_col3_joins_in4"], obj_types=[c_tile_ty, c_tile_ty, c_tile_ty, c_tile_ty], offsets=[0, 2048, 4096, 6144], tile=Tile(3, 1))
     # Broadcasts
     b_col3_fwd = of_in_b_col3.cons().forward(tile=Tile(3, 1))
     a_row0_fwd = of_in_a_row0.cons().forward(tile=Tile(0, 1))
@@ -76,22 +76,22 @@ def gui_design_jit(A: In, B: In, C: Out, *, M: CompileTime[int], K: CompileTime[
 
     # Workers
     Workers = []
-    worker_aie0_2 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row0_fwd.cons(), b_col0_fwd.cons(), join1[0].prod()], tile=Tile(0, 2))
-    worker_aie1_2 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row0_fwd.cons(), b_col1_fwd.cons(), join2[0].prod()], tile=Tile(1, 2))
-    worker_aie2_2 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row0_fwd.cons(), b_col2_fwd.cons(), join3[0].prod()], tile=Tile(2, 2))
-    worker_aie3_2 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row0_fwd.cons(), b_col3_fwd.cons(), join4[0].prod()], tile=Tile(3, 2))
-    worker_aie0_3 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row1_fwd.cons(), b_col0_fwd.cons(), join1[1].prod()], tile=Tile(0, 3))
-    worker_aie1_3 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row1_fwd.cons(), b_col1_fwd.cons(), join2[1].prod()], tile=Tile(1, 3))
-    worker_aie2_3 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row1_fwd.cons(), b_col2_fwd.cons(), join3[1].prod()], tile=Tile(2, 3))
-    worker_aie3_3 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row1_fwd.cons(), b_col3_fwd.cons(), join4[1].prod()], tile=Tile(3, 3))
-    worker_aie0_4 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row2_fwd.cons(), b_col0_fwd.cons(), join1[2].prod()], tile=Tile(0, 4))
-    worker_aie1_4 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row2_fwd.cons(), b_col1_fwd.cons(), join2[2].prod()], tile=Tile(1, 4))
-    worker_aie2_4 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row2_fwd.cons(), b_col2_fwd.cons(), join3[2].prod()], tile=Tile(2, 4))
-    worker_aie3_4 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row2_fwd.cons(), b_col3_fwd.cons(), join4[2].prod()], tile=Tile(3, 4))
-    worker_aie0_5 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row3_fwd.cons(), b_col0_fwd.cons(), join1[3].prod()], tile=Tile(0, 5))
-    worker_aie1_5 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row3_fwd.cons(), b_col1_fwd.cons(), join2[3].prod()], tile=Tile(1, 5))
-    worker_aie2_5 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row3_fwd.cons(), b_col2_fwd.cons(), join3[3].prod()], tile=Tile(2, 5))
-    worker_aie3_5 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row3_fwd.cons(), b_col3_fwd.cons(), join4[3].prod()], tile=Tile(3, 5))
+    worker_aie0_2 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row0_fwd.cons(), b_col0_fwd.cons(), c_col0_joins[0].prod()], tile=Tile(0, 2))
+    worker_aie1_2 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row0_fwd.cons(), b_col1_fwd.cons(), c_col1_joins[0].prod()], tile=Tile(1, 2))
+    worker_aie2_2 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row0_fwd.cons(), b_col2_fwd.cons(), c_col2_joins[0].prod()], tile=Tile(2, 2))
+    worker_aie3_2 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row0_fwd.cons(), b_col3_fwd.cons(), c_col3_joins[0].prod()], tile=Tile(3, 2))
+    worker_aie0_3 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row1_fwd.cons(), b_col0_fwd.cons(), c_col0_joins[1].prod()], tile=Tile(0, 3))
+    worker_aie1_3 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row1_fwd.cons(), b_col1_fwd.cons(), c_col1_joins[1].prod()], tile=Tile(1, 3))
+    worker_aie2_3 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row1_fwd.cons(), b_col2_fwd.cons(), c_col2_joins[1].prod()], tile=Tile(2, 3))
+    worker_aie3_3 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row1_fwd.cons(), b_col3_fwd.cons(), c_col3_joins[1].prod()], tile=Tile(3, 3))
+    worker_aie0_4 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row2_fwd.cons(), b_col0_fwd.cons(), c_col0_joins[2].prod()], tile=Tile(0, 4))
+    worker_aie1_4 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row2_fwd.cons(), b_col1_fwd.cons(), c_col1_joins[2].prod()], tile=Tile(1, 4))
+    worker_aie2_4 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row2_fwd.cons(), b_col2_fwd.cons(), c_col2_joins[2].prod()], tile=Tile(2, 4))
+    worker_aie3_4 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row2_fwd.cons(), b_col3_fwd.cons(), c_col3_joins[2].prod()], tile=Tile(3, 4))
+    worker_aie0_5 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row3_fwd.cons(), b_col0_fwd.cons(), c_col0_joins[3].prod()], tile=Tile(0, 5))
+    worker_aie1_5 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row3_fwd.cons(), b_col1_fwd.cons(), c_col1_joins[3].prod()], tile=Tile(1, 5))
+    worker_aie2_5 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row3_fwd.cons(), b_col2_fwd.cons(), c_col2_joins[3].prod()], tile=Tile(2, 5))
+    worker_aie3_5 = Worker(core_fn=core_shared_core_fn_matmul, fn_args=[kernel_matmul_scalar_i16_i32, a_row3_fwd.cons(), b_col3_fwd.cons(), c_col3_joins[3].prod()], tile=Tile(3, 5))
 
     Workers = [worker_aie0_2, worker_aie1_2, worker_aie2_2, worker_aie3_2, worker_aie0_3, worker_aie1_3, worker_aie2_3, worker_aie3_3, worker_aie0_4, worker_aie1_4, worker_aie2_4, worker_aie3_4, worker_aie0_5, worker_aie1_5, worker_aie2_5, worker_aie3_5]
 

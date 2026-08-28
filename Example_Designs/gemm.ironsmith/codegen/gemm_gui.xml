@@ -194,28 +194,28 @@
             <type>c_col_ty</type>
             <depth>2</depth>
         </ObjectFifo>
-        <ObjectFifoJoin name="join1">
+        <ObjectFifoJoin name="c_col0_joins">
             <dest>of_out_c_col0</dest>
             <num_inputs>4</num_inputs>
             <input_type>c_tile_ty</input_type>
             <placement>Tile(0, 1)</placement>
             <offsets>0, 2048, 4096, 6144</offsets>
         </ObjectFifoJoin>
-        <ObjectFifoJoin name="join2">
+        <ObjectFifoJoin name="c_col1_joins">
             <dest>of_out_c_col1</dest>
             <num_inputs>4</num_inputs>
             <input_type>c_tile_ty</input_type>
             <placement>Tile(1, 1)</placement>
             <offsets>0, 2048, 4096, 6144</offsets>
         </ObjectFifoJoin>
-        <ObjectFifoJoin name="join3">
+        <ObjectFifoJoin name="c_col2_joins">
             <dest>of_out_c_col2</dest>
             <num_inputs>4</num_inputs>
             <input_type>c_tile_ty</input_type>
             <placement>Tile(2, 1)</placement>
             <offsets>0, 2048, 4096, 6144</offsets>
         </ObjectFifoJoin>
-        <ObjectFifoJoin name="join4">
+        <ObjectFifoJoin name="c_col3_joins">
             <dest>of_out_c_col3</dest>
             <num_inputs>4</num_inputs>
             <input_type>c_tile_ty</input_type>
@@ -236,7 +236,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row0_fwd" mode="consumer"/>
                 <arg ref="b_col0_fwd" mode="consumer"/>
-                <arg ref="join1" index="0" mode="producer"/>
+                <arg ref="c_col0_joins" index="0" mode="producer"/>
             </arguments>
             <placement>Tile(0, 2)</placement>
         </Worker>
@@ -246,7 +246,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row0_fwd" mode="consumer"/>
                 <arg ref="b_col1_fwd" mode="consumer"/>
-                <arg ref="join2" index="0" mode="producer"/>
+                <arg ref="c_col1_joins" index="0" mode="producer"/>
             </arguments>
             <placement>Tile(1, 2)</placement>
         </Worker>
@@ -256,7 +256,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row0_fwd" mode="consumer"/>
                 <arg ref="b_col2_fwd" mode="consumer"/>
-                <arg ref="join3" index="0" mode="producer"/>
+                <arg ref="c_col2_joins" index="0" mode="producer"/>
             </arguments>
             <placement>Tile(2, 2)</placement>
         </Worker>
@@ -266,7 +266,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row0_fwd" mode="consumer"/>
                 <arg ref="b_col3_fwd" mode="consumer"/>
-                <arg ref="join4" index="0" mode="producer"/>
+                <arg ref="c_col3_joins" index="0" mode="producer"/>
             </arguments>
             <placement>Tile(3, 2)</placement>
         </Worker>
@@ -276,7 +276,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row1_fwd" mode="consumer"/>
                 <arg ref="b_col0_fwd" mode="consumer"/>
-                <arg ref="join1" index="1" mode="producer"/>
+                <arg ref="c_col0_joins" index="1" mode="producer"/>
             </arguments>
             <placement>Tile(0, 3)</placement>
         </Worker>
@@ -286,7 +286,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row1_fwd" mode="consumer"/>
                 <arg ref="b_col1_fwd" mode="consumer"/>
-                <arg ref="join2" index="1" mode="producer"/>
+                <arg ref="c_col1_joins" index="1" mode="producer"/>
             </arguments>
             <placement>Tile(1, 3)</placement>
         </Worker>
@@ -296,7 +296,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row1_fwd" mode="consumer"/>
                 <arg ref="b_col2_fwd" mode="consumer"/>
-                <arg ref="join3" index="1" mode="producer"/>
+                <arg ref="c_col2_joins" index="1" mode="producer"/>
             </arguments>
             <placement>Tile(2, 3)</placement>
         </Worker>
@@ -306,7 +306,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row1_fwd" mode="consumer"/>
                 <arg ref="b_col3_fwd" mode="consumer"/>
-                <arg ref="join4" index="1" mode="producer"/>
+                <arg ref="c_col3_joins" index="1" mode="producer"/>
             </arguments>
             <placement>Tile(3, 3)</placement>
         </Worker>
@@ -316,7 +316,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row2_fwd" mode="consumer"/>
                 <arg ref="b_col0_fwd" mode="consumer"/>
-                <arg ref="join1" index="2" mode="producer"/>
+                <arg ref="c_col0_joins" index="2" mode="producer"/>
             </arguments>
             <placement>Tile(0, 4)</placement>
         </Worker>
@@ -326,7 +326,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row2_fwd" mode="consumer"/>
                 <arg ref="b_col1_fwd" mode="consumer"/>
-                <arg ref="join2" index="2" mode="producer"/>
+                <arg ref="c_col1_joins" index="2" mode="producer"/>
             </arguments>
             <placement>Tile(1, 4)</placement>
         </Worker>
@@ -336,7 +336,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row2_fwd" mode="consumer"/>
                 <arg ref="b_col2_fwd" mode="consumer"/>
-                <arg ref="join3" index="2" mode="producer"/>
+                <arg ref="c_col2_joins" index="2" mode="producer"/>
             </arguments>
             <placement>Tile(2, 4)</placement>
         </Worker>
@@ -346,7 +346,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row2_fwd" mode="consumer"/>
                 <arg ref="b_col3_fwd" mode="consumer"/>
-                <arg ref="join4" index="2" mode="producer"/>
+                <arg ref="c_col3_joins" index="2" mode="producer"/>
             </arguments>
             <placement>Tile(3, 4)</placement>
         </Worker>
@@ -356,7 +356,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row3_fwd" mode="consumer"/>
                 <arg ref="b_col0_fwd" mode="consumer"/>
-                <arg ref="join1" index="3" mode="producer"/>
+                <arg ref="c_col0_joins" index="3" mode="producer"/>
             </arguments>
             <placement>Tile(0, 5)</placement>
         </Worker>
@@ -366,7 +366,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row3_fwd" mode="consumer"/>
                 <arg ref="b_col1_fwd" mode="consumer"/>
-                <arg ref="join2" index="3" mode="producer"/>
+                <arg ref="c_col1_joins" index="3" mode="producer"/>
             </arguments>
             <placement>Tile(1, 5)</placement>
         </Worker>
@@ -376,7 +376,7 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row3_fwd" mode="consumer"/>
                 <arg ref="b_col2_fwd" mode="consumer"/>
-                <arg ref="join3" index="3" mode="producer"/>
+                <arg ref="c_col2_joins" index="3" mode="producer"/>
             </arguments>
             <placement>Tile(2, 5)</placement>
         </Worker>
@@ -386,13 +386,13 @@
                 <arg ref="kernel_matmul_scalar_i16_i32"/>
                 <arg ref="a_row3_fwd" mode="consumer"/>
                 <arg ref="b_col3_fwd" mode="consumer"/>
-                <arg ref="join4" index="3" mode="producer"/>
+                <arg ref="c_col3_joins" index="3" mode="producer"/>
             </arguments>
             <placement>Tile(3, 5)</placement>
         </Worker>
         <Runtime name="runtime">
             <Sequence inputs="A_ty, B_ty, C_ty" as="a_in, b_in, c_out">
-                <Start>worker_aie0_5, worker_aie3_2, worker_aie3_3, worker_aie2_5, worker_aie0_2, worker_aie0_4, worker_aie2_2, worker_aie1_3, worker_aie2_4, worker_aie1_4, worker_aie3_4, worker_aie3_5, worker_aie0_3, worker_aie1_5, worker_aie2_3, worker_aie1_2</Start>
+                <Start>worker_aie2_4, worker_aie1_3, worker_aie0_3, worker_aie2_2, worker_aie0_5, worker_aie2_5, worker_aie1_5, worker_aie3_4, worker_aie0_4, worker_aie3_2, worker_aie3_3, worker_aie3_5, worker_aie1_2, worker_aie2_3, worker_aie1_4, worker_aie0_2</Start>
                 <Fill target="of_in_a_row0" source="a_in" data_ref="A" use_tap="true" tap_type="tap" tap_var="of_in_a_row0_tap">
                     <placement>Tile(0, 0)</placement>
                     <TensorAccessPattern>

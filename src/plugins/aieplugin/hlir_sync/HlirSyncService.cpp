@@ -96,6 +96,47 @@ static QString normalizeValueType(const QString& vt)
     return aliases.value(vt, vt);
 }
 
+// Collapse all whitespace out of a dimensions expression so equivalent forms
+// ("M * K" vs "M*K") hash to the same tensor-type reuse key instead of
+// missing each other and registering an unwanted duplicate/fallback type.
+static QString normalizeDimensionsKey(const QString& dimensions)
+{
+    QString out;
+    out.reserve(dimensions.size());
+    for (const QChar& c : dimensions) {
+        if (!c.isSpace())
+            out.append(c);
+    }
+    return out;
+}
+
+// Turn a dimensions expression into a valid Python identifier fragment for a
+// synthesized type name, e.g. "M * K" -> "M_K". Any character that isn't
+// alphanumeric or underscore becomes a single underscore (runs collapse to
+// one, so "M * K" doesn't become "M___K") - without this, an expression
+// containing spaces or operators produces an invalid Python identifier like
+// "type_int16_M * K", which is a syntax error in the generated script.
+static QString sanitizeIdentifierFragment(const QString& raw)
+{
+    QString out;
+    out.reserve(raw.size());
+    bool lastWasUnderscore = false;
+    for (const QChar& c : raw) {
+        if (c.isLetterOrNumber() || c == u'_') {
+            out.append(c);
+            lastWasUnderscore = (c == u'_');
+        } else if (!lastWasUnderscore && !out.isEmpty()) {
+            out.append(u'_');
+            lastWasUnderscore = true;
+        }
+    }
+    while (out.endsWith(u'_'))
+        out.chop(1);
+    if (out.isEmpty())
+        out = QStringLiteral("dims");
+    return out;
+}
+
 HlirSyncService::HlirSyncService(QObject* parent)
     : QObject(parent)
 {
@@ -1678,7 +1719,7 @@ HlirSyncService::ensureNamedTensorType(const QString& name,
         m_typeMap[name] = result.value();
         // Register reverse mapping so ensureTensorType can reuse this named type
         // instead of generating a duplicate anonymous one for the same dims+dtype.
-        const QString reverseKey = dimensions + u'|' + normalizeValueType(valueType);
+        const QString reverseKey = normalizeDimensionsKey(dimensions) + u'|' + normalizeValueType(valueType);
         m_typeNameByKey[reverseKey] = name;
         return result.value();
     }
@@ -1686,7 +1727,7 @@ HlirSyncService::ensureNamedTensorType(const QString& name,
     auto lookup = m_bridge->lookupByName(hlir::ComponentType::TENSOR_TYPE, name.toStdString());
     if (lookup) {
         m_typeMap[name] = lookup.value();
-        const QString reverseKey = dimensions + u'|' + normalizeValueType(valueType);
+        const QString reverseKey = normalizeDimensionsKey(dimensions) + u'|' + normalizeValueType(valueType);
         m_typeNameByKey[reverseKey] = name;
         return lookup.value();
     }
@@ -1701,7 +1742,7 @@ HlirSyncService::ensureTensorType(const QString& dimensions, const QString& valu
     // Return a cached or newly registered tensor type derived from dimensions and dtype.
     const QString vt = normalizeValueType(valueType);
 
-    const QString key = dimensions + u'|' + vt;
+    const QString key = normalizeDimensionsKey(dimensions) + u'|' + vt;
     if (m_typeMap.contains(key))
         return m_typeMap.value(key);
 
@@ -1722,8 +1763,11 @@ HlirSyncService::ensureTensorType(const QString& dimensions, const QString& valu
     for (const QString& d : dimParts)
         shape.push_back(d.trimmed().toStdString());
 
-    // Build a unique type name: "type_int32_1024" or "type_int16_16x4096"
-    const QString typeName = QStringLiteral("type_") + vt + u'_' + dimensions;
+    // Build a unique type name: "type_int32_1024" or "type_int16_16x4096".
+    // sanitizeIdentifierFragment keeps this a valid Python identifier even
+    // when dimensions is an expression like "M * K" (spaces and operators
+    // would otherwise land verbatim in the generated script and fail to parse).
+    const QString typeName = QStringLiteral("type_") + vt + u'_' + sanitizeIdentifierFragment(dimensions);
 
     auto result = m_bridge->addTensorType(typeName.toStdString(), shape, vt.toStdString());
     if (result) {

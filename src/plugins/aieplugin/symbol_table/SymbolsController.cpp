@@ -270,6 +270,40 @@ Utils::Result SymbolsController::createLayoutDims(QString* outId)
     return Utils::Result::success();
 }
 
+Utils::Result SymbolsController::duplicateSymbol(const QString& id, QString* outId)
+{
+    if (!hasActiveDocument())
+        return Utils::Result::failure(QStringLiteral("Open a design before duplicating symbols."));
+
+    const SymbolRecord* original = symbolById(id);
+    if (!original)
+        return Utils::Result::failure(QStringLiteral("Symbol could not be found."));
+
+    // Copy every field (kind-specific data included), then only touch id/name -
+    // uniqueNameForBase appends "_1", "_2", ... since the original's name always
+    // already exists.
+    SymbolRecord symbol = *original;
+    symbol.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    symbol.name = uniqueNameForBase(original->name);
+
+    QVector<SymbolRecord> nextSymbols = m_symbols;
+    nextSymbols.push_back(symbol);
+
+    const Utils::Result validateResult = validateSymbols(nextSymbols);
+    if (!validateResult)
+        return validateResult;
+
+    const Utils::Result persistResult = persistSymbols(nextSymbols);
+    if (!persistResult)
+        return persistResult;
+
+    replaceSymbols(std::move(nextSymbols));
+    setSelectedSymbolId(symbol.id);
+    if (outId)
+        *outId = symbol.id;
+    return Utils::Result::success();
+}
+
 Utils::Result SymbolsController::updateSymbol(const SymbolRecord& updatedSymbol)
 {
     if (!hasActiveDocument())
