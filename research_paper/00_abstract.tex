@@ -1,0 +1,15 @@
+% As a general rule, do not put math, special symbols or citations
+% in the abstract
+\begin{abstract}
+\vspace{-3mm}
+Machine learning inference increasingly relies on specialized hardware accelerators for throughput and power efficiency. Neural Processing Units (NPUs), such as the AMD Ryzen AI NPU, offer significant ML advantages over CPUs and GPUs, but programming them requires expertise in specialized frameworks. 
+%The AMD Ryzen AI NPU uses IRON Python and mlir-aie, a tile-level spatial programming model requiring specification of inter-tile dataflow buffers (ObjectFIFOs), runtime data transfers, and compute tile kernel operations. Even experienced ML developers must invest substantial time in hardware documentation and programming guides before mapping a simple operation to the hardware. 
+We present IRONSmith, the first visual dataflow design environment for programming AMD Ryzen AI NPUs. IRONSmith provides an interactive canvas displaying the AI Engine tile grid as visually connected blocks, allowing users to design ML dataflow applications by connecting tiles with wires representing FIFOs, split/join patterns, broadcast connections, and DDR transfers without writing any code. Compute kernels are assigned from a pre-built library, and worker functions are configured through property panels.
+%Structural design verification checks designs for disconnected dataflow, DMA channel limit violations, and kernel argument mismatches before code generation, providing actionable feedback that would otherwise only surface as cryptic compiler or runtime failures. 
+IRONSmith's backend pipeline automatically translates the visual design into executable IRON Python, handling structural completion, import resolution, and dependency management automatically. Generated code executes directly on the AMD Ryzen AI NPU. We demonstrate IRONSmith across ML designs of increasing complexity, from a single-tile vector passthrough to multi-tile matrix operations to a complete Multi-Layer Perceptron, all designed visually and successfully executed on the AMD Ryzen AI NPU. IRONSmith serves educators, students, ML researchers, and engineers by bridging the gap between ML knowledge and NPU programming expertise, widening access to hardware that is rapidly becoming standard across consumer and enterprise devices. 
+%By bringing visual design principles to NPU programming, IRONSmith lowers the barrier to entry in much the same way that graphical development environments broadened access to software development.
+\vspace{-4mm}
+\end{abstract}
+
+
+% no keywords

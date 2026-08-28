@@ -1,0 +1,7 @@
+\section{Introduction} \label{sec:intro}
+\vspace{-3mm}
+
+Neural Processing Units (NPUs) have emerged as a critical hardware platform for efficient ML inference at the edge, offering significant throughput-per-watt advantages over CPUs and GPUs. The AMD Ryzen AI NPU is rapidly becoming standard across consumer laptops - yet programming it requires deep expertise in IRON Python and mlir-aie, a tile-level spatial programming model requiring manual specification of inter-tile FIFO buffers, runtime data sequences, and compute tile worker functions. 
+%No visual design tool has existed for NPU programming; AMD's Riallto~\cite{riallto}, the closest prior effort, was discontinued and never offered a visual canvas or code generation.
+We present IRONSmith, the first visual design environment for AMD Ryzen AI NPU programming. IRONSmith provides an interactive canvas where users wire tiles together with dataflow connections and configure each component through properties panels - all without writing code. Structural verification catches design errors before code generation, and the IRONSmith backend automatically produces complete, executable IRON Python. IRONSmith serves as both a learning tool for students in NPU architecture courses and an onboarding accelerator for ML developers beginning work with the Ryzen AI NPU.
+\vspace{-3mm}
