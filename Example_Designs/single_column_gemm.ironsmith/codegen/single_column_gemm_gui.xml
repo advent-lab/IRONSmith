@@ -1,0 +1,293 @@
+<?xml version="1.0" ?>
+<Module name="gui_design">
+    <Symbols>
+        <Const name="M" type="int">256</Const>
+        <Const name="K" type="int">128</Const>
+        <Const name="N" type="int">32</Const>
+        <Const name="m" type="int">64</Const>
+        <Const name="k" type="int">64</Const>
+        <Const name="n" type="int">32</Const>
+        <TypeAbstraction name="A_ty">
+            <ndarray>
+                <shape>M*K</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="B_ty">
+            <ndarray>
+                <shape>K*N</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="C_ty">
+            <ndarray>
+                <shape>M*N</shape>
+                <dtype>int32</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="a_tile_ty">
+            <ndarray>
+                <shape>m*k</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="b_tile_ty">
+            <ndarray>
+                <shape>k*n</shape>
+                <dtype>int16</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="c_tile_ty">
+            <ndarray>
+                <shape>m*n</shape>
+                <dtype>int32</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TypeAbstraction name="c_col_ty">
+            <ndarray>
+                <shape>M*n</shape>
+                <dtype>int32</dtype>
+            </ndarray>
+        </TypeAbstraction>
+        <TAP name="of_in_a_row0_tap" offset="0" use_tiler2d="false">
+            <tensor_dims>256, 128</tensor_dims>
+            <sizes>2, 64, 64</sizes>
+            <strides>64, 128, 1</strides>
+        </TAP>
+        <TAP name="of_in_a_row1_tap" offset="8192" use_tiler2d="false">
+            <tensor_dims>256, 128</tensor_dims>
+            <sizes>2, 64, 64</sizes>
+            <strides>64, 128, 1</strides>
+        </TAP>
+        <TAP name="of_in_a_row3_tap" offset="24576" use_tiler2d="false">
+            <tensor_dims>256, 128</tensor_dims>
+            <sizes>2, 64, 64</sizes>
+            <strides>64, 128, 1</strides>
+        </TAP>
+        <TAP name="of_in_b_col0_tap" offset="0" use_tiler2d="false">
+            <tensor_dims>128, 32</tensor_dims>
+            <sizes>128, 32</sizes>
+            <strides>32, 1</strides>
+        </TAP>
+        <TAP name="of_out_c_col0_tap" offset="0" use_tiler2d="false">
+            <tensor_dims>256, 32</tensor_dims>
+            <sizes>256, 32</sizes>
+            <strides>32, 1</strides>
+        </TAP>
+        <TAP name="of_in_a_row2_tap" offset="16384" use_tiler2d="false">
+            <tensor_dims>256, 128</tensor_dims>
+            <sizes>2, 64, 64</sizes>
+            <strides>64, 128, 1</strides>
+        </TAP>
+    </Symbols>
+    <DataFlow>
+        <ExternalFunction name="kernel_matmul_scalar_i16_i32">
+            <kernel>matmul_scalar_i16_i32</kernel>
+            <source>C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_scalar_i16_i32/mm.cc</source>
+            <arg_types>
+                <type>a_tile_ty</type>
+                <type>b_tile_ty</type>
+                <type>c_tile_ty</type>
+            </arg_types>
+            <include_dirs>
+                <dir>C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_scalar_i16_i32</dir>
+                <dir>/home/mliraie/mlir-aie/aie_kernels/aie2</dir>
+            </include_dirs>
+        </ExternalFunction>
+        <CoreFunction name="core_shared_core_shared_core_fn_matmul">
+            <parameters>
+                <param name="matmul" role="external_function"/>
+                <param name="a_in" role="unknown"/>
+                <param name="b_in" role="unknown"/>
+                <param name="c_out" role="unknown"/>
+            </parameters>
+            <body>
+                <Acquire source="c_out" count="1" name="elem_out"/>
+                <ForLoop var="i" count="m*n">
+                    <Assignment target="elem_out" index="i" value="0"/>
+                </ForLoop>
+                <ForLoop var="_" count="K//k">
+                    <Acquire source="a_in" count="1" name="elem_a"/>
+                    <Acquire source="b_in" count="1" name="elem_b"/>
+                    <Call function="matmul" args="elem_a, elem_b, elem_out"/>
+                    <Release source="a_in" count="1"/>
+                    <Release source="b_in" count="1"/>
+                </ForLoop>
+                <Release source="c_out" count="1"/>
+            </body>
+        </CoreFunction>
+        <ObjectFifo name="of_in_a_row0">
+            <type>a_tile_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_b_col0">
+            <type>b_tile_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_out_c_col0">
+            <type>c_col_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_a_row1">
+            <type>a_tile_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_a_row2">
+            <type>a_tile_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifo name="of_in_a_row3">
+            <type>a_tile_ty</type>
+            <depth>2</depth>
+        </ObjectFifo>
+        <ObjectFifoForward name="b_col0_fwd" source="of_in_b_col0" placement="Tile(0, 1)"/>
+        <ObjectFifoJoin name="c_col0_joins">
+            <dest>of_out_c_col0</dest>
+            <num_inputs>4</num_inputs>
+            <input_type>c_tile_ty</input_type>
+            <placement>Tile(0, 1)</placement>
+            <offsets>0, 2048, 4096, 6144</offsets>
+        </ObjectFifoJoin>
+        <Worker name="worker_aie0_2">
+            <core_function>core_shared_core_shared_core_fn_matmul</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_scalar_i16_i32"/>
+                <arg ref="of_in_a_row0" mode="consumer"/>
+                <arg ref="b_col0_fwd" mode="consumer"/>
+                <arg ref="c_col0_joins" index="0" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 2)</placement>
+        </Worker>
+        <Worker name="worker_aie0_3">
+            <core_function>core_shared_core_shared_core_fn_matmul</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_scalar_i16_i32"/>
+                <arg ref="of_in_a_row1" mode="consumer"/>
+                <arg ref="b_col0_fwd" mode="consumer"/>
+                <arg ref="c_col0_joins" index="1" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 3)</placement>
+        </Worker>
+        <Worker name="worker_aie0_4">
+            <core_function>core_shared_core_shared_core_fn_matmul</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_scalar_i16_i32"/>
+                <arg ref="of_in_a_row2" mode="consumer"/>
+                <arg ref="b_col0_fwd" mode="consumer"/>
+                <arg ref="c_col0_joins" index="2" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 4)</placement>
+        </Worker>
+        <Worker name="worker_aie0_5">
+            <core_function>core_shared_core_shared_core_fn_matmul</core_function>
+            <arguments>
+                <arg ref="kernel_matmul_scalar_i16_i32"/>
+                <arg ref="of_in_a_row3" mode="consumer"/>
+                <arg ref="b_col0_fwd" mode="consumer"/>
+                <arg ref="c_col0_joins" index="3" mode="producer"/>
+            </arguments>
+            <placement>Tile(0, 5)</placement>
+        </Worker>
+        <Runtime name="runtime">
+            <Sequence inputs="A_ty, B_ty, C_ty" as="a_in, b_in, c_out">
+                <Start>worker_aie0_2, worker_aie0_3, worker_aie0_4, worker_aie0_5</Start>
+                <Fill target="of_in_a_row0" source="a_in" data_ref="A" use_tap="true" tap_type="tap" tap_var="of_in_a_row0_tap">
+                    <placement>Tile(0, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>256, 128</tensor_dims>
+                        <offset>0</offset>
+                        <sizes>2, 64, 64</sizes>
+                        <strides>64, 128, 1</strides>
+                    </TensorAccessPattern>
+                </Fill>
+                <Fill target="of_in_a_row1" source="a_in" data_ref="A" use_tap="true" tap_type="tap" tap_var="of_in_a_row1_tap">
+                    <placement>Tile(1, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>256, 128</tensor_dims>
+                        <offset>8192</offset>
+                        <sizes>2, 64, 64</sizes>
+                        <strides>64, 128, 1</strides>
+                    </TensorAccessPattern>
+                </Fill>
+                <Fill target="of_in_a_row2" source="a_in" data_ref="A" use_tap="true" tap_type="tap" tap_var="of_in_a_row2_tap">
+                    <placement>Tile(2, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>256, 128</tensor_dims>
+                        <offset>16384</offset>
+                        <sizes>2, 64, 64</sizes>
+                        <strides>64, 128, 1</strides>
+                    </TensorAccessPattern>
+                </Fill>
+                <Fill target="of_in_a_row3" source="a_in" data_ref="A" use_tap="true" tap_type="tap" tap_var="of_in_a_row3_tap">
+                    <placement>Tile(3, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>256, 128</tensor_dims>
+                        <offset>24576</offset>
+                        <sizes>2, 64, 64</sizes>
+                        <strides>64, 128, 1</strides>
+                    </TensorAccessPattern>
+                </Fill>
+                <Fill target="of_in_b_col0" source="b_in" data_ref="B" use_tap="true" tap_type="tap" tap_var="of_in_b_col0_tap">
+                    <placement>Tile(0, 0)</placement>
+                    <TensorAccessPattern>
+                        <tensor_dims>128, 32</tensor_dims>
+                        <offset>0</offset>
+                        <sizes>128, 32</sizes>
+                        <strides>32, 1</strides>
+                    </TensorAccessPattern>
+                </Fill>
+                <Drain source="of_out_c_col0" target="c_out" data_ref="C" use_tap="true" tap_type="tap" tap_var="of_out_c_col0_tap">
+                    <placement>Tile(0, 0)</placement>
+                    <wait>true</wait>
+                    <TensorAccessPattern>
+                        <tensor_dims>256, 32</tensor_dims>
+                        <offset>0</offset>
+                        <sizes>256, 32</sizes>
+                        <strides>32, 1</strides>
+                    </TensorAccessPattern>
+                </Drain>
+            </Sequence>
+        </Runtime>
+        <Program name="program">
+            <device>current_device</device>
+            <runtime>runtime</runtime>
+            <placer>SequentialPlacer</placer>
+        </Program>
+    </DataFlow>
+    <Function name="jit_function" decorator="iron.jit" entry="gui_design_jit">
+        <parameters>
+            <param name="A" type="A_ty"/>
+            <param name="B" type="B_ty"/>
+            <param name="C" type="C_ty"/>
+        </parameters>
+        <body>
+            <UseDataFlow/>
+            <Return>program</Return>
+        </body>
+    </Function>
+    <Function name="main_function" entry="main">
+        <body>
+            <Assign name="M" value="256"/>
+            <Assign name="K" value="128"/>
+            <Assign name="N" value="32"/>
+            <Assign name="m" value="64"/>
+            <Assign name="k" value="64"/>
+            <Assign name="n" value="32"/>
+            <Tensor name="A">
+                <init>iron.arange(M*K, dtype=np.int16, device="npu")</init>
+            </Tensor>
+            <Tensor name="B">
+                <init>iron.arange(K*N, dtype=np.int16, device="npu")</init>
+            </Tensor>
+            <Tensor name="C">
+                <init>iron.zeros(M*N, dtype=np.int32, device="npu")</init>
+            </Tensor>
+            <Call function="jit_function" args="A, B, C"/>
+        </body>
+    </Function>
+    <EntryPoint>
+        <If condition="__name__ == '__main__'">
+            <Call function="main_function"/>
+        </If>
+    </EntryPoint>
+</Module>

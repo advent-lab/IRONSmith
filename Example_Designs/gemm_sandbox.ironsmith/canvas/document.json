@@ -1,0 +1,1308 @@
+{
+    "items": [
+        {
+            "allowMultiplePorts": true,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "7e69c54a-f536-43d9-bd20-0fc341312ae4",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "DDR",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "ddr",
+            "style": {
+                "fill": "#ff0f1116",
+                "label": "#ffe6e9ef",
+                "outline": "#ffe6e9ef"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "852fc38b-8ddb-46e7-b707-e9841c47fdea",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "SHIM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "shim0_0",
+            "style": {
+                "fill": "#ff0e1722",
+                "label": "#ffcfe9ff",
+                "outline": "#ff58b5ff"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "2f839a85-351d-48ea-8330-dd6300fcf163",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "SHIM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "shim1_0",
+            "style": {
+                "fill": "#ff0e1722",
+                "label": "#ffcfe9ff",
+                "outline": "#ff58b5ff"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "d595c515-6890-4792-810a-844e4fedc3cd",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "SHIM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "shim2_0",
+            "style": {
+                "fill": "#ff0e1722",
+                "label": "#ffcfe9ff",
+                "outline": "#ff58b5ff"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "767466f1-53b2-4990-aebf-3e2c35a9ce49",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "SHIM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "shim3_0",
+            "style": {
+                "fill": "#ff0e1722",
+                "label": "#ffcfe9ff",
+                "outline": "#ff58b5ff"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "f6f3cde5-a82f-4332-b774-b9cd567268a2",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "MEM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "mem0_1",
+            "style": {
+                "fill": "#ff1f1710",
+                "label": "#ffffd7a8",
+                "outline": "#fff2a14c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "233978dd-bce8-4b23-a089-be808ede8204",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "MEM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "mem1_1",
+            "style": {
+                "fill": "#ff1f1710",
+                "label": "#ffffd7a8",
+                "outline": "#fff2a14c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "2a7b0a28-0472-46ca-b49a-572e29ef2a60",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "MEM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "mem2_1",
+            "style": {
+                "fill": "#ff1f1710",
+                "label": "#ffffd7a8",
+                "outline": "#fff2a14c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "5dad9a09-9643-4f81-8f68-481e19afe725",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "MEM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "mem3_1",
+            "style": {
+                "fill": "#ff1f1710",
+                "label": "#ffffd7a8",
+                "outline": "#fff2a14c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "6f9c69c4-c08b-4b88-9abe-fa200f386478",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "MEM",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "mem4_1",
+            "style": {
+                "fill": "#ff1f1710",
+                "label": "#ffffd7a8",
+                "outline": "#fff2a14c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "a075475e-9fd2-473e-a422-107a811ffc83",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie0_2",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "8785fbaa-e87f-4dd8-8351-144bb6276aca",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie1_2",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "cc3024ae-7c8d-4769-b5aa-6786ff391303",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie2_2",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "ef296525-2fb4-4c98-9981-dffe831c3bac",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie3_2",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "6399d7c4-80cb-4651-9738-565d7e102d60",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie4_2",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "2a1c82d1-40b2-476b-9700-a4fab14fb323",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie0_3",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "a0018f84-08ad-47ca-b867-29f45c6cbb43",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie1_3",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "55172fc2-ed99-4aad-8424-62ccb52be610",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie2_3",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "29691e0a-20e1-45d8-9a80-6cbb1e0dc4a2",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie3_3",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "debcc0a6-5671-4db4-8cf4-c0e7c7a0b8c5",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie4_3",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "coreBodyArgs": [
+                {
+                    "kind": "kernel",
+                    "paramName": "kernel",
+                    "ref": "matmul_scalar_i16_i32"
+                }
+            ],
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "0fff45cc-f936-40e3-b012-fb602b995b6a",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie0_4",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "ace9186f-4745-4112-8137-748273549e8a",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie1_4",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "e1dfb4da-78ca-4452-80d1-508e67f28169",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie2_4",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "bb572747-edc9-4af1-a5ca-b718b629d1f8",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie3_4",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "fd08e32a-305b-4ff8-8c5c-3d216a9b6c43",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie4_4",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "assignedKernels": [
+                "matmul_scalar_i16_i32"
+            ],
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "coreBodyArgs": [
+                {
+                    "kind": "kernel",
+                    "paramName": "matmul",
+                    "ref": "matmul_scalar_i16_i32"
+                }
+            ],
+            "coreFn": {
+                "bodyStmtsJson": "{\"body\":[{\"count\":1,\"fifo_param\":\"c_out\",\"local_var\":\"elem_out\",\"type\":\"Acquire\"},{\"body\":[{\"index\":\"i\",\"target\":\"elem_out\",\"type\":\"Assignment\",\"value\":0}],\"count\":\"m*n\",\"type\":\"ForLoop\",\"var\":\"i\"},{\"body\":[{\"count\":1,\"fifo_param\":\"a_in\",\"local_var\":\"elem_a\",\"type\":\"Acquire\"},{\"count\":1,\"fifo_param\":\"b_in\",\"local_var\":\"elem_b\",\"type\":\"Acquire\"},{\"args\":[\"elem_a\",\"elem_b\",\"elem_out\"],\"kernel_param\":\"matmul\",\"type\":\"KernelCall\"},{\"count\":1,\"fifo_param\":\"a_in\",\"type\":\"Release\"},{\"count\":1,\"fifo_param\":\"b_in\",\"type\":\"Release\"}],\"count\":\"K//k\",\"type\":\"ForLoop\",\"var\":\"_\"},{\"count\":1,\"fifo_param\":\"c_out\",\"type\":\"Release\"}],\"param_roles\":{\"a_in\":1,\"b_in\":1,\"c_out\":2,\"matmul\":0},\"params\":[\"matmul\",\"a_in\",\"b_in\",\"c_out\"]}",
+                "mode": "bodyStmts",
+                "sharedFunctionName": "core_shared_core_fn_matmul"
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "97047733-1be3-464c-aab1-c9c13d8d8ec5",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie0_5",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "9efab0c4-1e73-42d6-bde5-6d5fe7423043",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie1_5",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "8054b245-a14c-4fc3-855b-df8d1566d647",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie2_5",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "d446dcef-1248-49be-978b-aca662d6685b",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie3_5",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        },
+        {
+            "allowMultiplePorts": false,
+            "autoOppositeProducerPort": false,
+            "autoPortLayout": false,
+            "contentPadding": {
+                "b": 18,
+                "l": 18,
+                "r": 18,
+                "t": 18
+            },
+            "cornerRadius": 0,
+            "deletable": false,
+            "id": "e0d0a99f-5693-48cc-9329-92e0839f3f27",
+            "isLinkHub": false,
+            "keepoutMargin": -1,
+            "label": "AIE",
+            "movable": false,
+            "portSnapStep": 24,
+            "ports": [
+            ],
+            "showPortLabels": false,
+            "showPorts": true,
+            "specId": "aie4_5",
+            "style": {
+                "fill": "#ff0b1b16",
+                "label": "#ffb7f3da",
+                "outline": "#ff16e08c"
+            },
+            "type": "block"
+        }
+    ],
+    "metadata": {
+        "coreFunctionLibrary": [
+            {
+                "bodyStmtsJson": "{\"body\":[{\"count\":1,\"fifo_param\":\"c_out\",\"local_var\":\"elem_out\",\"type\":\"Acquire\"},{\"body\":[{\"index\":\"i\",\"target\":\"elem_out\",\"type\":\"Assignment\",\"value\":0}],\"count\":\"m*n\",\"type\":\"ForLoop\",\"var\":\"i\"},{\"body\":[{\"count\":1,\"fifo_param\":\"a_in\",\"local_var\":\"elem_a\",\"type\":\"Acquire\"},{\"count\":1,\"fifo_param\":\"b_in\",\"local_var\":\"elem_b\",\"type\":\"Acquire\"},{\"args\":[\"elem_a\",\"elem_b\",\"elem_out\"],\"kernel_param\":\"matmul\",\"type\":\"KernelCall\"},{\"count\":1,\"fifo_param\":\"a_in\",\"type\":\"Release\"},{\"count\":1,\"fifo_param\":\"b_in\",\"type\":\"Release\"}],\"count\":\"K//k\",\"type\":\"ForLoop\",\"var\":\"_\"},{\"count\":1,\"fifo_param\":\"c_out\",\"type\":\"Release\"}],\"param_roles\":{\"a_in\":1,\"b_in\":1,\"c_out\":2,\"matmul\":0},\"params\":[\"matmul\",\"a_in\",\"b_in\",\"c_out\"]}",
+                "name": "core_shared_core_fn_matmul"
+            }
+        ],
+        "deviceFamily": "aie-ml",
+        "deviceId": "amd-xdna1-phoenix",
+        "panelState": {
+            "display": {
+                "showAnnotations": true,
+                "showLabels": true,
+                "showPortAnnotations": true,
+                "showPorts": true,
+                "showStereotypes": true
+            },
+            "layout": {
+                "autoCellSize": false,
+                "cellSize": 69,
+                "horizontalSpacing": 70,
+                "keepoutMargin": -1,
+                "outwardSpread": 0,
+                "verticalSpacing": 65
+            },
+            "offsets": {
+            },
+            "overrideDefaults": true,
+            "style": {
+                "fillColor": "#ff0e1b18",
+                "labelColor": "#ffb8c2cc",
+                "outlineColor": "#ff2ec27e",
+                "useCustomColors": false
+            }
+        },
+        "schema": "aie.spec/1",
+        "symbols": {
+            "entries": [
+                {
+                    "id": "bce12bbc-67c9-4de4-a240-97a42b3e71a0",
+                    "kind": "constant",
+                    "name": "M",
+                    "value": 256
+                },
+                {
+                    "id": "417c2b3f-6b4a-46a4-80e3-5e73fb770dae",
+                    "kind": "constant",
+                    "name": "K",
+                    "value": 128
+                },
+                {
+                    "id": "a711b6d5-268f-4106-ac76-6e1ee0981a3a",
+                    "kind": "constant",
+                    "name": "N",
+                    "value": 128
+                },
+                {
+                    "id": "94974bae-b229-456d-92be-ae74fec13df9",
+                    "kind": "constant",
+                    "name": "m",
+                    "value": 64
+                },
+                {
+                    "id": "a830bd0c-8e22-4ea2-a6e5-6a732715df7a",
+                    "kind": "constant",
+                    "name": "k",
+                    "value": 64
+                },
+                {
+                    "id": "1a65b3a2-12d0-4491-ae6d-3edfe3585af0",
+                    "kind": "constant",
+                    "name": "n",
+                    "value": 32
+                },
+                {
+                    "dtype": "int16",
+                    "id": "f384ff4d-37cc-45ef-9e6d-93d0e48b34d0",
+                    "kind": "type",
+                    "name": "A_ty",
+                    "shape": [
+                        "M * K"
+                    ]
+                },
+                {
+                    "dtype": "int16",
+                    "id": "af52cdb8-e808-4732-a01c-49d87bcac2c2",
+                    "kind": "type",
+                    "name": "B_ty",
+                    "shape": [
+                        "K * N"
+                    ]
+                },
+                {
+                    "dtype": "int32",
+                    "id": "f155e7fc-0847-4a76-8f93-04303d60da83",
+                    "kind": "type",
+                    "name": "C_ty",
+                    "shape": [
+                        "M * N"
+                    ]
+                },
+                {
+                    "dtype": "int16",
+                    "id": "5cdbbdec-3e6f-4de7-919c-88c43e05722f",
+                    "kind": "type",
+                    "name": "a_tile_ty",
+                    "shape": [
+                        "m * k"
+                    ]
+                },
+                {
+                    "dtype": "int16",
+                    "id": "8db54b3a-30ec-4741-83b0-53338c19d6e1",
+                    "kind": "type",
+                    "name": "b_tile_ty",
+                    "shape": [
+                        "k * n"
+                    ]
+                },
+                {
+                    "dtype": "int32",
+                    "id": "9c728ea6-2905-47b2-891e-8ce45d701263",
+                    "kind": "type",
+                    "name": "c_tile_ty",
+                    "shape": [
+                        "m * n"
+                    ]
+                },
+                {
+                    "dtype": "int32",
+                    "id": "e0545ef8-05e2-4f06-ad47-2d1bc7cd0e68",
+                    "kind": "type",
+                    "name": "c_col_ty",
+                    "shape": [
+                        "M * n"
+                    ]
+                },
+                {
+                    "cols": 128,
+                    "id": "598cd506-e25c-47bb-aac5-9e3e5acdb0bd",
+                    "kind": "tap",
+                    "name": "of_in_a_row0_tap",
+                    "offset": 0,
+                    "rows": 256,
+                    "showRepetitions": true,
+                    "sizes": [
+                        2,
+                        64,
+                        64
+                    ],
+                    "strides": [
+                        64,
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "9821ae99-4949-4c39-899e-9a2c6c37dba5",
+                    "kind": "tap",
+                    "name": "of_in_a_row1_tap",
+                    "offset": 8192,
+                    "rows": 256,
+                    "showRepetitions": true,
+                    "sizes": [
+                        2,
+                        64,
+                        64
+                    ],
+                    "strides": [
+                        64,
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "6314a8b5-720f-4392-91fc-c73b0808b423",
+                    "kind": "tap",
+                    "name": "of_in_a_row2_tap",
+                    "offset": 16384,
+                    "rows": 256,
+                    "showRepetitions": true,
+                    "sizes": [
+                        2,
+                        64,
+                        64
+                    ],
+                    "strides": [
+                        64,
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "a3f97109-4e10-4ce6-a46c-9417380381b0",
+                    "kind": "tap",
+                    "name": "of_in_a_row3_tap",
+                    "offset": 24576,
+                    "rows": 256,
+                    "showRepetitions": true,
+                    "sizes": [
+                        2,
+                        64,
+                        64
+                    ],
+                    "strides": [
+                        64,
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "3388afea-f794-4b6c-9142-09ce564cae4d",
+                    "kind": "tap",
+                    "name": "of_in_b_col0_tap",
+                    "offset": 0,
+                    "rows": 128,
+                    "showRepetitions": true,
+                    "sizes": [
+                        2,
+                        64,
+                        32
+                    ],
+                    "strides": [
+                        8192,
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "9a9fef17-959a-4609-904c-629325c2ca1f",
+                    "kind": "tap",
+                    "name": "of_in_b_col1_tap",
+                    "offset": 32,
+                    "rows": 128,
+                    "showRepetitions": true,
+                    "sizes": [
+                        2,
+                        64,
+                        32
+                    ],
+                    "strides": [
+                        8192,
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "efc39d36-5bef-4f9e-afb9-0087fb9dd3a3",
+                    "kind": "tap",
+                    "name": "of_in_b_col2_tap",
+                    "offset": 64,
+                    "rows": 128,
+                    "showRepetitions": true,
+                    "sizes": [
+                        2,
+                        64,
+                        32
+                    ],
+                    "strides": [
+                        8192,
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "39eaf952-49c7-4b0a-a66e-72079c7268de",
+                    "kind": "tap",
+                    "name": "of_in_b_col3_tap",
+                    "offset": 96,
+                    "rows": 128,
+                    "showRepetitions": true,
+                    "sizes": [
+                        2,
+                        64,
+                        32
+                    ],
+                    "strides": [
+                        8192,
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "4f9d07ab-f780-4ffc-86e6-a244f3f60583",
+                    "kind": "tap",
+                    "name": "of_out_c_col0_tap",
+                    "offset": 0,
+                    "rows": 256,
+                    "showRepetitions": true,
+                    "sizes": [
+                        256,
+                        32
+                    ],
+                    "strides": [
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "115dc440-fd0a-4b40-ad2c-22915a0ae83c",
+                    "kind": "tap",
+                    "name": "of_out_c_col1_tap",
+                    "offset": 32,
+                    "rows": 256,
+                    "showRepetitions": true,
+                    "sizes": [
+                        256,
+                        32
+                    ],
+                    "strides": [
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "c607f167-d86a-46ab-ad6d-5c2949cd236a",
+                    "kind": "tap",
+                    "name": "of_out_c_col2_tap",
+                    "offset": 64,
+                    "rows": 256,
+                    "showRepetitions": true,
+                    "sizes": [
+                        256,
+                        32
+                    ],
+                    "strides": [
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                },
+                {
+                    "cols": 128,
+                    "id": "28a79d0a-a010-42c7-80b4-f41deef2a93d",
+                    "kind": "tap",
+                    "name": "of_out_c_col3_tap",
+                    "offset": 96,
+                    "rows": 256,
+                    "showRepetitions": true,
+                    "sizes": [
+                        256,
+                        32
+                    ],
+                    "strides": [
+                        128,
+                        1
+                    ],
+                    "useTiler2D": false
+                }
+            ],
+            "schema": "aie.symbols/1",
+            "schemaVersion": 1
+        }
+    },
+    "schemaVersion": 2,
+    "view": {
+        "pan": {
+            "x": 1915.9547707558859,
+            "y": -40
+        },
+        "zoom": 0.3069608216051731
+    }
+}

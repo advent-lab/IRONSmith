@@ -51,7 +51,7 @@ $(BUILD_DIR):
 
 # ── Run ────────────────────────────────────────────────────────────────────────
 run_generated: all
-	python3 generated_gemm.py
+	python3 generated_single_column_gemm.py
 
 # ── Clean ──────────────────────────────────────────────────────────────────────
 clean:

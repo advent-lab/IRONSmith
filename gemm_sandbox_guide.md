@@ -1,4 +1,4 @@
-# Workshop: 16-Tile Matrix Multiplication in IRONSmith
+# Workshop: 16-Tile Matrix Multiplication — Sandbox Fast Path
 
 `C = A @ B` — 256×128 · 128×128 → 256×128, int16×int16→int32
 
@@ -15,92 +15,17 @@ The 16 compute tiles form a 4×4 grid of output chunks — 4 grid columns × 4 g
 
 ---
 
-## 0. Install IRONSmith
+## 0. Open the Design
 
-1. Download `IRONSmith-Windows.zip` from **[download link]**.
-2. Right-click the zip → **Extract All...** and pick a destination folder (e.g. `Downloads\IRONSmith-Windows`).
-3. Open the extracted folder and double-click **`IRONSmith.bat`** to launch.
+1. Launch IRONSmith.
+2. In the **Project Explorer** (left sidebar), expand `Example_Designs` and open **`gemm_sandbox.ironsmith`**.
+3. Open the **AIE** panel (right sidebar) → Layout group → set **Horizontal spacing** to `70` and **Vertical spacing** to `65`
 
-The app opens into a `workspace` folder containing `Example_Designs` (ready-made designs, including the finished 16-tile GEMM) and `sandbox_designs` (empty — save your own work here).
-
----
-
-## 1. New Design
-
-1. In the **Project Explorer** (left sidebar), you should already see `Example_Designs` and `sandbox_designs`. If not, use **Open Folder** and browse to the `workspace` folder inside your extracted IRONSmith download.
-2. Top Ribbon → Home tab → **New Design**
-3. Name: `my_gemm`
-4. Device Family: `AI Engine-ML`
-5. Location: `sandbox_designs/`
-6. Click **Create Design**
-7. Open the **AIE** panel (right sidebar) → Layout group → set **Horizontal spacing** to `70` and **Vertical spacing** to `65`
+Already done: Symbol Table (6 constants, 7 types, 12 TAPs) in the **Symbols** panel (right sidebar), and every compute tile's core function body.
 
 ---
 
-## 2. Define Symbols
-Open the **Symbols** panel (right sidebar).
-
-### New Constant ×6
-Click **New Constant** for each:
-
-| Name | Value |
-|---|---|
-| M | 256 |
-| K | 128 |
-| N | 128 |
-| m | 64 |
-| k | 64 |
-| n | 32 |
-
-### New Type ×7
-Click **New Type** for each. Rank = 1 every time.
-
-| Name | Dimensions | DType |
-|---|---|---|
-| A_ty | M * K | int16 |
-| B_ty | K * N | int16 |
-| C_ty | M * N | int32 |
-| a_tile_ty | m * k | int16 |
-| b_tile_ty | k * n | int16 |
-| c_tile_ty | m * n | int32 |
-| c_col_ty | M * n | int32 |
-
-### New TAP ×12
-Click **New TAP** for each. Format = `TensorAccessPattern`.
-For the 8 A/B fills, click **+** once to add a third Sizes/Strides row.
-
-Create one for each, then click duplicate and change the name and offset since the sizes and strides stay the same for each.
-
-**A row fills** — Rows=256, Columns=128:
-
-| Name | Offset | Sizes / Strides (top→bottom) |
-|---|---|---|
-| of_in_a_row0_tap | 0 | (2, 64), (64, 128), (64, 1) |
-| of_in_a_row1_tap | 8192 | (2, 64), (64, 128), (64, 1) |
-| of_in_a_row2_tap | 16384 | (2, 64), (64, 128), (64, 1) |
-| of_in_a_row3_tap | 24576 | (2, 64), (64, 128), (64, 1) |
-
-**B col fills** — Rows=128, Columns=128:
-
-| Name | Offset | Sizes / Strides (top→bottom) |
-|---|---|---|
-| of_in_b_col0_tap | 0 | (2, 8192), (64, 128), (32, 1) |
-| of_in_b_col1_tap | 32 | (2, 8192), (64, 128), (32, 1) |
-| of_in_b_col2_tap | 64 | (2, 8192), (64, 128), (32, 1) |
-| of_in_b_col3_tap | 96 | (2, 8192), (64, 128), (32, 1) |
-
-**C col drains** — Rows=256, Columns=128 (2 rows only, no `+`):
-
-| Name | Offset | Sizes / Strides |
-|---|---|---|
-| of_out_c_col0_tap | 0 | (256, 128), (32, 1) |
-| of_out_c_col1_tap | 32 | (256, 128), (32, 1) |
-| of_out_c_col2_tap | 64 | (256, 128), (32, 1) |
-| of_out_c_col3_tap | 96 | (256, 128), (32, 1) |
-
----
-
-## 3. Connect Dataflow
+## 1. Connect Dataflow
 
 See the reference image at the end of this section for what the fully wired result should look like.
 
@@ -178,16 +103,18 @@ Top Ribbon → Home tab → **Movement Patterns** → **Join**. Click the Mem ti
 
 ---
 
-## 4. Assign Kernels
+## 2. Assign Kernels
+
+Tile (0,5) already has its kernel assigned. For the other 15:
 
 1. Open the **Kernels** panel (left sidebar), search `matmul`
 2. Select **GEMM 64x64x32 (INT16 x INT16 -> INT32, scalar)**
-3. Click all 16 compute tiles: (0,2)–(3,5)
+3. Click tiles: (0,2) (1,2) (2,2) (3,2) (0,3) (1,3) (2,3) (3,3) (0,4) (1,4) (2,4) (3,4) (1,5) (2,5) (3,5)
 4. Click **Clear Active Kernel** in the Kernels panel (left sidebar)
 
 ---
 
-## 5. Adjust Properties
+## 3. Adjust Properties
 Select each item below on the canvas, then edit it in the **Properties** panel (right sidebar).
 
 ### DDR block → DDR Runtime
@@ -224,8 +151,6 @@ Hover over the wire between the Distribute/Collect hub and the DDR block to see 
 | Collect C | (2,0) | of_out_c_col2 | of_out_c_col2_tap |
 | Collect C | (3,0) | of_out_c_col3 | of_out_c_col3_tap |
 
-Annotations on each wire should read something like `FILL: of_in_a_row0` or `DRAIN: of_out_c_column0`.
-
 ![Hovering the DDR-side wire shows its annotation, here `FILL: of_in_a_row0`; the Properties panel for that selected arm shows the matching Target FIFO `of_in_a_row0` and its TAP](docs/workshop/close_up_matching_fill_to_fifo_and_properties_panel_with_target_and_tap.png)
 
 ### Each Broadcast (8 total) — click the hub
@@ -242,10 +167,8 @@ For each broadcast hub, set the name and source FIFO in the Properties panel (ri
 | (2,1) | b_col2_fwd | of_in_b_col2 |
 | (3,1) | b_col3_fwd | of_in_b_col3 |
 
-Each Mem tile hosts two broadcast hubs — one row source, one column source. Match by Source FIFO, not by which tile you clicked.
-
 ### Each Join hub (4 total) — click the hub → Join
-For each join hub, set the name, offsets, branch type, and destination FIFO in the Properties panel (right sidebar) (this might be auto-detected).
+For each join hub, set the name, offsets, branch type, and destination FIFO in the Properties panel (right sidebar).
 
 | Hub at | Name | Offsets | Branch Type | Destination |
 |---|---|---|---|---|
@@ -256,46 +179,25 @@ For each join hub, set the name, offsets, branch type, and destination FIFO in t
 
 ---
 
-## 6. Build the Core Function
-
-### On tile (0,5) — build it once
-1. Click tile **(0,5)**
-2. In the Properties panel (right sidebar) → Core Function → Mode: **Body Statements (custom)**
-3. Click **+** next to **Kernel** → *Add Kernel Parameter* → `matmul`
-4. Click **+** next to **Inputs** → *Add Input Parameter* → `a_in`
-5. Click **+** next to **Inputs** → *Add Input Parameter* → `b_in`
-6. Click **+** next to **Outputs** → *Add Output Parameter* → `c_out`
-7. Click **+ Add** and build each body row, top to bottom:
-
-| Type | Fields |
-|---|---|
-| ACQUIRE | fifo=`c_out`, count=`1`, var=`elem_out` |
-| FOR LOOP | var=`i`, count=`m*n` — click **+ Add inside loop**: |
-| &nbsp;&nbsp;↳ ASSIGN | target=`elem_out`, index=`i`, value=`0` |
-| FOR LOOP | var=`_`, count=`K//k` — click **+ Add inside loop** ×5: |
-| &nbsp;&nbsp;↳ ACQUIRE | fifo=`a_in`, count=`1`, var=`elem_a` |
-| &nbsp;&nbsp;↳ ACQUIRE | fifo=`b_in`, count=`1`, var=`elem_b` |
-| &nbsp;&nbsp;↳ KERNEL CALL | kernel=`matmul`, args=`elem_a, elem_b, elem_out` |
-| &nbsp;&nbsp;↳ RELEASE | fifo=`a_in`, count=`1` |
-| &nbsp;&nbsp;↳ RELEASE | fifo=`b_in`, count=`1` |
-| RELEASE | fifo=`c_out`, count=`1` |
-
-8. In the **fn_args** table, click **Auto-assign** — this maps `matmul` / `a_in` / `b_in` / `c_out` to tile (0,5)'s own connected kernel and fifos (`a_row3_fwd`, `b_col0_fwd`, `join1`). Check that the fifos were assigned correctly to the arguments.
-9. Click **Save as Shared…** → Function name: `core_shared_core_fn_matmul`
+## 4. Wire Up the Core Function
 
 ### On the other 15 compute tiles
+For each tile: (0,2) (1,2) (2,2) (3,2) (0,3) (1,3) (2,3) (3,3) (0,4) (1,4) (2,4) (3,4) (1,5) (2,5) (3,5):
 1. Click the tile
 2. In the Properties panel (right sidebar) → Core Function → Mode: **Shared Function**
-3. Function: → `core_shared_core_fn_matmul`
-4. Check the **fn_args** table — it auto-fills with this tile's own connected wires. Click **Auto-assign** if any Reference is blank.
+3. Function dropdown → select **core_fn_matmul** explicitly, even if it already appears selected
+4. Check the **fn_args** table; click **Auto-assign** if any reference is blank
 
 ![Properties panel for a compute tile: Kernel, In/Out FIFOs, Core Function Mode set to Shared Function, and the fn_args table with Auto-assign](docs/workshop/shared_function_panel.png)
 
-Repeat for all remaining tiles: (0,2) (1,2) (2,2) (3,2) (0,3) (1,3) (2,3) (3,3) (0,4) (1,4) (2,4) (3,4) (1,5) (2,5) (3,5)
+### On tile (0,5)
+1. Click the tile
+2. In the Properties panel (right sidebar) → **fn_args** table
+3. Click **Auto-assign**
 
 ---
 
-## 7. Generate & Execute
+## 5. Generate & Execute
 
 1. Top Ribbon → Output tab → **Verify Design**
 2. Top Ribbon → Output tab → **Generate Code**
