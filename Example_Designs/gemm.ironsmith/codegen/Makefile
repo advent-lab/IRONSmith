@@ -38,13 +38,13 @@ all: $(MATMUL_SCALAR_I16_I32_ARCHIVE)
 $(MATMUL_SCALAR_I16_I32_ARCHIVE): $(MM_OBJ) $(ZERO_OBJ)
 	ar rcs $@ $^
 
-$(MM_OBJ): kernels/mm.cc | $(BUILD_DIR)
-	cd $(BUILD_DIR) && \
-	$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/mm.cc -o mm.o
-
 $(ZERO_OBJ): kernels/zero.cc | $(BUILD_DIR)
 	cd $(BUILD_DIR) && \
 	$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/zero.cc -o zero.o
+
+$(MM_OBJ): kernels/mm.cc | $(BUILD_DIR)
+	cd $(BUILD_DIR) && \
+	$(KERNEL_CC) $(KERNEL_CFLAGS) $(KERNEL_DEFINES) -c ../kernels/mm.cc -o mm.o
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)

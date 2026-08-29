@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Workshop&colon; 16-Tile Matrix Multiplication in IRONSmith</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <span id="markdown-mermaid" aria-hidden="true" data-config="{&quot;darkModeTheme&quot;:&quot;vscode&quot;,&quot;lightModeTheme&quot;:&quot;vscode&quot;,&quot;maxTextSize&quot;:50000,&quot;clickDrag&quot;:&quot;alt&quot;,&quot;showControls&quot;:&quot;onHoverOrFocus&quot;,&quot;resizable&quot;:true,&quot;maxHeight&quot;:&quot;&quot;}"></span>
+				<h1 id="workshop-16-tile-matrix-multiplication-in-ironsmith">Workshop: 16-Tile Matrix Multiplication in IRONSmith</h1>
+<p><code>C = A @ B</code> — 256×128 · 128×128 → 256×128, int16×int16→int32</p>
+<h2 id="how-the-multiply-is-split-across-the-grid">How the multiply is split across the grid</h2>
+<p>The 16 compute tiles form a 4×4 grid of output chunks — 4 grid columns × 4 grid rows of compute tiles (rows 2–5). Each compute tile owns one 64×32 chunk of <code>C</code> and nothing else.</p>
+<ul>
+<li><strong>All 4 tiles in a compute row</strong> share the same 64-row chunk of <code>A</code> — that row's 64×128 horizontal strip is broadcast across the row.</li>
+<li><strong>All 4 tiles in a compute column</strong> share the same 32-column chunk of <code>B</code> — that column's 128×32 vertical strip is broadcast down the column.</li>
+<li>Each tile has both its <code>A</code> row-chunk and <code>B</code> column-chunk, so it computes its own 64×32 chunk of <code>C</code> independently of every other tile — accumulating over <code>K=128</code> in two 64-wide passes.</li>
+<li>The 4 tiles in a compute column each finish a different 64-row band of the same 32-column output strip. Joining them stacks those 4 bands into one full 256×32 column of <code>C</code>, which drains straight to DDR.</li>
+</ul>
+<p><img src="file:///c:\Users\fasta\Projects\IRONSmith\docs\workshop\labeled_locations.png" alt="Interface layout: pink = Home/Output ribbon tabs, red = Top Ribbon, yellow = left sidebar (Project, Kernels), blue = right sidebar (AIE, Log, Properties, Code, Symbols). Every tile is labeled with its (col,row) address."></p>
+<hr>
+<h2 id="0-install-ironsmith">0. Install IRONSmith</h2>
+<ol>
+<li>Download <code>IRONSmith-Windows.zip</code> from <strong>[download link]</strong>.</li>
+<li>Right-click the zip → <strong>Extract All...</strong> and pick a destination folder (e.g. <code>Downloads\IRONSmith-Windows</code>).</li>
+<li>Open the extracted folder and double-click <strong><code>IRONSmith.bat</code></strong> to launch.</li>
+</ol>
+<p>The app opens into a <code>workspace</code> folder containing <code>Example_Designs</code> (ready-made designs, including the finished 16-tile GEMM) and <code>sandbox_designs</code> (empty — save your own work here).</p>
+<hr>
+<h2 id="1-new-design">1. New Design</h2>
+<ol>
+<li>In the <strong>Project Explorer</strong> (left sidebar), you should already see <code>Example_Designs</code> and <code>sandbox_designs</code>. If not, use <strong>Open Folder</strong> and browse to the <code>workspace</code> folder inside your extracted IRONSmith download.</li>
+<li>Top Ribbon → Home tab → <strong>New Design</strong></li>
+<li>Name: <code>my_gemm</code></li>
+<li>Device Family: <code>AI Engine-ML</code></li>
+<li>Location: <code>sandbox_designs/</code></li>
+<li>Click <strong>Create Design</strong></li>
+<li>Open the <strong>AIE</strong> panel (right sidebar) → Layout group → set <strong>Horizontal spacing</strong> to <code>70</code> and <strong>Vertical spacing</strong> to <code>65</code></li>
+</ol>
+<hr>
+<h2 id="2-define-symbols">2. Define Symbols</h2>
+<p>Open the <strong>Symbols</strong> panel (right sidebar).</p>
+<h3 id="new-constant-6">New Constant ×6</h3>
+<p>Click <strong>New Constant</strong> for each:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M</td>
+<td>256</td>
+</tr>
+<tr>
+<td>K</td>
+<td>128</td>
+</tr>
+<tr>
+<td>N</td>
+<td>128</td>
+</tr>
+<tr>
+<td>m</td>
+<td>64</td>
+</tr>
+<tr>
+<td>k</td>
+<td>64</td>
+</tr>
+<tr>
+<td>n</td>
+<td>32</td>
+</tr>
+</tbody>
+</table>
+<h3 id="new-type-7">New Type ×7</h3>
+<p>Click <strong>New Type</strong> for each. Rank = 1 every time.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Dimensions</th>
+<th>DType</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A_ty</td>
+<td>M * K</td>
+<td>int16</td>
+</tr>
+<tr>
+<td>B_ty</td>
+<td>K * N</td>
+<td>int16</td>
+</tr>
+<tr>
+<td>C_ty</td>
+<td>M * N</td>
+<td>int32</td>
+</tr>
+<tr>
+<td>a_tile_ty</td>
+<td>m * k</td>
+<td>int16</td>
+</tr>
+<tr>
+<td>b_tile_ty</td>
+<td>k * n</td>
+<td>int16</td>
+</tr>
+<tr>
+<td>c_tile_ty</td>
+<td>m * n</td>
+<td>int32</td>
+</tr>
+<tr>
+<td>c_col_ty</td>
+<td>M * n</td>
+<td>int32</td>
+</tr>
+</tbody>
+</table>
+<h3 id="new-tap-12">New TAP ×12</h3>
+<p>Click <strong>New TAP</strong> for each. Format = <code>TensorAccessPattern</code>.
+For the 8 A/B fills, click <strong>+</strong> once to add a third Sizes/Strides row.</p>
+<p>Create one for each, then click duplicate and change the name and offset since the sizes and strides stay the same for each.</p>
+<p><strong>A row fills</strong> — Rows=256, Columns=128:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Offset</th>
+<th>Sizes / Strides (top→bottom)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>of_in_a_row0_tap</td>
+<td>0</td>
+<td>(2, 64), (64, 128), (64, 1)</td>
+</tr>
+<tr>
+<td>of_in_a_row1_tap</td>
+<td>8192</td>
+<td>(2, 64), (64, 128), (64, 1)</td>
+</tr>
+<tr>
+<td>of_in_a_row2_tap</td>
+<td>16384</td>
+<td>(2, 64), (64, 128), (64, 1)</td>
+</tr>
+<tr>
+<td>of_in_a_row3_tap</td>
+<td>24576</td>
+<td>(2, 64), (64, 128), (64, 1)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>B col fills</strong> — Rows=128, Columns=128:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Offset</th>
+<th>Sizes / Strides (top→bottom)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>of_in_b_col0_tap</td>
+<td>0</td>
+<td>(2, 8192), (64, 128), (32, 1)</td>
+</tr>
+<tr>
+<td>of_in_b_col1_tap</td>
+<td>32</td>
+<td>(2, 8192), (64, 128), (32, 1)</td>
+</tr>
+<tr>
+<td>of_in_b_col2_tap</td>
+<td>64</td>
+<td>(2, 8192), (64, 128), (32, 1)</td>
+</tr>
+<tr>
+<td>of_in_b_col3_tap</td>
+<td>96</td>
+<td>(2, 8192), (64, 128), (32, 1)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>C col drains</strong> — Rows=256, Columns=128 (2 rows only, no <code>+</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Offset</th>
+<th>Sizes / Strides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>of_out_c_col0_tap</td>
+<td>0</td>
+<td>(256, 128), (32, 1)</td>
+</tr>
+<tr>
+<td>of_out_c_col1_tap</td>
+<td>32</td>
+<td>(256, 128), (32, 1)</td>
+</tr>
+<tr>
+<td>of_out_c_col2_tap</td>
+<td>64</td>
+<td>(256, 128), (32, 1)</td>
+</tr>
+<tr>
+<td>of_out_c_col3_tap</td>
+<td>96</td>
+<td>(256, 128), (32, 1)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="3-connect-dataflow">3. Connect Dataflow</h2>
+<p>See the reference image at the end of this section for what the fully wired result should look like.</p>
+<h3 id="ddr-transfers">DDR Transfers</h3>
+<p>Top Ribbon → Home tab → <strong>DDR Transfers</strong>. Click the <strong>DDR tile first</strong>, then each shim tile in turn.</p>
+<p>If the 12 wires converging on the DDR tile need more room, select the DDR tile and use the <strong>AIE</strong> panel (right sidebar) → nudge step down to move it further from the shim row.</p>
+<ol>
+<li><strong>Distribute</strong> — DDR <code>A</code> → shim (0,0), (1,0), (2,0), (3,0)</li>
+<li><strong>Distribute</strong> — DDR <code>B</code> → shim (0,0), (1,0), (2,0), (3,0)</li>
+<li><strong>Collect</strong> — DDR <code>C</code> → shim (0,0), (1,0), (2,0), (3,0)</li>
+</ol>
+<h3 id="shim--mem-input-side">Shim → Mem (input side)</h3>
+<p>Top Ribbon → Home tab → <strong>Linking</strong> → <strong>FIFO</strong>. Two wires per column, both to the same mem tile:</p>
+<table>
+<thead>
+<tr>
+<th>ObjectFifo</th>
+<th>Shim</th>
+<th>Mem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>of_in_a_row0</td>
+<td>(0,0)</td>
+<td>(0,1)</td>
+</tr>
+<tr>
+<td>of_in_a_row1</td>
+<td>(1,0)</td>
+<td>(1,1)</td>
+</tr>
+<tr>
+<td>of_in_a_row2</td>
+<td>(2,0)</td>
+<td>(2,1)</td>
+</tr>
+<tr>
+<td>of_in_a_row3</td>
+<td>(3,0)</td>
+<td>(3,1)</td>
+</tr>
+<tr>
+<td>of_in_b_col0</td>
+<td>(0,0)</td>
+<td>(0,1)</td>
+</tr>
+<tr>
+<td>of_in_b_col1</td>
+<td>(1,0)</td>
+<td>(1,1)</td>
+</tr>
+<tr>
+<td>of_in_b_col2</td>
+<td>(2,0)</td>
+<td>(2,1)</td>
+</tr>
+<tr>
+<td>of_in_b_col3</td>
+<td>(3,0)</td>
+<td>(3,1)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mem--shim-output-side">Mem → Shim (output side)</h3>
+<p>Top Ribbon → Home tab → <strong>Linking</strong> → <strong>FIFO</strong></p>
+<table>
+<thead>
+<tr>
+<th>ObjectFifo</th>
+<th>Mem</th>
+<th>Shim</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>of_out_c_col0</td>
+<td>(0,1)</td>
+<td>(0,0)</td>
+</tr>
+<tr>
+<td>of_out_c_col1</td>
+<td>(1,1)</td>
+<td>(1,0)</td>
+</tr>
+<tr>
+<td>of_out_c_col2</td>
+<td>(2,1)</td>
+<td>(2,0)</td>
+</tr>
+<tr>
+<td>of_out_c_col3</td>
+<td>(3,1)</td>
+<td>(3,0)</td>
+</tr>
+</tbody>
+</table>
+<p>For each FIFO above, select it and open the <strong>Properties</strong> panel (right sidebar) to set:</p>
+<ul>
+<li>Name: matches the ObjectFifo (e.g. <code>of_in_a_row0</code>)</li>
+<li>Symbol: <code>a_tile_ty</code> / <code>b_tile_ty</code> (inputs) or <code>c_col_ty</code> (outputs)</li>
+</ul>
+<p>Cosmetic only, to keep the wiring cleaner to look at: attach broadcasts to the left side (inputs) and joins to the right side (outputs) of each mem/compute tile.</p>
+<h3 id="broadcast--mem--aie">Broadcast — Mem → AIE</h3>
+<p>Top Ribbon → Home tab → <strong>Movement Patterns</strong> → <strong>Broadcast</strong>. Click the <strong>Mem tile first</strong>, then each AIE tile in turn.</p>
+<p><strong>A rows:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Mem</th>
+<th>→ AIE tiles</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A row 0</td>
+<td>(0,1)</td>
+<td>(0,2), (1,2), (2,2), (3,2)</td>
+</tr>
+<tr>
+<td>A row 1</td>
+<td>(1,1)</td>
+<td>(0,3), (1,3), (2,3), (3,3)</td>
+</tr>
+<tr>
+<td>A row 2</td>
+<td>(2,1)</td>
+<td>(0,4), (1,4), (2,4), (3,4)</td>
+</tr>
+<tr>
+<td>A row 3</td>
+<td>(3,1)</td>
+<td>(0,5), (1,5), (2,5), (3,5)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>B columns:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Mem</th>
+<th>→ AIE tiles</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B col 0</td>
+<td>(0,1)</td>
+<td>(0,2), (0,3), (0,4), (0,5)</td>
+</tr>
+<tr>
+<td>B col 1</td>
+<td>(1,1)</td>
+<td>(1,2), (1,3), (1,4), (1,5)</td>
+</tr>
+<tr>
+<td>B col 2</td>
+<td>(2,1)</td>
+<td>(2,2), (2,3), (2,4), (2,5)</td>
+</tr>
+<tr>
+<td>B col 3</td>
+<td>(3,1)</td>
+<td>(3,2), (3,3), (3,4), (3,5)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="join--aie--mem">Join — AIE → Mem</h3>
+<p>Top Ribbon → Home tab → <strong>Movement Patterns</strong> → <strong>Join</strong>. Click the Mem tile first, then attach bottom to top, per column:</p>
+<table>
+<thead>
+<tr>
+<th>Join</th>
+<th>Sources</th>
+<th>→ Mem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C col 0</td>
+<td>(0,2), (0,3), (0,4), (0,5)</td>
+<td>(0,1)</td>
+</tr>
+<tr>
+<td>C col 1</td>
+<td>(1,2), (1,3), (1,4), (1,5)</td>
+<td>(1,1)</td>
+</tr>
+<tr>
+<td>C col 2</td>
+<td>(2,2), (2,3), (2,4), (2,5)</td>
+<td>(2,1)</td>
+</tr>
+<tr>
+<td>C col 3</td>
+<td>(3,2), (3,3), (3,4), (3,5)</td>
+<td>(3,1)</td>
+</tr>
+</tbody>
+</table>
+<p><img src="file:///c:\Users\fasta\Projects\IRONSmith\docs\workshop\gemm_full_dataflow.png" alt="Fully wired reference topology: DDR transfers, shim→mem FIFOs, mem→AIE broadcasts, and AIE→mem joins for all 4 columns"></p>
+<hr>
+<h2 id="4-assign-kernels">4. Assign Kernels</h2>
+<ol>
+<li>Open the <strong>Kernels</strong> panel (left sidebar), search <code>matmul</code></li>
+<li>Select <strong>GEMM 64x64x32 (INT16 x INT16 -&gt; INT32, scalar)</strong></li>
+<li>Click all 16 compute tiles: (0,2)–(3,5)</li>
+<li>Click <strong>Clear Active Kernel</strong> in the Kernels panel (left sidebar)</li>
+</ol>
+<hr>
+<h2 id="5-adjust-properties">5. Adjust Properties</h2>
+<p>Select each item below on the canvas, then edit it in the <strong>Properties</strong> panel (right sidebar).</p>
+<h3 id="ddr-block--ddr-runtime">DDR block → DDR Runtime</h3>
+<p>Select the DDR block at the bottom of the screen.</p>
+<p><strong>Inputs table:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Total Size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>M * K</td>
+</tr>
+<tr>
+<td>B</td>
+<td>K * N</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Outputs table:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Total Size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C</td>
+<td>M * N</td>
+</tr>
+</tbody>
+</table>
+<h3 id="each-distributecollect-branch-wire-12-total--ddr-transfer">Each Distribute/Collect branch wire (12 total) → DDR Transfer</h3>
+<p>Hover over the wire between the Distribute/Collect hub and the DDR block to see which output (A, B, or C) that branch belongs to. Set each branch's Target FIFO and Tensor Access Pattern:</p>
+<table>
+<thead>
+<tr>
+<th>Branch</th>
+<th>Shim</th>
+<th>Target FIFO</th>
+<th>Tensor Access Pattern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Distribute A</td>
+<td>(0,0)</td>
+<td>of_in_a_row0</td>
+<td>of_in_a_row0_tap</td>
+</tr>
+<tr>
+<td>Distribute A</td>
+<td>(1,0)</td>
+<td>of_in_a_row1</td>
+<td>of_in_a_row1_tap</td>
+</tr>
+<tr>
+<td>Distribute A</td>
+<td>(2,0)</td>
+<td>of_in_a_row2</td>
+<td>of_in_a_row2_tap</td>
+</tr>
+<tr>
+<td>Distribute A</td>
+<td>(3,0)</td>
+<td>of_in_a_row3</td>
+<td>of_in_a_row3_tap</td>
+</tr>
+<tr>
+<td>Distribute B</td>
+<td>(0,0)</td>
+<td>of_in_b_col0</td>
+<td>of_in_b_col0_tap</td>
+</tr>
+<tr>
+<td>Distribute B</td>
+<td>(1,0)</td>
+<td>of_in_b_col1</td>
+<td>of_in_b_col1_tap</td>
+</tr>
+<tr>
+<td>Distribute B</td>
+<td>(2,0)</td>
+<td>of_in_b_col2</td>
+<td>of_in_b_col2_tap</td>
+</tr>
+<tr>
+<td>Distribute B</td>
+<td>(3,0)</td>
+<td>of_in_b_col3</td>
+<td>of_in_b_col3_tap</td>
+</tr>
+<tr>
+<td>Collect C</td>
+<td>(0,0)</td>
+<td>of_out_c_col0</td>
+<td>of_out_c_col0_tap</td>
+</tr>
+<tr>
+<td>Collect C</td>
+<td>(1,0)</td>
+<td>of_out_c_col1</td>
+<td>of_out_c_col1_tap</td>
+</tr>
+<tr>
+<td>Collect C</td>
+<td>(2,0)</td>
+<td>of_out_c_col2</td>
+<td>of_out_c_col2_tap</td>
+</tr>
+<tr>
+<td>Collect C</td>
+<td>(3,0)</td>
+<td>of_out_c_col3</td>
+<td>of_out_c_col3_tap</td>
+</tr>
+</tbody>
+</table>
+<p>Annotations on each wire should read something like <code>FILL: of_in_a_row0</code> or <code>DRAIN: of_out_c_column0</code>.</p>
+<p><img src="file:///c:\Users\fasta\Projects\IRONSmith\docs\workshop\close_up_matching_fill_to_fifo_and_properties_panel_with_target_and_tap.png" alt="Hovering the DDR-side wire shows its annotation, here ; the Properties panel for that selected arm shows the matching Target FIFO  and its TAP"></p>
+<h3 id="each-broadcast-8-total--click-the-hub">Each Broadcast (8 total) — click the hub</h3>
+<p>For each broadcast hub, set the name and source FIFO in the Properties panel (right sidebar).</p>
+<table>
+<thead>
+<tr>
+<th>Hub at</th>
+<th>Name</th>
+<th>Source FIFO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(0,1)</td>
+<td>a_row0_fwd</td>
+<td>of_in_a_row0</td>
+</tr>
+<tr>
+<td>(1,1)</td>
+<td>a_row1_fwd</td>
+<td>of_in_a_row1</td>
+</tr>
+<tr>
+<td>(2,1)</td>
+<td>a_row2_fwd</td>
+<td>of_in_a_row2</td>
+</tr>
+<tr>
+<td>(3,1)</td>
+<td>a_row3_fwd</td>
+<td>of_in_a_row3</td>
+</tr>
+<tr>
+<td>(0,1)</td>
+<td>b_col0_fwd</td>
+<td>of_in_b_col0</td>
+</tr>
+<tr>
+<td>(1,1)</td>
+<td>b_col1_fwd</td>
+<td>of_in_b_col1</td>
+</tr>
+<tr>
+<td>(2,1)</td>
+<td>b_col2_fwd</td>
+<td>of_in_b_col2</td>
+</tr>
+<tr>
+<td>(3,1)</td>
+<td>b_col3_fwd</td>
+<td>of_in_b_col3</td>
+</tr>
+</tbody>
+</table>
+<p>Each Mem tile hosts two broadcast hubs — one row source, one column source. Match by Source FIFO, not by which tile you clicked.</p>
+<h3 id="each-join-hub-4-total--click-the-hub--join">Each Join hub (4 total) — click the hub → Join</h3>
+<p>For each join hub, set the name, offsets, branch type, and destination FIFO in the Properties panel (right sidebar) (this might be auto-detected).</p>
+<table>
+<thead>
+<tr>
+<th>Hub at</th>
+<th>Name</th>
+<th>Offsets</th>
+<th>Branch Type</th>
+<th>Destination</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(0,1)</td>
+<td>c_col0_joins</td>
+<td>0, m * n, 2 * m * n, 3 * m * n</td>
+<td>c_tile_ty</td>
+<td>of_out_c_col0</td>
+</tr>
+<tr>
+<td>(1,1)</td>
+<td>c_col1_joins</td>
+<td>0, m * n, 2 * m * n, 3 * m * n</td>
+<td>c_tile_ty</td>
+<td>of_out_c_col1</td>
+</tr>
+<tr>
+<td>(2,1)</td>
+<td>c_col2_joins</td>
+<td>0, m * n, 2 * m * n, 3 * m * n</td>
+<td>c_tile_ty</td>
+<td>of_out_c_col2</td>
+</tr>
+<tr>
+<td>(3,1)</td>
+<td>c_col3_joins</td>
+<td>0, m * n, 2 * m * n, 3 * m * n</td>
+<td>c_tile_ty</td>
+<td>of_out_c_col3</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="6-build-the-core-function">6. Build the Core Function</h2>
+<h3 id="on-tile-05--build-it-once">On tile (0,5) — build it once</h3>
+<ol>
+<li>Click tile <strong>(0,5)</strong></li>
+<li>In the Properties panel (right sidebar) → Core Function → Mode: <strong>Body Statements (custom)</strong></li>
+<li>Click <strong>+</strong> next to <strong>Kernel</strong> → <em>Add Kernel Parameter</em> → <code>matmul</code></li>
+<li>Click <strong>+</strong> next to <strong>Inputs</strong> → <em>Add Input Parameter</em> → <code>a_in</code></li>
+<li>Click <strong>+</strong> next to <strong>Inputs</strong> → <em>Add Input Parameter</em> → <code>b_in</code></li>
+<li>Click <strong>+</strong> next to <strong>Outputs</strong> → <em>Add Output Parameter</em> → <code>c_out</code></li>
+<li>Click <strong>+ Add</strong> and build each body row, top to bottom:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ACQUIRE</td>
+<td>fifo=<code>c_out</code>, count=<code>1</code>, var=<code>elem_out</code></td>
+</tr>
+<tr>
+<td>FOR LOOP</td>
+<td>var=<code>i</code>, count=<code>m*n</code> — click <strong>+ Add inside loop</strong>:</td>
+</tr>
+<tr>
+<td>  ↳ ASSIGN</td>
+<td>target=<code>elem_out</code>, index=<code>i</code>, value=<code>0</code></td>
+</tr>
+<tr>
+<td>FOR LOOP</td>
+<td>var=<code>_</code>, count=<code>K//k</code> — click <strong>+ Add inside loop</strong> ×5:</td>
+</tr>
+<tr>
+<td>  ↳ ACQUIRE</td>
+<td>fifo=<code>a_in</code>, count=<code>1</code>, var=<code>elem_a</code></td>
+</tr>
+<tr>
+<td>  ↳ ACQUIRE</td>
+<td>fifo=<code>b_in</code>, count=<code>1</code>, var=<code>elem_b</code></td>
+</tr>
+<tr>
+<td>  ↳ KERNEL CALL</td>
+<td>kernel=<code>matmul</code>, args=<code>elem_a, elem_b, elem_out</code></td>
+</tr>
+<tr>
+<td>  ↳ RELEASE</td>
+<td>fifo=<code>a_in</code>, count=<code>1</code></td>
+</tr>
+<tr>
+<td>  ↳ RELEASE</td>
+<td>fifo=<code>b_in</code>, count=<code>1</code></td>
+</tr>
+<tr>
+<td>RELEASE</td>
+<td>fifo=<code>c_out</code>, count=<code>1</code></td>
+</tr>
+</tbody>
+</table>
+<ol start="8">
+<li>In the <strong>fn_args</strong> table, click <strong>Auto-assign</strong> — this maps <code>matmul</code> / <code>a_in</code> / <code>b_in</code> / <code>c_out</code> to tile (0,5)'s own connected kernel and fifos (<code>a_row3_fwd</code>, <code>b_col0_fwd</code>, <code>join1</code>). Check that the fifos were assigned correctly to the arguments.</li>
+<li>Click <strong>Save as Shared…</strong> → Function name: <code>core_shared_core_fn_matmul</code></li>
+</ol>
+<h3 id="on-the-other-15-compute-tiles">On the other 15 compute tiles</h3>
+<ol>
+<li>Click the tile</li>
+<li>In the Properties panel (right sidebar) → Core Function → Mode: <strong>Shared Function</strong></li>
+<li>Function: → <code>core_shared_core_fn_matmul</code></li>
+<li>Check the <strong>fn_args</strong> table — it auto-fills with this tile's own connected wires. Click <strong>Auto-assign</strong> if any Reference is blank.</li>
+</ol>
+<p><img src="file:///c:\Users\fasta\Projects\IRONSmith\docs\workshop\shared_function_panel.png" alt="Properties panel for a compute tile: Kernel, In/Out FIFOs, Core Function Mode set to Shared Function, and the fn_args table with Auto-assign"></p>
+<p>Repeat for all remaining tiles: (0,2) (1,2) (2,2) (3,2) (0,3) (1,3) (2,3) (3,3) (0,4) (1,4) (2,4) (3,4) (1,5) (2,5) (3,5)</p>
+<hr>
+<h2 id="7-generate--execute">7. Generate &amp; Execute</h2>
+<ol>
+<li>Top Ribbon → Output tab → <strong>Verify Design</strong></li>
+<li>Top Ribbon → Output tab → <strong>Generate Code</strong></li>
+<li>Copy the generated code from the <strong>Code</strong> panel (right sidebar) into the workshop notebook.</li>
+<li>Directly under the <code>gui_design_jit(...)</code> call, insert:</li>
+</ol>
+<pre><code class="language-python">A_mat = A.numpy().astype(np.int64).reshape(M, K)
+B_mat = B.numpy().astype(np.int64).reshape(K, N)
+expected = (A_mat @ B_mat).astype(np.int32)
+actual = C.numpy().reshape(M, N)
+
+<span class="hljs-keyword">if</span> np.array_equal(actual, expected):
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;PASS: C matches A @ B&quot;</span>)
+<span class="hljs-keyword">else</span>:
+    mismatches = <span class="hljs-built_in">int</span>(np.count_nonzero(actual != expected))
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;FAIL: C does not match A @ B (<span class="hljs-subst">{mismatches}</span> / <span class="hljs-subst">{actual.size}</span> elements differ)&quot;</span>)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;actual[:4,:4]   = <span class="hljs-subst">{actual[:<span class="hljs-number">4</span>,:<span class="hljs-number">4</span>]}</span>&quot;</span>)
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">f&quot;expected[:4,:4] = <span class="hljs-subst">{expected[:<span class="hljs-number">4</span>,:<span class="hljs-number">4</span>]}</span>&quot;</span>)
+</code></pre>
+<ol start="5">
+<li>Run the notebook cell.</li>
+</ol>
+<p>Expected output:</p>
+<pre><code>A[:8] = [0 1 2 3 4 5 6 7]
+B[:8] = [0 1 2 3 4 5 6 7]
+C[:8] = [   0  448  896 1344 1792 2240 2688 3136]
+PASS: C matches A @ B
+</code></pre>
+
+            
+            
+        </body>
+        </html>

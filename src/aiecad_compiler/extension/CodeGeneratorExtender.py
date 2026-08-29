@@ -167,7 +167,11 @@ class ExternalFunctionCodeGen(CodeGenExtension):
         checkout.
         """
         basename = resolved_source_file.replace('\\', '/').rsplit('/', 1)[-1]
-        vendored = Path(__file__).resolve().parents[3] / "resources" / "kernels" / "aie_kernels" / "aie2" / basename
+        env_root = os.environ.get("IRONSMITH_BUILTIN_KERNELS_DIR")
+        kernels_root = Path(env_root) if env_root else (
+            Path(__file__).resolve().parents[3] / "resources" / "kernels"
+        )
+        vendored = kernels_root / "aie_kernels" / "aie2" / basename
         try:
             return 'lut_based_ops.h' in vendored.read_text()
         except OSError:
@@ -184,11 +188,21 @@ class ExternalFunctionCodeGen(CodeGenExtension):
         of its own, so metadata like compile_flags/iron_signature must be
         looked up from our own catalog independently of wherever
         source_file ends up pointing.
+
+        Checked via the ``IRONSMITH_BUILTIN_KERNELS_DIR`` env var first (the
+        same one KernelRegistryService.cpp uses on the C++ side, and a
+        packaged/relocated install sets to its own bundled kernels folder),
+        falling back to the dev-tree-relative ``resources/kernels`` path
+        derived from this file's own location.
         """
         func_name = self._func_name(node_id)
         if not func_name:
             return None
-        kj_path = Path(__file__).resolve().parents[3] / "resources" / "kernels" / func_name / 'kernel.json'
+        env_root = os.environ.get("IRONSMITH_BUILTIN_KERNELS_DIR")
+        kernels_root = Path(env_root) if env_root else (
+            Path(__file__).resolve().parents[3] / "resources" / "kernels"
+        )
+        kj_path = kernels_root / func_name / 'kernel.json'
         if not kj_path.is_file():
             return None
         try:

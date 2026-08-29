@@ -11,54 +11,34 @@ The 16 compute tiles form a 4×4 grid of output chunks — 4 grid columns × 4 g
 - Each tile has both its `A` row-chunk and `B` column-chunk, so it computes its own 64×32 chunk of `C` independently of every other tile — accumulating over `K=128` in two 64-wide passes.
 - The 4 tiles in a compute column each finish a different 64-row band of the same 32-column output strip. Joining them stacks those 4 bands into one full 256×32 column of `C`, which drains straight to DDR.
 
+![Interface layout: pink = Home/Output ribbon tabs, red = Top Ribbon, yellow = left sidebar (Project, Kernels), blue = right sidebar (AIE, Log, Properties, Code, Symbols). Every tile is labeled with its (col,row) address.](docs/workshop/labeled_locations.png)
+
 ---
 
 ## 0. Install IRONSmith
 
-1. Install [MSYS2](https://www.msys2.org) (Windows) and open the **MSYS2 UCRT64** terminal.
-2. Install the toolchain:
-   ```
-   pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake \
-             mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-qt6-base \
-             mingw-w64-ucrt-x86_64-qscintilla-qt6
-   ```
-3. Install **Python 3** separately (python.org installer or `winget install Python.Python.3`).
-4. Clone the repo:
-   ```
-   git clone <repo-url> IRONSmith
-   cd IRONSmith
-   ```
-5. Configure:
-   ```
-   cmake --preset dev-release ^
-     -DPython3_EXECUTABLE="C:/path/to/python.exe" ^
-     -DQt6_DIR="C:/msys64/ucrt64/lib/cmake/Qt6"
-   ```
-6. Build:
-   ```
-   cmake --build --preset build-dev-release
-   ```
-7. Launch:
-   ```
-   out\build\dev-release\bin\ironsmith.exe
-   ```
+1. Download `IRONSmith-Windows.zip` from **[download link]**.
+2. Right-click the zip → **Extract All...** and pick a destination folder (e.g. `Downloads\IRONSmith-Windows`).
+3. Open the extracted folder and double-click **`IRONSmith.bat`** to launch.
 
-macOS / Linux: see [`README.md`](README.md) for `brew`/`apt` package lists — same `cmake --preset` / `cmake --build --preset` flow applies.
+The app opens into a `workspace` folder containing `Example_Designs` (ready-made designs, including the finished 16-tile GEMM) and `sandbox_designs` (empty — save your own work here).
 
 ---
 
 ## 1. New Design
 
-1. Click **New Design**
-2. Name: `my_gemm`
-3. Device Family: `AI Engine-ML`
-4. Location: `IRONSmith/sandbox_designs/`
-5. Click **Create Design**
+1. In the **Project Explorer** (left sidebar), you should already see `Example_Designs` and `sandbox_designs`. If not, use **Open Folder** and browse to the `workspace` folder inside your extracted IRONSmith download.
+2. Top Ribbon → Home tab → **New Design**
+3. Name: `my_gemm`
+4. Device Family: `AI Engine-ML`
+5. Location: `sandbox_designs/`
+6. Click **Create Design**
+7. Open the **AIE** panel (right sidebar) → Layout group → set **Horizontal spacing** to `70` and **Vertical spacing** to `65`
 
 ---
 
 ## 2. Define Symbols
-Open the Symbol Table on the right sidebar.
+Open the **Symbols** panel (right sidebar).
 
 ### New Constant ×6
 Click **New Constant** for each:
@@ -87,9 +67,9 @@ Click **New Type** for each. Rank = 1 every time.
 
 ### New TAP ×12
 Click **New TAP** for each. Format = `TensorAccessPattern`.
-For the 8 A/B fills, click **+** once to add a third Sizes/Strides row. 
+For the 8 A/B fills, click **+** once to add a third Sizes/Strides row.
 
-Create one for each, then click duplicate and change the name and offset since the sizes and strides stay the same for each. 
+Create one for each, then click duplicate and change the name and offset since the sizes and strides stay the same for each.
 
 **A row fills** — Rows=256, Columns=128:
 
@@ -122,21 +102,19 @@ Create one for each, then click duplicate and change the name and offset since t
 
 ## 3. Connect Dataflow
 
+See the reference image at the end of this section for what the fully wired result should look like.
+
 ### DDR Transfers
-Ribbon → **DDR Transfers**
+Top Ribbon → Home tab → **DDR Transfers**. Click the **DDR tile first**, then each shim tile in turn.
 
-> **On the hardware:** a shim tile is a DMA engine at the edge of the array with a direct path to DDR. Distribute streams DDR data out to the array; Collect streams results back to DDR.
-
-Click the **DDR tile first**, then each shim tile in turn — clicking shim first won't wire correctly, even for Collect (where data actually flows shim → DDR; the arrows below are click order, not data direction):
+If the 12 wires converging on the DDR tile need more room, select the DDR tile and use the **AIE** panel (right sidebar) → nudge step down to move it further from the shim row.
 
 1. **Distribute** — DDR `A` → shim (0,0), (1,0), (2,0), (3,0)
 2. **Distribute** — DDR `B` → shim (0,0), (1,0), (2,0), (3,0)
 3. **Collect** — DDR `C` → shim (0,0), (1,0), (2,0), (3,0)
 
 ### Shim → Mem (input side)
-Ribbon → **Linking** → **FIFO**. Two wires per column, both to the same mem tile:
-
-> **On the hardware:** Mem tiles act as L2 memory for the AIE cores — larger and shared, unlike each core's own small local L1. That's also where dataflow patterns like split, join, and broadcast happen, along with tensor reshaping 
+Top Ribbon → Home tab → **Linking** → **FIFO**. Two wires per column, both to the same mem tile:
 
 | ObjectFifo | Shim | Mem |
 |---|---|---|
@@ -150,7 +128,7 @@ Ribbon → **Linking** → **FIFO**. Two wires per column, both to the same mem 
 | of_in_b_col3 | (3,0) | (3,1) |
 
 ### Mem → Shim (output side)
-Ribbon → **Linking** → **FIFO**
+Top Ribbon → Home tab → **Linking** → **FIFO**
 
 | ObjectFifo | Mem | Shim |
 |---|---|---|
@@ -159,19 +137,16 @@ Ribbon → **Linking** → **FIFO**
 | of_out_c_col2 | (2,1) | (2,0) |
 | of_out_c_col3 | (3,1) | (3,0) |
 
-Open the properties panel on the right side bar. Then select each FIFO and assign its name and type.
-
+For each FIFO above, select it and open the **Properties** panel (right sidebar) to set:
 - Name: matches the ObjectFifo (e.g. `of_in_a_row0`)
 - Symbol: `a_tile_ty` / `b_tile_ty` (inputs) or `c_col_ty` (outputs)
 
+Cosmetic only, to keep the wiring cleaner to look at: attach broadcasts to the left side (inputs) and joins to the right side (outputs) of each mem/compute tile.
+
 ### Broadcast — Mem → AIE
-Ribbon → **Movement Patterns** → **Broadcast**
+Top Ribbon → Home tab → **Movement Patterns** → **Broadcast**. Click the **Mem tile first**, then each AIE tile in turn.
 
-> **On the hardware:** The Mem tile reads its data once and fans it out over the array's stream switch to every listening core at once, instead of each core pulling its own separate copy. Multiple cores read from a single DMA buffer in a 1:Many relationship. 
-
-Click the **Mem tile first**, then each AIE tile in turn.
-
-**A rows — one mem tile fans out across a compute row:**
+**A rows:**
 
 | Source | Mem | → AIE tiles |
 |---|---|---|
@@ -180,7 +155,7 @@ Click the **Mem tile first**, then each AIE tile in turn.
 | A row 2 | (2,1) | (0,4), (1,4), (2,4), (3,4) |
 | A row 3 | (3,1) | (0,5), (1,5), (2,5), (3,5) |
 
-**B columns — one mem tile fans out down a compute column:**
+**B columns:**
 
 | Source | Mem | → AIE tiles |
 |---|---|---|
@@ -190,11 +165,8 @@ Click the **Mem tile first**, then each AIE tile in turn.
 | B col 3 | (3,1) | (3,2), (3,3), (3,4), (3,5) |
 
 ### Join — AIE → Mem
-Ribbon → **Movement Patterns** → **Join**.
+Top Ribbon → Home tab → **Movement Patterns** → **Join**. Click the Mem tile first, then attach bottom to top, per column:
 
-> **On the hardware:** the Mem tile writes each core's incoming stream to its own offset in one shared buffer, physically assembling the 4 separate outputs into one contiguous strip.
-
-Click the Mem tile first, then attach bottom to top, per column:
 | Join | Sources | → Mem |
 |---|---|---|
 | C col 0 | (0,2), (0,3), (0,4), (0,5) | (0,1) |
@@ -202,22 +174,25 @@ Click the Mem tile first, then attach bottom to top, per column:
 | C col 2 | (2,2), (2,3), (2,4), (2,5) | (2,1) |
 | C col 3 | (3,2), (3,3), (3,4), (3,5) | (3,1) |
 
+![Fully wired reference topology: DDR transfers, shim→mem FIFOs, mem→AIE broadcasts, and AIE→mem joins for all 4 columns](docs/workshop/gemm_full_dataflow.png)
+
 ---
 
 ## 4. Assign Kernels
 
-1. Open **Kernels** panel, search `matmul`
+1. Open the **Kernels** panel (left sidebar), search `matmul`
 2. Select **GEMM 64x64x32 (INT16 x INT16 -> INT32, scalar)**
 3. Click all 16 compute tiles: (0,2)–(3,5)
-4. Click **Clear Active Kernel** in the Kernels panel
+4. Click **Clear Active Kernel** in the Kernels panel (left sidebar)
 
 ---
 
 ## 5. Adjust Properties
-Open the properties panel on the right sidebar. 
+Select each item below on the canvas, then edit it in the **Properties** panel (right sidebar).
 
 ### DDR block → DDR Runtime
-Select the DDR block at the bottom of the screen. 
+Select the DDR block at the bottom of the screen.
+
 **Inputs table:**
 
 | Name | Total Size |
@@ -232,18 +207,29 @@ Select the DDR block at the bottom of the screen.
 | C | M * N |
 
 ### Each Distribute/Collect branch wire (12 total) → DDR Transfer
-Here we specify how our inputs from DDR and outputs to DDR are passed into the FIFOs via the shim tiles. We have to specify the tensor access pattern and target fifo for each incoming stream. We have 2 inputs A and B and one output C that are streamed across all 4 shim tiles. We must tell the shim which FIFOs we want to fill and drain.
+Hover over the wire between the Distribute/Collect hub and the DDR block to see which output (A, B, or C) that branch belongs to. Set each branch's Target FIFO and Tensor Access Pattern:
 
-- Target FIFO: that wire's matching FIFO from shim to mem (e.g. the A distribute branch wire into shim (0,0) carrying A row 0 = `of_in_a_row0`)
-- Tensor Access Pattern: that wire's matching TAP from Part 2 (e.g. the wire into shim (0,0) carrying A row 0 → `of_in_a_row0_tap`)
+| Branch | Shim | Target FIFO | Tensor Access Pattern |
+|---|---|---|---|
+| Distribute A | (0,0) | of_in_a_row0 | of_in_a_row0_tap |
+| Distribute A | (1,0) | of_in_a_row1 | of_in_a_row1_tap |
+| Distribute A | (2,0) | of_in_a_row2 | of_in_a_row2_tap |
+| Distribute A | (3,0) | of_in_a_row3 | of_in_a_row3_tap |
+| Distribute B | (0,0) | of_in_b_col0 | of_in_b_col0_tap |
+| Distribute B | (1,0) | of_in_b_col1 | of_in_b_col1_tap |
+| Distribute B | (2,0) | of_in_b_col2 | of_in_b_col2_tap |
+| Distribute B | (3,0) | of_in_b_col3 | of_in_b_col3_tap |
+| Collect C | (0,0) | of_out_c_col0 | of_out_c_col0_tap |
+| Collect C | (1,0) | of_out_c_col1 | of_out_c_col1_tap |
+| Collect C | (2,0) | of_out_c_col2 | of_out_c_col2_tap |
+| Collect C | (3,0) | of_out_c_col3 | of_out_c_col3_tap |
 
-Annotations on each wire should read something like `FILL: of_in_a_row0` or `DRAIN: of_out_c_column0` appropriately.
+Annotations on each wire should read something like `FILL: of_in_a_row0` or `DRAIN: of_out_c_column0`.
+
+![Hovering the DDR-side wire shows its annotation, here `FILL: of_in_a_row0`; the Properties panel for that selected arm shows the matching Target FIFO `of_in_a_row0` and its TAP](docs/workshop/close_up_matching_fill_to_fifo_and_properties_panel_with_target_and_tap.png)
 
 ### Each Broadcast (8 total) — click the hub
-
-A's four row-slices each broadcast **horizontally** — one Mem tile fans out across all 4 columns of a single compute row. B's four column-slices each broadcast **vertically** — one Mem tile fans out down all 4 rows of a single compute column. Every Mem tile carries one of each, which is why the table below has two rows per Mem tile.
-
-Open the properties panel for each broadcast and change the name and source FIFO.
+For each broadcast hub, set the name and source FIFO in the Properties panel (right sidebar).
 
 | Hub at | Name | Source FIFO |
 |---|---|---|
@@ -259,12 +245,7 @@ Open the properties panel for each broadcast and change the name and source FIFO
 Each Mem tile hosts two broadcast hubs — one row source, one column source. Match by Source FIFO, not by which tile you clicked.
 
 ### Each Join hub (4 total) — click the hub → Join
-
-Each compute column produces 4 partial results, one per row (2–5). The join for column x collects all 4 of column x's AIE tiles into a single strip at that column's Mem tile, which then drains out to DDR as one piece of `C`.
-
-We have to specify how we would like the 4 partial results to be combined into one buffer and which buffer to send them to. This is done by specifying an offset and the destination FIFO.
-
-Open the properties panel for each join hub and set the name, offsets, branch type, and destination FIFO (this might be auto-detected).
+For each join hub, set the name, offsets, branch type, and destination FIFO in the Properties panel (right sidebar) (this might be auto-detected).
 
 | Hub at | Name | Offsets | Branch Type | Destination |
 |---|---|---|---|---|
@@ -276,13 +257,10 @@ Open the properties panel for each join hub and set the name, offsets, branch ty
 ---
 
 ## 6. Build the Core Function
-This is what will run on each tile to compute the matrix multiplication with the data that is being streamed in by the ObjectFifos.
-
-> **On the hardware:** this is the actual program that runs on that tile's own local core. ACQUIRE/RELEASE are hardware lock operations — the core blocks on ACQUIRE until its local buffer is ready, and blocks on RELEASE until the DMA has room to take the next one.
 
 ### On tile (0,5) — build it once
 1. Click tile **(0,5)**
-2. Core Function → Mode: **Body Statements (custom)**
+2. In the Properties panel (right sidebar) → Core Function → Mode: **Body Statements (custom)**
 3. Click **+** next to **Kernel** → *Add Kernel Parameter* → `matmul`
 4. Click **+** next to **Inputs** → *Add Input Parameter* → `a_in`
 5. Click **+** next to **Inputs** → *Add Input Parameter* → `b_in`
@@ -307,9 +285,11 @@ This is what will run on each tile to compute the matrix multiplication with the
 
 ### On the other 15 compute tiles
 1. Click the tile
-2. Core Function → Mode: **Shared Function**
+2. In the Properties panel (right sidebar) → Core Function → Mode: **Shared Function**
 3. Function: → `core_shared_core_fn_matmul`
 4. Check the **fn_args** table — it auto-fills with this tile's own connected wires. Click **Auto-assign** if any Reference is blank.
+
+![Properties panel for a compute tile: Kernel, In/Out FIFOs, Core Function Mode set to Shared Function, and the fn_args table with Auto-assign](docs/workshop/shared_function_panel.png)
 
 Repeat for all remaining tiles: (0,2) (1,2) (2,2) (3,2) (0,3) (1,3) (2,3) (3,3) (0,4) (1,4) (2,4) (3,4) (1,5) (2,5) (3,5)
 
@@ -317,9 +297,9 @@ Repeat for all remaining tiles: (0,2) (1,2) (2,2) (3,2) (0,3) (1,3) (2,3) (3,3) 
 
 ## 7. Generate & Execute
 
-1. Click **Verify Design**
-2. Click **Generate Code**
-3. Copy the generated code into the workshop notebook.
+1. Top Ribbon → Output tab → **Verify Design**
+2. Top Ribbon → Output tab → **Generate Code**
+3. Copy the generated code from the **Code** panel (right sidebar) into the workshop notebook.
 4. Directly under the `gui_design_jit(...)` call, insert:
 
 ```python

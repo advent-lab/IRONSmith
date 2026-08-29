@@ -7,6 +7,7 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QFileInfo>
 #include <QtCore/QProcess>
+#include <QtCore/QProcessEnvironment>
 #include <QtCore/QThread>
 
 namespace Aie::Internal {
@@ -41,7 +42,13 @@ void HlirDirectExecution::execute(const QString& scriptPath)
     process.setWorkingDirectory(QFileInfo(scriptPath).absolutePath());
     process.setProcessChannelMode(QProcess::MergedChannels);
 
-    const QString pythonExe = QStringLiteral(PYTHON_EXECUTABLE);
+    // PYTHON_EXECUTABLE env var overrides the dev-machine absolute path
+    // baked in at build time (same override pattern used for the other
+    // compile-time bridge paths), so a relocated/packaged install can point
+    // it at its own bundled interpreter.
+    QString pythonExe = QProcessEnvironment::systemEnvironment().value(QStringLiteral("PYTHON_EXECUTABLE"));
+    if (pythonExe.isEmpty())
+        pythonExe = QStringLiteral(PYTHON_EXECUTABLE);
     process.start(pythonExe, {scriptPath});
 
     if (!process.waitForStarted(5000)) {
