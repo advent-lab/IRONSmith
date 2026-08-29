@@ -15,45 +15,24 @@ The 16 compute tiles form a 4×4 grid of output chunks — 4 grid columns × 4 g
 
 ## 0. Install IRONSmith
 
-1. Install [MSYS2](https://www.msys2.org) (Windows) and open the **MSYS2 UCRT64** terminal.
-2. Install the toolchain:
-   ```
-   pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake \
-             mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-qt6-base \
-             mingw-w64-ucrt-x86_64-qscintilla-qt6
-   ```
-3. Install **Python 3** separately (python.org installer or `winget install Python.Python.3`).
-4. Clone the repo:
-   ```
-   git clone <repo-url> IRONSmith
-   cd IRONSmith
-   ```
-5. Configure:
-   ```
-   cmake --preset dev-release ^
-     -DPython3_EXECUTABLE="C:/path/to/python.exe" ^
-     -DQt6_DIR="C:/msys64/ucrt64/lib/cmake/Qt6"
-   ```
-6. Build:
-   ```
-   cmake --build --preset build-dev-release
-   ```
-7. Launch:
-   ```
-   out\build\dev-release\bin\ironsmith.exe
-   ```
+Windows, no build tools required:
 
-macOS / Linux: see [`README.md`](README.md) for `brew`/`apt` package lists — same `cmake --preset` / `cmake --build --preset` flow applies.
+1. Download `IRONSmith-Windows.zip` from **[download link]**.
+2. Right-click the zip → **Extract All...** and pick a destination folder (e.g. `Downloads\IRONSmith-Windows`).
+3. Open the extracted folder and double-click **`IRONSmith.bat`** to launch.
+
+That's it — Qt, the MSYS2 runtime, and Python are all bundled, and the app opens straight into a `workspace` folder containing `Example_Designs` (ready-made designs, including the finished 16-tile GEMM) and `sandbox_designs` (empty — save your own work here).
 
 ---
 
 ## 1. New Design
 
-1. Click **New Design**
-2. Name: `my_gemm`
-3. Device Family: `AI Engine-ML`
-4. Location: `IRONSmith/sandbox_designs/`
-5. Click **Create Design**
+1. In the Project Explorer, you should already see `Example_Designs` and `sandbox_designs` (that's the bundled `workspace` folder IRONSmith opened into). If not, use **Open Folder** and browse to the `workspace` folder inside your extracted IRONSmith download.
+2. Click **New Design**
+3. Name: `my_gemm`
+4. Device Family: `AI Engine-ML`
+5. Location: `sandbox_designs/`
+6. Click **Create Design**
 
 ---
 
@@ -319,7 +298,7 @@ Repeat for all remaining tiles: (0,2) (1,2) (2,2) (3,2) (0,3) (1,3) (2,3) (3,3) 
 
 1. Click **Verify Design**
 2. Click **Generate Code**
-3. Copy the generated code into the workshop notebook.
+3. Copy the generated code from the Code Editor into the workshop notebook.
 4. Directly under the `gui_design_jit(...)` call, insert:
 
 ```python

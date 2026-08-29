@@ -391,10 +391,10 @@
   <data key="d3">matmul_scalar_i16_i32</data>
 </node>
 <node id="Kwarg_78">
-  <data key="d0">source_file=C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_scalar_i16_i32/mm.cc</data>
+  <data key="d0">source_file=C:/Users/fasta/Projects/IRONSmith/packaging/staging/share/ironsmith/kernels/matmul_scalar_i16_i32/mm.cc</data>
   <data key="d1">Kwarg</data>
   <data key="d9">source_file</data>
-  <data key="d3">C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_scalar_i16_i32/mm.cc</data>
+  <data key="d3">C:/Users/fasta/Projects/IRONSmith/packaging/staging/share/ironsmith/kernels/matmul_scalar_i16_i32/mm.cc</data>
 </node>
 <node id="Kwarg_79">
   <data key="d0">arg_types=...</data>
@@ -427,7 +427,7 @@
   <data key="d1">List</data>
 </node>
 <node id="String_86">
-  <data key="d0">C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_scalar_i16_i32</data>
+  <data key="d0">C:/Users/fasta/Projects/IRONSmith/packaging/staging/share/ironsmith/kernels/matmul_scalar_i16_i32</data>
   <data key="d1">String</data>
 </node>
 <node id="String_87">

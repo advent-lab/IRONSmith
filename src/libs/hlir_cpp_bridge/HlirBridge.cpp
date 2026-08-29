@@ -3,6 +3,7 @@
 
 #include "HlirBridge.hpp"
 #include <nlohmann/json.hpp>
+#include <cstdlib>
 #include <stdexcept>
 #include <sstream>
 
@@ -27,6 +28,22 @@ static void pyRelease()
 {
     if (--s_pyRefCount == 0)
         Py_Finalize();
+}
+
+// Inserts a path into sys.path via the C API rather than string-concatenating
+// it into PyRun_SimpleString source, so a Windows-style path (backslashes)
+// from an env var override doesn't get mangled by Python string-literal
+// escape parsing.
+static void pySysPathInsert(const char* path)
+{
+    PyObject* sysPath = PySys_GetObject("path");
+    if (!sysPath)
+        return;
+    PyObject* pyPath = PyUnicode_FromString(path);
+    if (!pyPath)
+        return;
+    PyList_Insert(sysPath, 0, pyPath);
+    Py_DECREF(pyPath);
 }
 
 // ============================================================================
@@ -55,20 +72,37 @@ HlirBridge::HlirBridge(const std::string& programName)
     Py_InitializeFromConfig(&config);
     PyConfig_Clear(&config);
 
-    // Add Python module paths using absolute paths baked in at build time.
+    // Add Python module paths. Each checks its own env var override first
+    // (same pattern as PYTHONHOME above) so a relocated/packaged install can
+    // point these at its own bundled copies instead of the dev-machine
+    // absolute paths baked in at build time.
     PyRun_SimpleString("import sys");
+
+    const char* hlirBridgePythonDir = std::getenv("HLIR_BRIDGE_PYTHON_DIR");
+    if (!hlirBridgePythonDir) {
 #ifdef HLIR_BRIDGE_PYTHON_DIR
-    PyRun_SimpleString("sys.path.insert(0, '" HLIR_BRIDGE_PYTHON_DIR "')");
-#else
-    PyRun_SimpleString("sys.path.insert(0, 'src/libs/hlir_cpp_bridge/python')");
-    PyRun_SimpleString("sys.path.insert(0, 'hlir_cpp_bridge/python')");
+        hlirBridgePythonDir = HLIR_BRIDGE_PYTHON_DIR;
 #endif
+    }
+    if (hlirBridgePythonDir) {
+        pySysPathInsert(hlirBridgePythonDir);
+    } else {
+        PyRun_SimpleString("sys.path.insert(0, 'src/libs/hlir_cpp_bridge/python')");
+        PyRun_SimpleString("sys.path.insert(0, 'hlir_cpp_bridge/python')");
+    }
+
+    const char* hlirAiecadDir = std::getenv("HLIR_AIECAD_DIR");
+    if (!hlirAiecadDir) {
 #ifdef HLIR_AIECAD_DIR
-    PyRun_SimpleString("sys.path.insert(0, '" HLIR_AIECAD_DIR "')");
-#else
-    PyRun_SimpleString("sys.path.insert(0, 'src/aiecad_compiler')");
-    PyRun_SimpleString("sys.path.insert(0, 'aiecad_compiler')");
+        hlirAiecadDir = HLIR_AIECAD_DIR;
 #endif
+    }
+    if (hlirAiecadDir) {
+        pySysPathInsert(hlirAiecadDir);
+    } else {
+        PyRun_SimpleString("sys.path.insert(0, 'src/aiecad_compiler')");
+        PyRun_SimpleString("sys.path.insert(0, 'aiecad_compiler')");
+    }
 
     // Import wrapper module
     PyObject* moduleName = PyUnicode_FromString("hlir_bridge_wrapper");

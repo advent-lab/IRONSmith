@@ -131,7 +131,7 @@
     <ExternalFunction name="kernel_matmul_scalar_i16_i32">
       <attributes>
         <kwarg name="name" value="matmul_scalar_i16_i32"/>
-        <kwarg name="source_file" value="C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_scalar_i16_i32/mm.cc"/>
+        <kwarg name="source_file" value="C:/Users/fasta/Projects/IRONSmith/packaging/staging/share/ironsmith/kernels/matmul_scalar_i16_i32/mm.cc"/>
         <kwarg name="arg_types">
           <list>
             <type_ref>a_tile_ty</type_ref>
@@ -141,7 +141,7 @@
         </kwarg>
         <kwarg name="include_dirs">
           <list>
-            <string>C:/Users/fasta/Projects/IRONSmith/resources/kernels/matmul_scalar_i16_i32</string>
+            <string>C:/Users/fasta/Projects/IRONSmith/packaging/staging/share/ironsmith/kernels/matmul_scalar_i16_i32</string>
             <string>/home/mliraie/mlir-aie/aie_kernels/aie2</string>
           </list>
         </kwarg>
